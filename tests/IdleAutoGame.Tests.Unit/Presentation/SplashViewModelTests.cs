@@ -56,3 +56,4 @@ public class SplashViewModelTests
         readyEventTriggered.Should().BeTrue();
     }
 }
+
