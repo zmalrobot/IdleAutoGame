@@ -62,7 +62,7 @@ Tutti gli script determinano dinamicamente la root del repository e possono esse
 | **Verifica Ambiente** | `./scripts/doctor.sh` | `scripts\doctor.cmd` | Controlla OS, .NET SDK 10, progetti, NuGet e permessi. |
 | **Clean Build** | `./scripts/build.sh` | `scripts\build.cmd` | Pulisce `bin/obj`, esegue `dotnet restore` e compila in `Release`. |
 | **Build + Run** | `./scripts/run.sh` | `scripts\run.cmd` | Compila ed esegue l'interfaccia grafica Avalonia. |
-| **Test Suite** | `./scripts/test.sh` | `scripts\test.cmd` | Esegue la suite completa di unit test (145 test). |
+| **Test Suite** | `./scripts/test.sh` | `scripts\test.cmd` | Esegue la suite completa di test (174 test). |
 | **Publish** | `./scripts/publish.sh` | `scripts\publish.cmd` | Pubblica l'eseguibile in `artifacts/publish/<RID>/`. |
 | **Run Published** | `./scripts/run-published.sh` | `scripts\run-published.cmd` | Avvia il binario pubblicato precedentemente. |
 | **Clean** | `./scripts/clean.sh` | `scripts\clean.cmd` | Rimuove tutti i file temporanei `bin`, `obj`, `artifacts` e `dist`. |
@@ -128,6 +128,64 @@ scripts\publish.cmd -r win-x64 --self-contained true
 :: Esecuzione del binario pubblicato
 scripts\run-published.cmd
 ```
+
+---
+
+## Guida Rapida Utente (Getting Started)
+
+Questa guida illustra il percorso completo per un nuovo utente: dal primo avvio alla configurazione e all'esecuzione autonoma del gameplay.
+
+### 1. Primo Avvio e Preflight
+1. Avviare l'applicazione tramite `./scripts/run.sh` (oppure `./scripts/run-published.sh` se si utilizza il pacchetto pubblicato).
+2. All'apertura viene mostrata la schermata di **Splash & Preflight**: l'applicazione rileva automaticamente CPU, RAM di sistema e VRAM GPU disponibile.
+3. Premere **"Continue to Dashboard"** (o navigare tramite la barra superiore).
+
+### 2. Configurazione LLM (Locale o Remoto)
+Accedere alla scheda **AI Models**:
+- **Motore Locale (GGUF / llama.cpp in-process)**:
+  - L'applicazione raccomanda automaticamente il modello più adatto al quantitativo di RAM rilevato (Tier: 8GB, 16GB, 32GB+).
+  - Se il modello non è presente, premere **"Download"**: il download manager gestisce resume, chunked transfer e verifica crittografica dell'hash SHA-256.
+  - Premere **"Use Model"** per attivarlo.
+- **Provider Remoto (Server HTTP / OpenAI compatible)**:
+  - Disattivare il toggle "Usa Motore Locale".
+  - Inserire l'URL dell'endpoint (es. `http://localhost:8080` per `llama-server` o `https://api.openai.com/v1`) e l'eventuale API Key.
+  - Selezionare il modello desiderato e salvare.
+
+### 3. Connessione Dispositivo Android (ADB)
+Accedere alla scheda **Devices**:
+- **Connessione USB**:
+  1. Abilitare le *Opzioni Sviluppatore* e il *Debug USB* sullo smartphone Android.
+  2. Collegare il dispositivo via cavo USB.
+  3. Premere **"Refresh Devices"** e confermare il prompt di autorizzazione RSA sullo schermo del dispositivo se richiesto.
+  4. Selezionare il dispositivo e premere **"Verify Device"** per confermare la corretta acquisizione dei frame dello schermo.
+- **Connessione Wireless**:
+  1. Connettere il dispositivo alla stessa rete Wi-Fi del computer.
+  2. Inserire indirizzo IP e porta (es. `192.168.1.145:5555`) e codice di pairing se necessario.
+  3. Premere **"Connect Wireless"**.
+
+### 4. Selezione Gioco e Policy di Sicurezza
+Accedere alla scheda **Games**:
+- Selezionare il profilo di gioco (es. **Tap Titans 2**).
+- Verificare i vincoli di sicurezza: per impostazione predefinita (`Deny-by-Default`), l'uso di valute premium e gli acquisti in-app con denaro reale sono disabilitati.
+
+### 5. Controllo del Gameplay Autonomo
+Accedere alla scheda **Dashboard**:
+- Premere **"Start"**: l'agent avvia il ciclo autonomo di osservazione (cattura frame ADB $\rightarrow$ inferenza LLM con output strutturato $\rightarrow$ validazione policy $\rightarrow$ esecuzione tocco/swipe).
+- **Controlli Runtime**:
+  - **Pause**: Sospende temporaneamente il ciclo di esecuzione senza resettare i contatori di sessione.
+  - **Resume**: Riprende l'esecuzione del gameplay dal punto in cui era stato sospeso.
+  - **STOP (Priorità Assoluta)**: Arresta immediatamente qualsiasi operazione entro 1 secondo.
+  - **Override Istruzioni**: È possibile inviare comandi testuali aggiuntivi all'agente in tempo reale.
+
+### 6. Interpretazione degli Stati e Activity Guard
+- **Idle**: Applicazione in attesa, nessun ciclo attivo.
+- **Executing**: Ciclo di automazione in esecuzione normale.
+- **Paused**: Automazione sospesa dall'utente o da una policy.
+- **ActivityLost**: L'Activity Guard ha rilevato che il gioco non è più in primo piano (es. apertura accidentale del Google Play Store). L'automazione viene immediatamente interrotta a protezione dell'utente. Riportando il gioco in primo piano e premendo *Resume*, l'agente riprende regolarmente.
+- **Stopped**: Automazione arrestata.
+
+### 7. Impostazioni Globali e Persistenza
+Nella scheda **Settings** è possibile personalizzare l'intervallo tra screenshot, i timeout ADB, le policy di log e l'aspetto dell'interfaccia. Tutte le modifiche vengono salvate in `settings.json` e ripristinate automaticamente al riavvio dell'applicazione.
 
 ---
 
