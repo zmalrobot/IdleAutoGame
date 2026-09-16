@@ -2,6 +2,16 @@
 
 Tutte le modifiche rilevanti ai requisiti, alle specifiche di prodotto e all'architettura verranno documentate in questo file per preservare l'evoluzione del progetto.
 
+## [1.0.0] - 2026-09-17 (Official Production Release)
+
+### Release Highlights
+- **Final Release Acceptance Passed (GO)**: L'applicazione ha superato con successo il collaudo conclusivo formale di accettazione end-to-end senza alcun difetto bloccante.
+- **Suite di Test (100% Pass Rate)**: 174 test eseguiti e passati con successo, inclusi i 20 scenari di fault injection (disconnessioni ADB, risposte LLM malformate, concorrenza).
+- **Branding & Design System Ufficiale**: Integrato il logo ufficiale e il design system semantico centralizzato (`Theme.axaml`) con la nuova palette scura ad alto contrasto.
+- **Collaudo Grafico**: 21 screenshot verificati visivamente dal binario pubblicato (`artifacts/publish/linux-x64/IdleAutoGame.Presentation`) a risoluzioni multiple (900×600, 1100×700, 1400×900).
+- **Documentazione Finale**: Inclusa la *Guida Rapida Utente (Getting Started)* in `README.md` per l'onboarding di nuovi utenti.
+- **Release Freeze**: Versioning unificato a `1.0.0` tramite `Directory.Build.props` su tutti gli 8 progetti della soluzione.
+
 ## [3.7.0] - 2026-09-17 (Official Logo Integration & Global Visual Design System Overhaul)
 
 ### Added

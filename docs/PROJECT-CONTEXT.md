@@ -1,7 +1,7 @@
 ---
 title: Project Context
 status: approved
-version: 3.7
+version: 1.0.0
 date: 2026-09-17
 ---
 
@@ -11,7 +11,7 @@ date: 2026-09-17
 **IdleAutoGame** is a desktop Linux/Windows application that automates idle mobile games running on Android devices. It connects to Android via ADB, captures screenshots, analyzes them with an LLM (AI model), decides what to do, and executes the action — operating as an autonomous virtual player.
 
 ## Current Status
-**Release Candidate (v3.7) with Official Branding & Centralized Design System** — The complete end-to-end system is compiled, tested (174 tests passing, 100% success rate, zero compiler warnings under `-warnaserror`), visually verified with 21 real screenshots across multiple resolutions from the published binary, hardened against concurrency, button mashing, ADB disconnections, and LLM malformed responses. It integrates the official logo across all desktop branding surfaces and utilizes a centralized semantic design system (`Theme.axaml`) with the custom dark palette (#091015, #8BD925, #1792C9, #00F0FF, #F0F4F8). Supported by identical Bash (`.sh`) and Windows CMD (`.cmd`) automation scripts.
+**Official Release (v1.0.0) — Acceptance Test Passed (GO)** — The complete end-to-end system is compiled, tested (174 tests passing, 100% success rate, zero compiler warnings under `-warnaserror`), visually verified with 21 real screenshots across multiple resolutions from the published binary, hardened against concurrency, button mashing, ADB disconnections, and LLM malformed responses. It integrates the official logo across all desktop branding surfaces and utilizes a centralized semantic design system (`Theme.axaml`) with the custom dark palette (#091015, #8BD925, #1792C9, #00F0FF, #F0F4F8). Supported by identical Bash (`.sh`) and Windows CMD (`.cmd`) automation scripts.
 
 ## Technology Stack
 | Component | Technology |
