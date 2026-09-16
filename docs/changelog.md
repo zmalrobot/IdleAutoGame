@@ -2,6 +2,30 @@
 
 Tutte le modifiche rilevanti ai requisiti, alle specifiche di prodotto e all'architettura verranno documentate in questo file per preservare l'evoluzione del progetto.
 
+## [3.6.0] - 2026-09-17 (Release Candidate Hardening, Fault Injection & Concurrency Protection)
+
+### Added
+- **Fault Injection Test Suite**:
+  - Created `FaultInjectionTests.cs` covering 20 resilience scenarios across ADB disconnections, unauthorized devices, LLM conversational prose JSON wrapping, malformed syntax, NaN/infinite coordinates, HTTP 500/429 failures, forbidden area actions, policy invalidation, consecutive state errors, corrupt configuration schemas, and concurrent model file downloads.
+- **Graceful Lifecycle Shutdown**:
+  - Registered `desktop.ShutdownRequested` handler in `App.axaml.cs` to guarantee orderly `AutomationEngine.StopAsync()` execution, native unmanaged GGUF weights unloading via `LocalLlamaProvider.Dispose()`, and DI container disposal upon application exit.
+- **UI Button Mashing & Async Concurrency Guards**:
+  - Configured `[RelayCommand(AllowConcurrentExecutions = false)]` across all async commands in `DashboardViewModel`, `MainWindowViewModel`, `SettingsViewModel`, `DeviceSelectionViewModel`, and `ModelSelectionViewModel`.
+- **Defensive LLM Parsing**:
+  - Implemented regex fallback extraction for raw JSON embedded inside conversational text in `LlmResponseParser`.
+  - Added safe property checking in `OpenAiCompatibleProvider` to eliminate unhandled `IndexOutOfRangeException` on malformed API responses.
+
+### Changed / Fixed
+- **Coordinate & Network Boundaries Validation**:
+  - Added non-negative assertions in `AdbDeviceController.TapAsync` and `SwipeAsync`.
+  - Wrapped wireless connection retries in `AdbConnectionMonitor` with socket exception absorption to prevent unhandled background task crashes.
+- **Defensive Configuration Validation**:
+  - Added `ValidateGames` and `ValidateUi` to `SettingsValidator` to prevent null-reference exceptions on corrupted configuration files.
+- **Engine State Accuracy**:
+  - Refined `PauseAsync` policy matching in `AutomationEngine` to distinguish between security policy violations (`PolicyBlocked`) and general automation error policies (`Paused`).
+- **Filesystem Portability**:
+  - Removed developer-specific hardcoded paths from `ScreenCaptureRunner`, enabling configurable output through `SCREENSHOT_OUT_DIR` environment variable with safe relative fallback.
+
 ## [3.5.0] - 2026-09-16 (Real Application QA Collaudo, Settings Reorganization & Visual Verification)
 
 ### Added

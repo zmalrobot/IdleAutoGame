@@ -1,8 +1,8 @@
 ---
 title: Project Context
 status: approved
-version: 3.5
-date: 2026-09-16
+version: 3.6
+date: 2026-09-17
 ---
 
 # Project Context
@@ -11,7 +11,7 @@ date: 2026-09-16
 **IdleAutoGame** is a desktop Linux/Windows application that automates idle mobile games running on Android devices. It connects to Android via ADB, captures screenshots, analyzes them with an LLM (AI model), decides what to do, and executes the action — operating as an autonomous virtual player.
 
 ## Current Status
-**All Milestones (1 through 7) + Security Policies & Activity Guard (v3.1) + Native Local LLM Engine (v3.2) + Cross-Platform Automation Suite (v3.3) + Full Audit (v3.4) + Real Runtime Collaudo & Visual Inspection (v3.5) Fully Completed on .NET 10** — The complete end-to-end system is compiled, tested (154 tests passing, 100% success rate, zero compiler warnings under `-warnaserror`), visually verified with 18 real screenshots, and supported by identical Bash (`.sh`) and Windows CMD (`.cmd`) automation scripts.
+**Release Candidate (v3.6) Hardened and Fully Verified on .NET 10** — The complete end-to-end system is compiled, tested (174 tests passing, 100% success rate, including 20 Fault Injection tests, zero compiler warnings under `-warnaserror`), visually verified with 18 real screenshots from the published binary, hardened against concurrency, button mashing, ADB disconnections, and LLM malformed responses, and supported by identical Bash (`.sh`) and Windows CMD (`.cmd`) automation scripts.
 
 ## Technology Stack
 | Component | Technology |
