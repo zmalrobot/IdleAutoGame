@@ -2,6 +2,26 @@
 
 Tutte le modifiche rilevanti ai requisiti, alle specifiche di prodotto e all'architettura verranno documentate in questo file per preservare l'evoluzione del progetto.
 
+## [3.5.0] - 2026-09-16 (Real Application QA Collaudo, Settings Reorganization & Visual Verification)
+
+### Added
+- **Visual Collaudo & Capture Pipeline**:
+  - Implemented `ScreenCaptureRunner.cs` wired to `--capture-screenshots` CLI flag for headless and automated visual regression testing.
+  - Generated and verified 18 pixel-perfect screenshots (1100×700) covering all 6 primary screens and diverse runtime states (normal, downloading, verified, error, executing, alert/paused).
+- **Settings Reorganization (6 Complete Tabs)**:
+  - Reorganized `SettingsView.axaml` and `SettingsViewModel.cs` into the exact 6 required tabs: *Generale*, *LLM / Modelli locali*, *Dispositivo / ADB*, *Giochi e Policy*, *Logging e Audit*, *Interfaccia / Aspetto*.
+  - Exposed ADB timeout, default serial, auto-reconnect, and default currency/purchases policies in their respective dedicated tabs.
+  - Added unit test assertions in `SettingsViewModelTests` verifying complete load and save roundtrips to `IConfigurationService` and `AppSettings`.
+
+### Changed / Fixed
+- **Runtime Dependency Compatibility**:
+  - Pinned `Tmds.DBus.Protocol` to `0.21.3` to fix `System.TypeLoadException` in `Avalonia.FreeDesktop.DBusIme` at runtime under Linux while maintaining security fixes.
+- **Publish Directory Residual Hygiene**:
+  - Updated `scripts/publish.sh` and `scripts/publish.cmd` to clean out prior publish directories before building, preventing obsolete or conflicting assemblies.
+- **UI Context Bar Optimization**:
+  - Refactored `DashboardView.axaml` header into a dedicated 2-row grid containing a dark status ribbon for active game, device, LLM model, and policy badges, eliminating horizontal text clipping.
+  - Placed Security & Spending Policies card prominently in `GameSelectionView.axaml` without requiring scrolling.
+
 ## [3.4.0] - 2026-09-16 (Comprehensive Audit, Cross-Platform Architecture Hardening & Bug Fixes)
 
 ### Fixed
