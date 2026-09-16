@@ -82,6 +82,11 @@ if exist "%ROOT_DIR%\models.json" (
     copy /y "%ROOT_DIR%\models.json" "%OUTPUT_DIR%\" >nul
 )
 
+rem Copy icon if present
+if exist "%ROOT_DIR%\scripts\idle-auto-game.png" (
+    copy /y "%ROOT_DIR%\scripts\idle-auto-game.png" "%OUTPUT_DIR%\" >nul
+)
+
 set "TARGET_EXE=%OUTPUT_DIR%\IdleAutoGame.Presentation.exe"
 if exist "%TARGET_EXE%" (
     echo.

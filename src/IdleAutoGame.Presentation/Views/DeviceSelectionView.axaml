@@ -4,41 +4,42 @@
              x:Class="IdleAutoGame.Presentation.Views.DeviceSelectionView"
              x:DataType="vm:DeviceSelectionViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="#1E1E2E">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
         <!-- Header -->
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
-            <TextBlock Text="Device Management" FontSize="24" FontWeight="Bold" Foreground="#89B4FA"/>
-            <TextBlock Text="Manage and select target Android devices over USB or Wireless ADB." Foreground="#A6ADC8"/>
+            <TextBlock Text="Device Management" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock Text="Manage and select target Android devices over USB or Wireless ADB." Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
 
         <!-- Content Split -->
         <Grid Grid.Row="1" ColumnDefinitions="*,340" Margin="0,0,0,16">
             <!-- Left: Device List -->
-            <Border Grid.Column="0" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,12,0">
+            <Border Grid.Column="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,12,0">
                 <Grid RowDefinitions="Auto,*">
                     <DockPanel Grid.Row="0" Margin="0,0,0,12">
                         <Button DockPanel.Dock="Right" Content="Refresh Devices" Command="{Binding RefreshDevicesCommand}"
-                                Background="#313244" Foreground="#CDD6F4" Padding="12,6"/>
-                        <TextBlock Text="Connected Devices" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="12,6"/>
+                        <TextBlock Text="Connected Devices" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                     </DockPanel>
 
                     <ListBox Grid.Row="1" ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice}"
-                             Background="#181825" CornerRadius="6">
+                             Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="#313244">
+                                <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource BorderDarkBrush}">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <StackPanel Grid.Column="0" Spacing="4">
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="#CDD6F4"/>
-                                            <TextBlock Text="{Binding Serial}" FontSize="12" Foreground="#6C7086"/>
-                                            <TextBlock Text="{Binding ScreenResolution}" FontSize="12" Foreground="#A6ADC8"/>
+                                            <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding Serial}" FontSize="12" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                            <TextBlock Text="{Binding ScreenResolution}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
-                                            <Border Background="#313244" CornerRadius="4" Padding="8,4" HorizontalAlignment="Right">
-                                                <TextBlock Text="{Binding ConnectionType}" FontSize="11" Foreground="#A6E3A1"/>
+                                            <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding ConnectionType}" FontSize="11" Foreground="{DynamicResource PrimaryLightBrush}"/>
                                             </Border>
-                                            <Border Background="#45475A" CornerRadius="4" Padding="8,2" HorizontalAlignment="Right">
-                                                <TextBlock Text="{Binding State}" FontSize="10" Foreground="#F9E2AF"/>
+                                            <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8,2" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding State}" FontSize="10" Foreground="{DynamicResource WarningBrush}"/>
                                             </Border>
                                         </StackPanel>
                                     </Grid>
@@ -50,35 +51,39 @@
             </Border>
 
             <!-- Right: Wireless Connect Panel -->
-            <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="16">
+            <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="Wireless ADB Connection" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                    <TextBlock Text="Wireless ADB Connection" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="IP / Hostname:" FontSize="12" Foreground="#A6ADC8"/>
-                        <TextBox Text="{Binding WirelessHost}" Background="#181825" Foreground="#CDD6F4"/>
+                        <TextBlock Text="IP / Hostname:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding WirelessHost}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderLightBrush}"/>
                     </StackPanel>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Port:" FontSize="12" Foreground="#A6ADC8"/>
-                        <TextBox Text="{Binding WirelessPort}" Background="#181825" Foreground="#CDD6F4"/>
+                        <TextBlock Text="Port:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding WirelessPort}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderLightBrush}"/>
                     </StackPanel>
 
                     <Button Content="Connect Wireless" Command="{Binding ConnectWirelessCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="10"/>
+                            Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="10"/>
 
-                    <Separator Background="#45475A"/>
+                    <Separator Background="{DynamicResource BorderDarkBrush}"/>
 
-                    <TextBlock Text="Android 11+ Pairing" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                    <TextBlock Text="Android 11+ Pairing" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Pairing Code (6 digits):" FontSize="12" Foreground="#A6ADC8"/>
-                        <TextBox Text="{Binding PairingCode}" Background="#181825" Foreground="#CDD6F4"/>
+                        <TextBlock Text="Pairing Code (6 digits):" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBox Text="{Binding PairingCode}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                 BorderBrush="{DynamicResource BorderLightBrush}"/>
                     </StackPanel>
 
                     <Button Content="Pair Wireless Device" Command="{Binding PairWirelessCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Background="#313244" Foreground="#CDD6F4" Padding="10"/>
+                            Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10"/>
                 </StackPanel>
             </Border>
         </Grid>
@@ -87,12 +92,12 @@
         <DockPanel Grid.Row="2">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
                 <Button Content="Verify Device" Command="{Binding VerifyDeviceCommand}"
-                        Background="#313244" Foreground="#CDD6F4" Padding="14,10"/>
+                        Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                        BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,10"/>
                 <Button Content="Select as Active Device" Command="{Binding SaveSelectionCommand}"
-                        Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,10"/>
+                        Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="16,10"/>
             </StackPanel>
-            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"/>
         </DockPanel>
     </Grid>
 </UserControl>
-

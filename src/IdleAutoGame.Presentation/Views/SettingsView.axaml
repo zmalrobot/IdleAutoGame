@@ -4,27 +4,27 @@
              x:Class="IdleAutoGame.Presentation.Views.SettingsView"
              x:DataType="vm:SettingsViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="#1E1E2E">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
-            <TextBlock Text="Application Settings" FontSize="24" FontWeight="Bold" Foreground="#89B4FA"/>
-            <TextBlock Text="Manage global configuration, inference timeouts, automation policies, and logging." Foreground="#A6ADC8"/>
+            <TextBlock Text="Application Settings" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock Text="Manage global configuration, inference timeouts, automation policies, and logging." Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
 
-        <Border Grid.Row="1" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+        <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
             <TabControl Background="Transparent" SelectedIndex="{Binding SelectedTabIndex}">
                 <!-- Tab 1: Generale -->
                 <TabItem Header="Generale">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Locale / Lingua dell'interfaccia:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding Locale}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Locale / Lingua dell'interfaccia:" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding Locale}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Politica di errore ('pause', 'stop', 'ignore'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ErrorPolicy}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Politica di errore ('pause', 'stop', 'ignore'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding ErrorPolicy}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
-                            <CheckBox IsChecked="{Binding AutoReconnect}" Content="Riconnessione automatica in caso di disconnessione device" Foreground="#CDD6F4"/>
+                            <CheckBox IsChecked="{Binding AutoReconnect}" Content="Riconnessione automatica in caso di disconnessione device" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -34,130 +34,131 @@
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16">
                             <!-- Cloud & Remote Provider -->
-                            <Border Background="#181825" CornerRadius="8" Padding="14">
+                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <StackPanel Spacing="12">
-                                    <TextBlock Text="Configurazione Provider LLM (Cloud / OpenAI / Local)" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                                    <TextBlock Text="Configurazione Provider LLM (Cloud / OpenAI / Local)" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
                                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="Provider (LLamaSharp, openai, llama.cpp):" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding LlmProvider}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Provider (LLamaSharp, openai, llama.cpp):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding LlmProvider}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,0,8">
-                                            <TextBlock Text="Endpoint URL:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding LlmEndpoint}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Endpoint URL:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding LlmEndpoint}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="API Key (Opzionale):" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding LlmApiKey}" PasswordChar="*" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="API Key (Opzionale):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding LlmApiKey}" PasswordChar="*" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4" Margin="0,0,0,8">
-                                            <TextBlock Text="Temperature (0.0 - 2.0):" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding LlmTemperature}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Temperature (0.0 - 2.0):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding LlmTemperature}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-                                            <TextBlock Text="Max Token Generazione:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding LlmMaxTokens}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Max Token Generazione:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding LlmMaxTokens}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4" Margin="0,0,0,0">
-                                            <TextBlock Text="Timeout Inferenza (Secondi):" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding LlmTimeoutSeconds}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Timeout Inferenza (Secondi):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding LlmTimeoutSeconds}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                     </Grid>
                                 </StackPanel>
                             </Border>
 
                             <!-- Hardware Auto-Config & Storage -->
-                            <Border Background="#181825" CornerRadius="8" Padding="14">
+                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <StackPanel Spacing="12">
                                     <DockPanel>
                                         <Button DockPanel.Dock="Right" Content="Auto-Configura per il mio Hardware"
                                                 Command="{Binding AutoConfigureLlmCommand}"
-                                                Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
-                                        <TextBlock Text="Accelerazione Hardware &amp; Parametri llama.cpp" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                                Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
+                                        <TextBlock Text="Accelerazione Hardware &amp; Parametri llama.cpp" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     </DockPanel>
 
                                     <StackPanel Spacing="6">
-                                        <TextBlock Text="Cartella Modelli GGUF:" Foreground="#A6ADC8"/>
-                                        <TextBox Text="{Binding ModelStorageDirectory}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        <TextBlock Text="Cartella Modelli GGUF:" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        <TextBox Text="{Binding ModelStorageDirectory}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                     </StackPanel>
 
                                     <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
                                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="Context Window (tokens):" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding ContextSize}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Context Window (tokens):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding ContextSize}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="Thread CPU:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding ThreadCount}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Thread CPU:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding ThreadCount}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="Layer GPU in VRAM:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding GpuLayerCount}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Layer GPU in VRAM:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding GpuLayerCount}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="3" Spacing="4" Margin="0,0,0,8">
-                                            <TextBlock Text="Batch Size:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding BatchSize}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Batch Size:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding BatchSize}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4" Margin="0,0,8,0">
-                                            <TextBlock Text="Top-P:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding TopP}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Top-P:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding TopP}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4" Margin="0,0,8,0">
-                                            <TextBlock Text="Top-K:" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding TopK}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Top-K:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding TopK}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="2" Spacing="4" Margin="0,0,8,0">
-                                            <TextBlock Text="Seed (0 = Casuale):" FontSize="11" Foreground="#A6ADC8"/>
-                                            <TextBox Text="{Binding Seed}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="Seed (0 = Casuale):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding Seed}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="3" Spacing="6" VerticalAlignment="Center">
-                                            <CheckBox IsChecked="{Binding UseMemoryMapping}" Content="Usa mmap" Foreground="#CDD6F4" FontSize="11"/>
-                                            <CheckBox IsChecked="{Binding UseMemoryLock}" Content="Usa mlock" Foreground="#CDD6F4" FontSize="11"/>
+                                            <CheckBox IsChecked="{Binding UseMemoryMapping}" Content="Usa mmap" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11"/>
+                                            <CheckBox IsChecked="{Binding UseMemoryLock}" Content="Usa mlock" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11"/>
                                         </StackPanel>
                                     </Grid>
 
                                     <DockPanel Margin="0,4,0,0">
                                         <Button DockPanel.Dock="Right" Content="Scarica Modello Attivo dalla RAM"
                                                 Command="{Binding UnloadActiveModelCommand}"
-                                                Background="#F38BA8" Foreground="#11111B" Padding="10,4" FontSize="12"/>
-                                        <TextBlock Text="Libera tutta la memoria RAM/VRAM allocata." Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                                                Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="10,4" FontSize="12"/>
+                                        <TextBlock Text="Libera tutta la memoria RAM/VRAM allocata." Foreground="{DynamicResource TextDisabledBrush}" FontSize="12" VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </StackPanel>
                             </Border>
 
                             <!-- Model Catalog & Disk Management -->
-                            <Border Background="#181825" CornerRadius="8" Padding="14">
+                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <StackPanel Spacing="12">
                                     <DockPanel>
                                         <Button DockPanel.Dock="Right" Content="Aggiorna Lista Modelli"
                                                 Command="{Binding RefreshLocalModelsCommand}"
-                                                Background="#313244" Foreground="#CDD6F4" Padding="10,4" FontSize="12"/>
-                                        <TextBlock Text="Catalogo Modelli GGUF &amp; Gestione Disco" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                                Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="12"/>
+                                        <TextBlock Text="Catalogo Modelli GGUF &amp; Gestione Disco" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                     </DockPanel>
 
                                     <ItemsControl ItemsSource="{Binding LocalModels}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Background="#2A2A3C" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,8">
                                                     <Grid ColumnDefinitions="*,Auto">
                                                         <StackPanel Grid.Column="0" Spacing="4">
                                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="#CDD6F4"/>
-                                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
-                                                                    <TextBlock Text="{Binding Architecture}" FontSize="10" Foreground="#89B4FA"/>
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                                                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="{Binding Architecture}" FontSize="10" Foreground="{DynamicResource AccentBrush}"/>
                                                                 </Border>
-                                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
-                                                                    <TextBlock Text="{Binding Quantization}" FontSize="10" Foreground="#CBA6F7"/>
+                                                                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="{Binding Quantization}" FontSize="10" Foreground="{DynamicResource SecondaryLightBrush}"/>
                                                                 </Border>
-                                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
-                                                                    <TextBlock Text="{Binding Status}" FontSize="10" Foreground="#F9E2AF"/>
+                                                                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="{Binding Status}" FontSize="10" Foreground="{DynamicResource WarningBrush}"/>
                                                                 </Border>
                                                             </StackPanel>
-                                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                                                             <StackPanel Orientation="Horizontal" Spacing="16">
-                                                                <TextBlock Text="{Binding RecommendedRamRange, StringFormat='RAM: {0}'}" FontSize="11" Foreground="#A6ADC8"/>
-                                                                <TextBlock Text="{Binding LicenseName, StringFormat='Licenza: {0}'}" FontSize="11" Foreground="#6C7086"/>
+                                                                <TextBlock Text="{Binding RecommendedRamRange, StringFormat='RAM: {0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                                <TextBlock Text="{Binding LicenseName, StringFormat='Licenza: {0}'}" FontSize="11" Foreground="{DynamicResource TextDisabledBrush}"/>
                                                             </StackPanel>
                                                         </StackPanel>
 
@@ -165,15 +166,15 @@
                                                             <Button Content="Scarica"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DownloadModelCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="#89B4FA" Foreground="#11111B" FontSize="11" Padding="8,4"/>
+                                                                    Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontSize="11" Padding="8,4"/>
                                                             <Button Content="Attiva"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectActiveModelCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="#A6E3A1" Foreground="#11111B" FontSize="11" Padding="8,4"/>
+                                                                    Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontSize="11" Padding="8,4"/>
                                                             <Button Content="Elimina"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteModelCommand}"
                                                                     CommandParameter="{Binding}"
-                                                                    Background="#F38BA8" Foreground="#11111B" FontSize="11" Padding="8,4"/>
+                                                                    Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontSize="11" Padding="8,4"/>
                                                         </StackPanel>
                                                     </Grid>
                                                 </Border>
@@ -191,16 +192,16 @@
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Preferenza di Connessione ('usb' o 'wireless'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ConnectionPreference}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Preferenza di Connessione ('usb' o 'wireless'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding ConnectionPreference}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Seriale Dispositivo Predefinito (Opzionale):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding DefaultDeviceSerial}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Seriale Dispositivo Predefinito (Opzionale):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DefaultDeviceSerial}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Timeout Comandi ADB (Secondi):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding AdbCommandTimeoutSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Timeout Comandi ADB (Secondi):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding AdbCommandTimeoutSeconds}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
@@ -211,34 +212,34 @@
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Intervallo di Osservazione Screenshot (Secondi):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ObservationIntervalSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Intervallo di Osservazione Screenshot (Secondi):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding ObservationIntervalSeconds}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Stati Sconosciuti Consecutivi Massimi prima della Pausa:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding MaxConsecutiveUnknownStates}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Stati Sconosciuti Consecutivi Massimi prima della Pausa:" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding MaxConsecutiveUnknownStates}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
 
-                            <Separator Background="#313244"/>
-                            <TextBlock Text="Android Activity Guard (Sicurezza Anti-Escursione Fuori dal Gioco):" FontWeight="SemiBold" Foreground="#89B4FA"/>
-                            <CheckBox IsChecked="{Binding EnableActivityGuard}" Content="Abilita Android Activity Guard (Monitoraggio Foreground)" Foreground="#CDD6F4"/>
+                            <Separator Background="{DynamicResource BorderDarkBrush}"/>
+                            <TextBlock Text="Android Activity Guard (Sicurezza Anti-Escursione Fuori dal Gioco):" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                            <CheckBox IsChecked="{Binding EnableActivityGuard}" Content="Abilita Android Activity Guard (Monitoraggio Foreground)" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Intervallo Polling Activity (Secondi):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ActivityCheckIntervalSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Intervallo Polling Activity (Secondi):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding ActivityCheckIntervalSeconds}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Timeout Grazioso di Cancellazione (ms):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ActivityCancellationTimeoutMs}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Timeout Grazioso di Cancellazione (ms):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding ActivityCancellationTimeoutMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Timeout Emergency Hard Stop (ms):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding EmergencyStopTimeoutMs}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Timeout Emergency Hard Stop (ms):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding EmergencyStopTimeoutMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
 
-                            <Separator Background="#313244"/>
-                            <TextBlock Text="Policy Predefinite Valuta e Acquisti (Deny-by-Default):" FontWeight="SemiBold" Foreground="#89B4FA"/>
-                            <CheckBox IsChecked="{Binding AllowPremiumCurrencyDefault}" Content="Permetti all'LLM di usare currency premium (Predefinito: Disabilitato)" Foreground="#CDD6F4"/>
-                            <CheckBox IsChecked="{Binding AllowCreditPurchasesDefault}" Content="Permetti all'LLM di acquistare crediti (Predefinito: Disabilitato)" Foreground="#CDD6F4"/>
+                            <Separator Background="{DynamicResource BorderDarkBrush}"/>
+                            <TextBlock Text="Policy Predefinite Valuta e Acquisti (Deny-by-Default):" FontWeight="SemiBold" Foreground="{DynamicResource WarningBrush}"/>
+                            <CheckBox IsChecked="{Binding AllowPremiumCurrencyDefault}" Content="Permetti all'LLM di usare currency premium (Predefinito: Disabilitato)" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <CheckBox IsChecked="{Binding AllowCreditPurchasesDefault}" Content="Permetti all'LLM di acquistare crediti (Predefinito: Disabilitato)" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -248,18 +249,18 @@
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Livello di Log ('Debug', 'Information', 'Warning', 'Error'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LogLevel}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Livello di Log ('Debug', 'Information', 'Warning', 'Error'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding LogLevel}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Giorni di Conservazione Cronologia (Retention Days):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding RetentionDays}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Giorni di Conservazione Cronologia (Retention Days):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding RetentionDays}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Numero Cicli Mantenuti in Memoria (History Length):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding HistoryLength}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Numero Cicli Mantenuti in Memoria (History Length):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding HistoryLength}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
-                            <CheckBox IsChecked="{Binding SaveScreenshots}" Content="Archivia file PNG degli screenshot su disco per audit/replay" Foreground="#CDD6F4"/>
+                            <CheckBox IsChecked="{Binding SaveScreenshots}" Content="Archivia file PNG degli screenshot su disco per audit/replay" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -269,11 +270,11 @@
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Tema UI ('dark', 'light'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding Theme}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Tema UI ('dark', 'light'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding Theme}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
-                            <CheckBox IsChecked="{Binding ShowConfidence}" Content="Mostra Badge di Confidenza nella Dashboard" Foreground="#CDD6F4"/>
-                            <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Mostra JSON Risposta Grezza nel Pannello Ispettore" Foreground="#CDD6F4"/>
+                            <CheckBox IsChecked="{Binding ShowConfidence}" Content="Mostra Badge di Confidenza nella Dashboard" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Mostra JSON Risposta Grezza nel Pannello Ispettore" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -284,12 +285,12 @@
         <DockPanel Grid.Row="2">
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12">
                 <Button Content="Reset to Defaults" Command="{Binding ResetDefaultsCommand}"
-                        Background="#313244" Foreground="#F38BA8" Padding="14,10"/>
+                        Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource ErrorBrush}"
+                        BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,10"/>
                 <Button Content="Save Settings" Command="{Binding SaveSettingsCommand}"
-                        Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="20,10"/>
+                        Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="20,10"/>
             </StackPanel>
-            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"/>
         </DockPanel>
     </Grid>
 </UserControl>
-

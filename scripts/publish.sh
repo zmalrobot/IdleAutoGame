@@ -87,6 +87,14 @@ if [ -f "${ROOT_DIR}/models.json" ]; then
     cp "${ROOT_DIR}/models.json" "${OUTPUT_DIR}/"
 fi
 
+# Copy Linux desktop launcher entry and icon if available
+if [ -f "${ROOT_DIR}/scripts/IdleAutoGame.desktop" ]; then
+    cp "${ROOT_DIR}/scripts/IdleAutoGame.desktop" "${OUTPUT_DIR}/"
+fi
+if [ -f "${ROOT_DIR}/scripts/idle-auto-game.png" ]; then
+    cp "${ROOT_DIR}/scripts/idle-auto-game.png" "${OUTPUT_DIR}/"
+fi
+
 # Ensure executable bit on produced binary
 TARGET_BIN="${OUTPUT_DIR}/IdleAutoGame.Presentation"
 if [ -f "${TARGET_BIN}" ]; then

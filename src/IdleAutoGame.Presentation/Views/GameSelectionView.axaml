@@ -4,23 +4,23 @@
              x:Class="IdleAutoGame.Presentation.Views.GameSelectionView"
              x:DataType="vm:GameSelectionViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="#1E1E2E">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
         <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
-            <TextBlock Text="Game Modules" FontSize="24" FontWeight="Bold" Foreground="#89B4FA"/>
-            <TextBlock Text="Select and configure supported idle games." Foreground="#A6ADC8"/>
+            <TextBlock Text="Game Modules" FontSize="24" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+            <TextBlock Text="Select and configure supported idle games." Foreground="{DynamicResource TextSecondaryBrush}"/>
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnDefinitions="350,*" Margin="0,0,0,16">
             <!-- Left: Games List -->
-            <Border Grid.Column="0" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,12,0">
+            <Border Grid.Column="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,12,0">
                 <ListBox ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame}"
-                         Background="#181825" CornerRadius="6">
+                         Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6">
                     <ListBox.ItemTemplate>
                         <DataTemplate>
-                            <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="#313244">
+                            <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource BorderDarkBrush}">
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#CDD6F4"/>
-                                    <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}" FontSize="12" Foreground="#6C7086"/>
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                    <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}" FontSize="12" Foreground="{DynamicResource TextDisabledBrush}"/>
                                 </StackPanel>
                             </Border>
                         </DataTemplate>
@@ -29,52 +29,52 @@
             </Border>
 
             <!-- Right: Game Details -->
-            <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="20">
+            <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="20">
                 <ScrollViewer>
                     <StackPanel Spacing="14">
-                        <TextBlock Text="{Binding SelectedGame.Name}" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                        <TextBlock Text="{Binding SelectedGame.Description}" FontSize="13" Foreground="#CDD6F4" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SelectedGame.Name}" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="{Binding SelectedGame.Description}" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
 
                         <!-- Security & Spending Policies (Deny By Default) Prominent Card -->
-                        <Border Background="#181825" BorderBrush="#313244" BorderThickness="1" CornerRadius="8" Padding="14">
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                             <StackPanel Spacing="10">
                                 <DockPanel>
-                                    <TextBlock Text="Security &amp; Spending Policies (Deny-by-Default):" FontSize="14" FontWeight="SemiBold" Foreground="#F9E2AF"/>
-                                    <Border DockPanel.Dock="Right" Background="#313244" CornerRadius="4" Padding="6,2">
-                                        <TextBlock Text="Policy Enforced" FontSize="11" Foreground="#A6E3A1"/>
+                                    <TextBlock Text="Security &amp; Spending Policies (Deny-by-Default):" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource WarningBrush}"/>
+                                    <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="Policy Enforced" FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
                                     </Border>
                                 </DockPanel>
 
                                 <CheckBox IsChecked="{Binding AllowPremiumCurrency}" Content="Permetti all'LLM di usare currency premium"
-                                          Foreground="#CDD6F4" FontWeight="Medium"/>
+                                          Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Medium"/>
                                 <TextBlock Text="Quando disabilitato (OFF), l'LLM non può spendere diamanti, gemme o valute a pagamento."
-                                           FontSize="11" Foreground="#6C7086" Margin="28,-6,0,0"/>
+                                           FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" Margin="28,-6,0,0"/>
 
                                 <CheckBox IsChecked="{Binding AllowCreditPurchases}" Content="Permetti all'LLM di acquistare crediti"
-                                          Foreground="#CDD6F4" FontWeight="Medium"/>
+                                          Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="Medium"/>
                                 <TextBlock Text="Quando disabilitato (OFF), l'LLM non può avviare acquisti in-app con denaro reale e l'Activity Guard monitora il foreground."
-                                           FontSize="11" Foreground="#6C7086" Margin="28,-6,0,0"/>
+                                           FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" Margin="28,-6,0,0"/>
                             </StackPanel>
                         </Border>
 
-                        <TextBlock Text="Safety Constraints:" FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="Safety Constraints:" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         <ItemsControl ItemsSource="{Binding SelectedGame.Constraints}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#181825" CornerRadius="4" Padding="8" Margin="0,0,0,4">
+                                    <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,4">
                                         <Grid ColumnDefinitions="Auto,*">
-                                            <TextBlock Grid.Column="0" Text="{Binding Id}" FontWeight="Bold" Foreground="#F38BA8" Margin="0,0,8,0" FontSize="11"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11" Foreground="#CDD6F4"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding Id}" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}" Margin="0,0,8,0" FontSize="11"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <TextBlock Text="Gameplay Instructions &amp; Prompt Summary:" FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <Border Background="#181825" CornerRadius="6" Padding="10" MaxHeight="120">
+                        <TextBlock Text="Gameplay Instructions &amp; Prompt Summary:" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10" MaxHeight="120">
                             <ScrollViewer>
-                                <TextBlock Text="{Binding SelectedGame.BasePrompt}" FontFamily="Consolas, monospace" FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding SelectedGame.BasePrompt}" FontFamily="Consolas, monospace" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap"/>
                             </ScrollViewer>
                         </Border>
                     </StackPanel>
@@ -84,9 +84,8 @@
 
         <DockPanel Grid.Row="2">
             <Button DockPanel.Dock="Right" Content="Select as Active Game" Command="{Binding SaveSelectionCommand}"
-                    Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,10"/>
-            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>
+                    Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="16,10"/>
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="{DynamicResource WarningBrush}"/>
         </DockPanel>
     </Grid>
 </UserControl>
-

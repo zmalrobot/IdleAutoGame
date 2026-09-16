@@ -4,48 +4,48 @@
              x:Class="IdleAutoGame.Presentation.Views.DashboardView"
              x:DataType="vm:DashboardViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*" Margin="24" Background="#1E1E2E">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
         <!-- Top Controls Bar -->
-        <Border Grid.Row="0" Background="#2A2A3C" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+        <Border Grid.Row="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
             <Grid RowDefinitions="Auto,Auto">
                 <!-- Row 0: Status Badge & Action Buttons -->
                 <DockPanel Grid.Row="0" Margin="0,0,0,10">
                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
                         <Button Content="▶ Start" Command="{Binding StartAutomationCommand}" IsEnabled="{Binding CanStart}"
-                                Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="14,6"/>
+                                Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,6"/>
                         <Button Content="⏸ Pause" Command="{Binding PauseAutomationCommand}" IsEnabled="{Binding CanPause}"
-                                Background="#F9E2AF" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
+                                Background="{DynamicResource WarningBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
                         <Button Content="⏯ Resume" Command="{Binding ResumeAutomationCommand}" IsEnabled="{Binding CanResume}"
-                                Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
+                                Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
                         <Button Content="⏹ STOP" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
-                                Background="#F38BA8" Foreground="#11111B" FontWeight="Bold" Padding="14,6"/>
+                                Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,6"/>
                     </StackPanel>
 
                     <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock Text="STATUS:" FontWeight="Bold" Foreground="#A6ADC8" VerticalAlignment="Center"/>
-                        <Border Background="#313244" CornerRadius="6" Padding="10,4">
-                            <TextBlock Text="{Binding State}" FontWeight="Bold" Foreground="#89B4FA"/>
+                        <TextBlock Text="STATUS:" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="10,4">
+                            <TextBlock Text="{Binding State}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                         </Border>
                     </StackPanel>
                 </DockPanel>
 
                 <!-- Row 1: Active Context & Policy Summary -->
-                <Border Grid.Row="1" Background="#181825" CornerRadius="6" Padding="12,6">
+                <Border Grid.Row="1" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,6">
                     <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ActiveGameName, StringFormat='🎮 Game: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
-                            <TextBlock Text="•" Foreground="#45475A"/>
-                            <TextBlock Text="{Binding ActiveDeviceSerial, StringFormat='📱 Device: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
-                            <TextBlock Text="•" Foreground="#45475A"/>
-                            <TextBlock Text="{Binding ActiveModelId, StringFormat='🧠 Model: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,12,0">
+                            <TextBlock Text="{Binding ActiveGameName, StringFormat='🎮 Game: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
+                            <TextBlock Text="•" Foreground="{DynamicResource TextDisabledBrush}"/>
+                            <TextBlock Text="{Binding ActiveDeviceSerial, StringFormat='📱 Device: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
+                            <TextBlock Text="•" Foreground="{DynamicResource TextDisabledBrush}"/>
+                            <TextBlock Text="{Binding ActiveModelId, StringFormat='🧠 Model: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock Text="Policy:" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
-                            <Border Background="#2A2A3C" CornerRadius="4" Padding="6,2">
-                                <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Currency: {0}'}" FontSize="10" FontWeight="Bold" Foreground="#F9E2AF"/>
+                            <TextBlock Text="Policy:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                            <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Currency: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                             </Border>
-                            <Border Background="#2A2A3C" CornerRadius="4" Padding="6,2">
-                                <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="#F38BA8"/>
+                            <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
                             </Border>
                         </StackPanel>
                     </Grid>
@@ -54,13 +54,13 @@
         </Border>
 
         <!-- Alert / Pause Reason Banner -->
-        <Border Grid.Row="1" Background="#452834" BorderBrush="#F38BA8" BorderThickness="1"
+        <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
                 CornerRadius="8" Padding="14" Margin="0,0,0,16" IsVisible="{Binding IsPausedOrAlert}">
             <Grid ColumnDefinitions="Auto,*">
                 <TextBlock Grid.Column="0" Text="⚠️" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Spacing="2">
-                    <TextBlock Text="AUTOMATION PAUSED / BOUNDARY TRIGGERED" FontWeight="Bold" Foreground="#F38BA8" FontSize="13"/>
-                    <TextBlock Text="{Binding PauseReason, StringFormat='Reason: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
+                    <TextBlock Text="AUTOMATION PAUSED / BOUNDARY TRIGGERED" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}" FontSize="13"/>
+                    <TextBlock Text="{Binding PauseReason, StringFormat='Reason: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
                 </StackPanel>
             </Grid>
         </Border>
@@ -70,75 +70,77 @@
             <!-- Left: Decisions & Overrides -->
             <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,16,0">
                 <!-- Current Decision Card -->
-                <Border Background="#2A2A3C" CornerRadius="8" Padding="16">
+                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="12">
                         <DockPanel>
-                            <TextBlock Text="Latest AI Decision" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                            <Border DockPanel.Dock="Right" Background="#313244" CornerRadius="4" Padding="6,2">
-                                <TextBlock Text="{Binding LastActionConfidence, StringFormat='Confidence: {0:P0}'}" FontSize="11" Foreground="#A6E3A1"/>
+                            <TextBlock Text="Latest AI Decision" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <Border DockPanel.Dock="Right" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                <TextBlock Text="{Binding LastActionConfidence, StringFormat='Confidence: {0:P0}'}" FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
                             </Border>
                         </DockPanel>
 
                         <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" Text="Action:" Foreground="#A6ADC8" Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1" Text="{Binding LastActionType}" FontWeight="Bold" Foreground="#89B4FA"/>
+                            <TextBlock Grid.Column="0" Text="Action:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding LastActionType}" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
                         </Grid>
 
                         <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" Text="Game State:" Foreground="#A6ADC8" Margin="0,0,8,0"/>
-                            <TextBlock Grid.Column="1" Text="{Binding LastGameState}" Foreground="#F9E2AF"/>
+                            <TextBlock Grid.Column="0" Text="Game State:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="1" Text="{Binding LastGameState}" Foreground="{DynamicResource WarningBrush}"/>
                         </Grid>
 
-                        <TextBlock Text="Explanation:" FontSize="12" Foreground="#A6ADC8"/>
-                        <Border Background="#181825" CornerRadius="6" Padding="10">
-                            <TextBlock Text="{Binding LastActionExplanation}" FontSize="13" Foreground="#CDD6F4" TextWrapping="Wrap"/>
+                        <TextBlock Text="Explanation:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <TextBlock Text="{Binding LastActionExplanation}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                         </Border>
                     </StackPanel>
                 </Border>
 
                 <!-- Runtime Security Policy Card -->
-                <Border Background="#2A2A3C" CornerRadius="8" Padding="16">
+                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="10">
                         <DockPanel>
-                            <TextBlock Text="Runtime Security Policy" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                            <TextBlock Text="Runtime Security Policy" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
-                                <Border Background="#181825" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Premium: {0}'}" FontSize="10" FontWeight="Bold" Foreground="#F9E2AF"/>
+                                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Premium: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                                 </Border>
-                                <Border Background="#181825" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="#F38BA8"/>
+                                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
                                 </Border>
                             </StackPanel>
                         </DockPanel>
 
                         <CheckBox IsChecked="{Binding AllowPremiumCurrency}" Content="Permetti all'LLM di usare currency premium"
-                                  Foreground="#CDD6F4" FontSize="12"/>
+                                  Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
                         <CheckBox IsChecked="{Binding AllowCreditPurchases}" Content="Permetti all'LLM di acquistare crediti"
-                                  Foreground="#CDD6F4" FontSize="12"/>
+                                  Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
                     </StackPanel>
                 </Border>
 
                 <!-- User Overrides Panel -->
-                <Border Background="#2A2A3C" CornerRadius="8" Padding="16">
+                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="Runtime User Instructions (Overrides)" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="Runtime User Instructions (Overrides)" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                         <Grid ColumnDefinitions="*,Auto">
                             <TextBox Grid.Column="0" Text="{Binding NewOverrideText}" Watermark="e.g. Do not spend diamonds"
-                                     Background="#181825" Foreground="#CDD6F4" Margin="0,0,8,0"/>
+                                     Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                     BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,0,8,0"/>
                             <Button Grid.Column="1" Content="Send" Command="{Binding AddOverrideCommand}"
-                                    Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
+                                    Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
                         </Grid>
 
-                        <TextBlock Text="Active Overrides:" FontSize="12" Foreground="#A6ADC8" Margin="0,4,0,0"/>
+                        <TextBlock Text="Active Overrides:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                         <ItemsControl ItemsSource="{Binding ActiveOverrides}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#181825" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                    <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                         <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Grid.Column="0" Text="{Binding Text}" FontSize="12" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding Text}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                                             <Button Grid.Column="1" Content="✕ Revoke" Command="{Binding $parent[UserControl].((vm:DashboardViewModel)DataContext).RemoveOverrideCommand}"
-                                                    CommandParameter="{Binding}" Background="#313244" Foreground="#F38BA8" Padding="6,2" FontSize="10"/>
+                                                    CommandParameter="{Binding}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource ErrorBrush}"
+                                                    BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="6,2" FontSize="10"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
@@ -152,46 +154,46 @@
             <Grid Grid.Column="1" RowDefinitions="Auto,*">
                 <!-- Metrics Strip -->
                 <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" Margin="0,0,0,16">
-                    <Border Grid.Column="0" Background="#2A2A3C" CornerRadius="8" Padding="14" Margin="0,0,8,0">
+                    <Border Grid.Column="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="CYCLES" FontSize="11" Foreground="#A6ADC8"/>
-                            <TextBlock Text="{Binding CyclesCount}" FontSize="22" FontWeight="Bold" Foreground="#89B4FA"/>
+                            <TextBlock Text="CYCLES" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding CyclesCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="14" Margin="0,0,8,0">
+                    <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="ACTIONS" FontSize="11" Foreground="#A6ADC8"/>
-                            <TextBlock Text="{Binding ActionsCount}" FontSize="22" FontWeight="Bold" Foreground="#A6E3A1"/>
+                            <TextBlock Text="ACTIONS" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding ActionsCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="2" Background="#2A2A3C" CornerRadius="8" Padding="14" Margin="0,0,8,0">
+                    <Border Grid.Column="2" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="ERRORS" FontSize="11" Foreground="#A6ADC8"/>
-                            <TextBlock Text="{Binding ErrorsCount}" FontSize="22" FontWeight="Bold" Foreground="#F38BA8"/>
+                            <TextBlock Text="ERRORS" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding ErrorsCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
                         </StackPanel>
                     </Border>
-                    <Border Grid.Column="3" Background="#2A2A3C" CornerRadius="8" Padding="14">
+                    <Border Grid.Column="3" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="LATENCY" FontSize="11" Foreground="#A6ADC8"/>
-                            <TextBlock Text="{Binding LastLatencyMs, StringFormat='{}{0} ms'}" FontSize="22" FontWeight="Bold" Foreground="#CBA6F7"/>
+                            <TextBlock Text="LATENCY" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding LastLatencyMs, StringFormat='{}{0} ms'}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
                         </StackPanel>
                     </Border>
                 </Grid>
 
                 <!-- Cycle History Table -->
-                <Border Grid.Row="1" Background="#2A2A3C" CornerRadius="8" Padding="16">
+                <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <Grid RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="Telemetry &amp; Cycle Log" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,12"/>
-                        <ListBox Grid.Row="1" ItemsSource="{Binding RecentCycles}" Background="#181825" CornerRadius="6">
+                        <TextBlock Grid.Row="0" Text="Telemetry &amp; Cycle Log" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <ListBox Grid.Row="1" ItemsSource="{Binding RecentCycles}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Padding="8" BorderThickness="0,0,0,1" BorderBrush="#313244">
+                                    <Border Padding="8" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource BorderDarkBrush}">
                                         <Grid ColumnDefinitions="60,80,120,*,80">
-                                            <TextBlock Grid.Column="0" Text="{Binding CycleNumber, StringFormat='#{0}'}" FontWeight="Bold" Foreground="#89B4FA"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Action.Action}" Foreground="#CDD6F4"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding Action.GameState}" Foreground="#F9E2AF"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding Action.Explanation}" Foreground="#A6ADC8" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding LlmLatencyMs, StringFormat='{}{0} ms'}" Foreground="#6C7086" HorizontalAlignment="Right"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding CycleNumber, StringFormat='#{0}'}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Action.Action}" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Action.GameState}" Foreground="{DynamicResource WarningBrush}"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Action.Explanation}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding LlmLatencyMs, StringFormat='{}{0} ms'}" Foreground="{DynamicResource TextDisabledBrush}" HorizontalAlignment="Right"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

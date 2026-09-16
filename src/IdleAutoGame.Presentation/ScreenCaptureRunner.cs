@@ -61,6 +61,33 @@ public static class ScreenCaptureRunner
             Console.WriteLine($"[CAPTURED] {filename} ({width}x{height})");
         }
 
+        async Task CaptureSized(string filename, int customWidth, int customHeight)
+        {
+            var oldWidth = window.Width;
+            var oldHeight = window.Height;
+            window.Width = customWidth;
+            window.Height = customHeight;
+            await Task.Delay(450); // Allow layout recalculation
+
+            using var rtb = new RenderTargetBitmap(new PixelSize(customWidth, customHeight), new Vector(96, 96));
+            rtb.Render(window);
+
+            var path1 = Path.Combine(outDir1, filename);
+            rtb.Save(path1);
+
+            if (!string.IsNullOrWhiteSpace(outDir2))
+            {
+                var path2 = Path.Combine(outDir2, filename);
+                rtb.Save(path2);
+            }
+
+            Console.WriteLine($"[CAPTURED] {filename} ({customWidth}x{customHeight})");
+
+            window.Width = oldWidth;
+            window.Height = oldHeight;
+            await Task.Delay(300);
+        }
+
         try
         {
             // -------------------------------------------------------------
@@ -327,8 +354,20 @@ public static class ScreenCaptureRunner
             mainVm.Settings.SelectedTabIndex = 5;
             await Capture("screen6f_settings_interfaccia.png");
 
+            // -------------------------------------------------------------
+            // SCREEN 7: Responsive Layout Tests (Multi-Resolution Verification)
+            // -------------------------------------------------------------
+            Console.WriteLine("Capturing Screen 7: Responsive Layout Tests...");
+            mainVm.CurrentView = mainVm.Dashboard;
+            await CaptureSized("screen7a_responsive_small_dashboard.png", 900, 600);
+            await CaptureSized("screen7b_responsive_large_dashboard.png", 1400, 900);
+
+            mainVm.CurrentView = mainVm.Settings;
+            mainVm.Settings.SelectedTabIndex = 1; // LLM tab in small window
+            await CaptureSized("screen7c_responsive_small_settings.png", 900, 600);
+
             Console.WriteLine("======================================================");
-            Console.WriteLine("  All 18 Visual Inspection Screenshots Captured!      ");
+            Console.WriteLine("  All Visual Inspection & Responsive Screenshots Captured! ");
             Console.WriteLine("======================================================");
         }
         catch (Exception ex)

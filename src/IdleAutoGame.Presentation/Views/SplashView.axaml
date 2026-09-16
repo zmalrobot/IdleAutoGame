@@ -4,28 +4,34 @@
              x:Class="IdleAutoGame.Presentation.Views.SplashView"
              x:DataType="vm:SplashViewModel">
 
-    <Grid Background="#1E1E2E">
+    <Grid Background="{DynamicResource AppBackgroundBrush}">
         <Border HorizontalAlignment="Center" VerticalAlignment="Center"
-                Background="#2A2A3C" CornerRadius="12" Padding="32" Width="550"
-                BoxShadow="0 4 20 #40000000">
-            <StackPanel Spacing="20">
-                <TextBlock Text="IdleAutoGame" FontSize="28" FontWeight="Bold" Foreground="#89B4FA" HorizontalAlignment="Center"/>
-                <TextBlock Text="Autonomous Mobile Game Automation with LLMs" FontSize="14" Foreground="#A6ADC8" HorizontalAlignment="Center"/>
+                Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
+                CornerRadius="12" Padding="32" Width="550"
+                BoxShadow="0 8 32 #50000000">
+            <StackPanel Spacing="16">
+                <!-- Official Project Logo -->
+                <Image Source="/Assets/logo.png" Width="130" Height="130" Stretch="Uniform"
+                       HorizontalAlignment="Center" Margin="0,0,0,8"/>
+
+                <TextBlock Text="IdleAutoGame" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                <TextBlock Text="Autonomous Mobile Game Automation with LLMs" FontSize="13" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
                 
-                <Separator Background="#45475A"/>
+                <Separator Background="{DynamicResource BorderDarkBrush}" Margin="0,4"/>
 
-                <TextBlock Text="{Binding StatusText}" FontSize="14" Foreground="#CDD6F4" TextWrapping="Wrap"/>
+                <TextBlock Text="{Binding StatusText}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
 
-                <Border Background="#181825" CornerRadius="8" Padding="14">
-                    <TextBlock Text="{Binding HardwareSummary}" FontFamily="Consolas, monospace" FontSize="13" Foreground="#A6E3A1" TextWrapping="Wrap"/>
+                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                    <TextBlock Text="{Binding HardwareSummary}" FontFamily="Consolas, monospace" FontSize="12" Foreground="{DynamicResource PrimaryLightBrush}" TextWrapping="Wrap"/>
                 </Border>
 
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
                     <Button Content="Run Pre-Flight Check" Command="{Binding RunPreflightCheckCommand}"
-                            Background="#313244" Foreground="#CDD6F4" Padding="16,8"/>
+                            Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="16,8"/>
                     <Button Content="Continue to Dashboard" Command="{Binding ContinueCommand}"
                             IsEnabled="{Binding IsCompleted}"
-                            Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="16,8"/>
+                            Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="18,8"/>
                 </StackPanel>
             </StackPanel>
         </Border>

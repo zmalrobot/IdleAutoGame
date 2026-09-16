@@ -1,0 +1,86 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ===================================================================== -->
+    <!-- IDLEAUTOGAME CENTRALIZED DESIGN SYSTEM & PALETTE TOKENS               -->
+    <!-- ===================================================================== -->
+
+    <!-- 1. Background & Surfaces -->
+    <Color x:Key="AppBackgroundColor">#091015</Color>
+    <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
+
+    <Color x:Key="Surface1Color">#121C25</Color>
+    <SolidColorBrush x:Key="Surface1Brush" Color="{StaticResource Surface1Color}" />
+
+    <Color x:Key="Surface2Color">#1A2835</Color>
+    <SolidColorBrush x:Key="Surface2Brush" Color="{StaticResource Surface2Color}" />
+
+    <Color x:Key="SurfaceHoverColor">#233545</Color>
+    <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" />
+
+    <!-- 2. Primary — Verde Android -->
+    <Color x:Key="PrimaryMainColor">#8BD925</Color>
+    <SolidColorBrush x:Key="PrimaryMainBrush" Color="{StaticResource PrimaryMainColor}" />
+
+    <Color x:Key="PrimaryLightColor">#A4F246</Color>
+    <SolidColorBrush x:Key="PrimaryLightBrush" Color="{StaticResource PrimaryLightColor}" />
+
+    <Color x:Key="PrimaryDarkColor">#63A616</Color>
+    <SolidColorBrush x:Key="PrimaryDarkBrush" Color="{StaticResource PrimaryDarkColor}" />
+
+    <Color x:Key="PrimaryMutedColor">#2C4D11</Color>
+    <SolidColorBrush x:Key="PrimaryMutedBrush" Color="{StaticResource PrimaryMutedColor}" />
+
+    <!-- 3. Secondary — Blu/Ciano -->
+    <Color x:Key="SecondaryMainColor">#1792C9</Color>
+    <SolidColorBrush x:Key="SecondaryMainBrush" Color="{StaticResource SecondaryMainColor}" />
+
+    <Color x:Key="SecondaryLightColor">#34B3ED</Color>
+    <SolidColorBrush x:Key="SecondaryLightBrush" Color="{StaticResource SecondaryLightColor}" />
+
+    <Color x:Key="SecondaryDarkColor">#106790</Color>
+    <SolidColorBrush x:Key="SecondaryDarkBrush" Color="{StaticResource SecondaryDarkColor}" />
+
+    <Color x:Key="SecondaryMutedColor">#0D3346</Color>
+    <SolidColorBrush x:Key="SecondaryMutedBrush" Color="{StaticResource SecondaryMutedColor}" />
+
+    <!-- 4. Accent / Status -->
+    <Color x:Key="AccentColor">#00F0FF</Color>
+    <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource AccentColor}" />
+
+    <Color x:Key="SuccessColor">#8BD925</Color>
+    <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+
+    <Color x:Key="WarningColor">#FFC107</Color>
+    <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+
+    <Color x:Key="ErrorColor">#FF4C4C</Color>
+    <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+
+    <!-- 5. Typography -->
+    <Color x:Key="TextPrimaryColor">#F0F4F8</Color>
+    <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
+
+    <Color x:Key="TextSecondaryColor">#98A9B8</Color>
+    <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
+
+    <Color x:Key="TextDisabledColor">#536575</Color>
+    <SolidColorBrush x:Key="TextDisabledBrush" Color="{StaticResource TextDisabledColor}" />
+
+    <!-- 6. Borders -->
+    <Color x:Key="BorderLightColor">#283C4F</Color>
+    <SolidColorBrush x:Key="BorderLightBrush" Color="{StaticResource BorderLightColor}" />
+
+    <Color x:Key="BorderDarkColor">#16232F</Color>
+    <SolidColorBrush x:Key="BorderDarkBrush" Color="{StaticResource BorderDarkColor}" />
+
+    <!-- 7. FluentTheme System Overrides (Native Controls Color Harmonization) -->
+    <Color x:Key="SystemAccentColor">#8BD925</Color>
+    <Color x:Key="SystemAccentColorDark1">#63A616</Color>
+    <Color x:Key="SystemAccentColorDark2">#2C4D11</Color>
+    <Color x:Key="SystemAccentColorDark3">#121C25</Color>
+    <Color x:Key="SystemAccentColorLight1">#A4F246</Color>
+    <Color x:Key="SystemAccentColorLight2">#A4F246</Color>
+    <Color x:Key="SystemAccentColorLight3">#F0F4F8</Color>
+
+</ResourceDictionary>

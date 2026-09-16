@@ -2,6 +2,28 @@
 
 Tutte le modifiche rilevanti ai requisiti, alle specifiche di prodotto e all'architettura verranno documentate in questo file per preservare l'evoluzione del progetto.
 
+## [3.7.0] - 2026-09-17 (Official Logo Integration & Global Visual Design System Overhaul)
+
+### Added
+- **Official Brand Assets & Multi-Resolution Icons**:
+  - Integrated official logo `src/IdleAutoGame.Application/logo.png` across desktop branding surfaces.
+  - Generated multi-resolution Windows icon `Assets/app.ico` and `Assets/avalonia-logo.ico` (16, 24, 32, 48, 64, 128, 256 px) with transparent padding preserving the native 992x1079 aspect ratio.
+  - Generated square high-resolution assets `Assets/logo_square.png` and `scripts/idle-auto-game.png` (512x512).
+  - Configured `<ApplicationIcon>Assets\app.ico</ApplicationIcon>` in `IdleAutoGame.Presentation.csproj` for binary and process metadata identification.
+  - Updated `scripts/publish.sh` and `scripts/publish.cmd` to bundle `IdleAutoGame.desktop` and `idle-auto-game.png` alongside published binaries for Linux desktop environment integration.
+- **Centralized Design System (`Theme.axaml`)**:
+  - Implemented semantic resource dictionary in `src/IdleAutoGame.Presentation/Styles/Theme.axaml` merged into `App.axaml`.
+  - Defined design tokens for the complete dark palette: App Background (`#091015`), Surface 1 (`#121C25`), Surface 2 (`#1A2835`), Surface Hover (`#233545`), Primary Verde Android (`#8BD925`, `#A4F246`, `#63A616`, `#2C4D11`), Secondary Blu/Ciano (`#1792C9`, `#34B3ED`, `#106790`, `#0D3346`), Accent (`#00F0FF`), Status colors, and Typography (`#F0F4F8`, `#98A9B8`, `#536575`).
+  - Overrode Avalonia FluentTheme `SystemAccentColor` with `#8BD925` to theme native controls (TabControl indicators, CheckBox glyphs, focus rings).
+- **Responsive Layout Verification**:
+  - Extended `ScreenCaptureRunner.cs` to capture 21 real UI screenshots, adding multi-resolution validation for small (900x600) and large (1400x900) form factors.
+  - Added text trimming and width constraints to the Dashboard context bar to ensure pixel-perfect rendering without badge overlap on small viewports.
+
+### Changed / Refactored
+- **Global View Modernization**:
+  - Refactored `MainWindow.axaml`, `SplashView.axaml`, `DashboardView.axaml`, `DeviceSelectionView.axaml`, `GameSelectionView.axaml`, `ModelSelectionView.axaml`, and `SettingsView.axaml` to eliminate hardcoded hex colors and consume semantic `{DynamicResource}` brush tokens.
+  - Integrated official logo in `MainWindow` navigation header and `SplashView` preflight view with smooth uniform scaling.
+
 ## [3.6.0] - 2026-09-17 (Release Candidate Hardening, Fault Injection & Concurrency Protection)
 
 ### Added
