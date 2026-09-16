@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "dgSpecHash": "aE3LwIy8qU8=",
+  "success": true,
+  "projectFilePath": "/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Infrastructure.Persistence/IdleAutoGame.Infrastructure.Persistence.csproj",
+  "expectedPackageFiles": [
+    "/home/simone/.nuget/packages/microsoft.data.sqlite/10.0.12/microsoft.data.sqlite.10.0.12.nupkg.sha512",
+    "/home/simone/.nuget/packages/microsoft.data.sqlite.core/10.0.12/microsoft.data.sqlite.core.10.0.12.nupkg.sha512",
+    "/home/simone/.nuget/packages/sqlitepclraw.bundle_e_sqlite3/2.1.12/sqlitepclraw.bundle_e_sqlite3.2.1.12.nupkg.sha512",
+    "/home/simone/.nuget/packages/sqlitepclraw.core/2.1.12/sqlitepclraw.core.2.1.12.nupkg.sha512",
+    "/home/simone/.nuget/packages/sqlitepclraw.lib.e_sqlite3/2.1.12/sqlitepclraw.lib.e_sqlite3.2.1.12.nupkg.sha512",
+    "/home/simone/.nuget/packages/sqlitepclraw.provider.e_sqlite3/2.1.12/sqlitepclraw.provider.e_sqlite3.2.1.12.nupkg.sha512"
+  ],
+  "logs": []
+}

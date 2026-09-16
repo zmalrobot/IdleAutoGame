@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/IdleAutoGame.Application/IdleAutoGame.Application.csproj" />
+    <Project Path="src/IdleAutoGame.Core/IdleAutoGame.Core.csproj" />
+    <Project Path="src/IdleAutoGame.Games.TapTitans2/IdleAutoGame.Games.TapTitans2.csproj" />
+    <Project Path="src/IdleAutoGame.Infrastructure.Adb/IdleAutoGame.Infrastructure.Adb.csproj" />
+    <Project Path="src/IdleAutoGame.Infrastructure.Llm/IdleAutoGame.Infrastructure.Llm.csproj" />
+    <Project Path="src/IdleAutoGame.Infrastructure.Persistence/IdleAutoGame.Infrastructure.Persistence.csproj" />
+    <Project Path="src/IdleAutoGame.Presentation/IdleAutoGame.Presentation.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/IdleAutoGame.Tests.Unit/IdleAutoGame.Tests.Unit.csproj" />
+  </Folder>
+</Solution>

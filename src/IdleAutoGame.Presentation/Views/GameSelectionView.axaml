@@ -1,0 +1,70 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:IdleAutoGame.Presentation.ViewModels"
+             x:Class="IdleAutoGame.Presentation.Views.GameSelectionView"
+             x:DataType="vm:GameSelectionViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="#1E1E2E">
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+            <TextBlock Text="Game Modules" FontSize="24" FontWeight="Bold" Foreground="#89B4FA"/>
+            <TextBlock Text="Select and configure supported idle games." Foreground="#A6ADC8"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1" ColumnDefinitions="350,*" Margin="0,0,0,16">
+            <!-- Left: Games List -->
+            <Border Grid.Column="0" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,12,0">
+                <ListBox ItemsSource="{Binding Games}" SelectedItem="{Binding SelectedGame}"
+                         Background="#181825" CornerRadius="6">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="#313244">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding Name}" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                    <TextBlock Text="{Binding Version, StringFormat='Version: {0}'}" FontSize="12" Foreground="#6C7086"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <!-- Right: Game Details -->
+            <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="20">
+                <ScrollViewer>
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="{Binding SelectedGame.Name}" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
+                        <TextBlock Text="{Binding SelectedGame.Description}" FontSize="14" Foreground="#CDD6F4" TextWrapping="Wrap"/>
+
+                        <Separator Background="#45475A"/>
+
+                        <TextBlock Text="Gameplay Instructions &amp; Rules:" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <Border Background="#181825" CornerRadius="6" Padding="12">
+                            <TextBlock Text="{Binding SelectedGame.BasePrompt}" FontFamily="Consolas, monospace" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                        </Border>
+
+                        <TextBlock Text="Safety Constraints:" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <ItemsControl ItemsSource="{Binding SelectedGame.Constraints}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#181825" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="Auto,*">
+                                            <TextBlock Grid.Column="0" Text="{Binding Id}" FontWeight="Bold" Foreground="#F38BA8" Margin="0,0,8,0"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12" Foreground="#CDD6F4"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <DockPanel Grid.Row="2">
+            <Button DockPanel.Dock="Right" Content="Select as Active Game" Command="{Binding SaveSelectionCommand}"
+                    Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,10"/>
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>
+        </DockPanel>
+    </Grid>
+</UserControl>
+

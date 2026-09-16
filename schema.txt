@@ -1,0 +1,84 @@
+project/
+│
+├── README.md
+├── CHANGELOG.md
+│
+├── src/
+│   ├── App/
+│   ├── Application/
+│   ├── Domain/
+│   ├── Infrastructure/
+│   ├── Device/
+│   ├── LLM/
+│   ├── Games/
+│   └── Presentation/
+│
+├── tests/
+│   ├── Unit/
+│   ├── Integration/
+│   ├── Contract/
+│   ├── EndToEnd/
+│   └── Replay/
+│
+└── docs/
+    ├── PROJECT-CONTEXT.md
+    ├── changelog.md
+    │
+    ├── product/
+    │   ├── product-requirements.md
+    │   ├── user-flows.md
+    │   ├── screens.md
+    │   ├── user-stories.md
+    │   ├── game-support.md
+    │   ├── configuration.md
+    │   ├── error-states.md
+    │   ├── decisions.md
+    │   └── open-decisions.md
+    │
+    ├── architecture/
+    │   ├── overview.md
+    │   ├── architecture.md
+    │   ├── components.md
+    │   ├── dependencies.md
+    │   ├── project-structure.md
+    │   ├── domain-model.md
+    │   ├── adb.md
+    │   ├── llm.md
+    │   ├── llm-action-protocol.md
+    │   ├── automation-engine.md
+    │   ├── state-machine.md
+    │   ├── game-system.md
+    │   ├── configuration.md
+    │   ├── persistence.md
+    │   ├── logging.md
+    │   ├── error-handling.md
+    │   ├── testing.md
+    │   ├── replay-system.md
+    │   ├── deployment.md
+    │   ├── security.md
+    │   ├── performance.md
+    │   ├── extensibility.md
+    │   ├── roadmap.md
+    │   └── technical-debt.md
+    │
+    ├── adr/
+    │   ├── ADR-001-...
+    │   ├── ADR-002-...
+    │   └── ...
+    │
+    ├── development/
+    │   ├── setup.md
+    │   ├── build.md
+    │   ├── testing.md
+    │   ├── debugging.md
+    │   └── troubleshooting.md
+    │
+    ├── operations/
+    │   ├── installation.md
+    │   ├── deployment.md
+    │   ├── adb.md
+    │   ├── models.md
+    │   └── diagnostics.md
+    │
+    └── games/
+        └── taptitans2.md

@@ -1,0 +1,87 @@
+using FluentAssertions;
+using IdleAutoGame.Application.Engine;
+using IdleAutoGame.Application.Registry;
+using IdleAutoGame.Application.Services;
+using IdleAutoGame.Core.Enums;
+using IdleAutoGame.Core.Models;
+using IdleAutoGame.Games.TapTitans2;
+using IdleAutoGame.Presentation.ViewModels;
+using IdleAutoGame.Tests.Unit.Fakes;
+using Xunit;
+
+namespace IdleAutoGame.Tests.Unit.Presentation;
+
+public class DashboardViewModelTests
+{
+    private readonly FakeDeviceController _deviceController = new();
+    private readonly FakeLlmProvider _llmProvider = new();
+    private readonly GameRegistry _gameRegistry;
+    private readonly SessionRecorder _sessionRecorder = new();
+    private readonly ConfigurationService _configService;
+    private readonly AutomationEngine _engine;
+    private readonly DashboardViewModel _viewModel;
+
+    public DashboardViewModelTests()
+    {
+        _gameRegistry = new GameRegistry([new TapTitans2Definition()]);
+        _configService = new ConfigurationService(new InMemorySettingsRepo());
+
+        _engine = new AutomationEngine(
+            _deviceController,
+            _llmProvider,
+            _gameRegistry,
+            _sessionRecorder,
+            _configService.Current);
+
+        _viewModel = new DashboardViewModel(_engine, _configService, _gameRegistry);
+    }
+
+    [Fact]
+    public void InitialState_IsIdle()
+    {
+        _viewModel.State.Should().Be(AutomationState.Idle);
+        _viewModel.CanStart.Should().BeTrue();
+        _viewModel.CanPause.Should().BeFalse();
+        _viewModel.CanStop.Should().BeFalse();
+    }
+
+    [Fact]
+    public void AddOverride_AddsToActiveOverridesAndEngine()
+    {
+        _viewModel.NewOverrideText = "Do not purchase artifacts";
+        _viewModel.AddOverride();
+
+        _viewModel.ActiveOverrides.Should().ContainSingle();
+        _viewModel.ActiveOverrides[0].Text.Should().Be("Do not purchase artifacts");
+        _viewModel.NewOverrideText.Should().BeEmpty();
+
+        var engineOverrides = _engine.GetActiveOverrides();
+        engineOverrides.Should().Contain(o => o.Text == "Do not purchase artifacts");
+    }
+
+    [Fact]
+    public void RemoveOverride_RemovesFromActiveOverridesAndEngine()
+    {
+        _viewModel.NewOverrideText = "Temporary override";
+        _viewModel.AddOverride();
+
+        var ovr = _viewModel.ActiveOverrides.First();
+        _viewModel.RemoveOverride(ovr);
+
+        _viewModel.ActiveOverrides.Should().BeEmpty();
+        _engine.GetActiveOverrides().Should().BeEmpty();
+    }
+
+    private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
+    {
+        private AppSettings _s = new();
+        public Task<AppSettings> LoadAsync(CancellationToken ct = default) => Task.FromResult(_s.Clone());
+        public Task SaveAsync(AppSettings settings, CancellationToken ct = default) { _s = settings.Clone(); return Task.CompletedTask; }
+        public Task<bool> ExistsAsync(CancellationToken ct = default) => Task.FromResult(true);
+        public Task<AppSettings> ResetToDefaultsAsync(CancellationToken ct = default)
+        {
+            _s = new AppSettings();
+            return Task.FromResult(_s.Clone());
+        }
+    }
+}

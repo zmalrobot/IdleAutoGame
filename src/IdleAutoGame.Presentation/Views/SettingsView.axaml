@@ -1,0 +1,121 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:IdleAutoGame.Presentation.ViewModels"
+             x:Class="IdleAutoGame.Presentation.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="#1E1E2E">
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+            <TextBlock Text="Application Settings" FontSize="24" FontWeight="Bold" Foreground="#89B4FA"/>
+            <TextBlock Text="Manage global configuration, inference timeouts, automation policies, and logging." Foreground="#A6ADC8"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+            <TabControl Background="Transparent">
+                <!-- Tab 1: LLM -->
+                <TabItem Header="LLM &amp; Vision">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Provider:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmProvider}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Inference Endpoint URL:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmEndpoint}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="API Key (Optional):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmApiKey}" PasswordChar="*" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Temperature (0.0 - 2.0):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmTemperature}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Max Generation Tokens:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmMaxTokens}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Timeout Seconds:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmTimeoutSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Max Inference Retries:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LlmMaxRetries}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Tab 2: Automation -->
+                <TabItem Header="Automation">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Observation Interval (Seconds):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ObservationIntervalSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Error Policy ('pause', 'stop', 'ignore'):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ErrorPolicy}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Max Consecutive Unknown States Before Pause:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding MaxConsecutiveUnknownStates}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <CheckBox IsChecked="{Binding AutoReconnect}" Content="Automatically Reconnect Dropped Devices" Foreground="#CDD6F4"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Tab 3: General & UI -->
+                <TabItem Header="General &amp; UI">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Theme ('dark', 'light'):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding Theme}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Device Connection Preference ('usb', 'wireless'):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ConnectionPreference}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <CheckBox IsChecked="{Binding ShowConfidence}" Content="Show Confidence Badges on Dashboard" Foreground="#CDD6F4"/>
+                            <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Show Raw Model JSON in Inspector" Foreground="#CDD6F4"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Tab 4: Logging & Persistence -->
+                <TabItem Header="Logging &amp; Storage">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Log Level:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding LogLevel}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="History Retention Days:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding RetentionDays}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <CheckBox IsChecked="{Binding SaveScreenshots}" Content="Archive Screenshot PNGs on Disk" Foreground="#CDD6F4"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+        </Border>
+
+        <!-- Footer -->
+        <DockPanel Grid.Row="2">
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12">
+                <Button Content="Reset to Defaults" Command="{Binding ResetDefaultsCommand}"
+                        Background="#313244" Foreground="#F38BA8" Padding="14,10"/>
+                <Button Content="Save Settings" Command="{Binding SaveSettingsCommand}"
+                        Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="20,10"/>
+            </StackPanel>
+            <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>
+        </DockPanel>
+    </Grid>
+</UserControl>
+

@@ -1,0 +1,34 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:IdleAutoGame.Presentation.ViewModels"
+             x:Class="IdleAutoGame.Presentation.Views.SplashView"
+             x:DataType="vm:SplashViewModel">
+
+    <Grid Background="#1E1E2E">
+        <Border HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#2A2A3C" CornerRadius="12" Padding="32" Width="550"
+                BoxShadow="0 4 20 #40000000">
+            <StackPanel Spacing="20">
+                <TextBlock Text="IdleAutoGame" FontSize="28" FontWeight="Bold" Foreground="#89B4FA" HorizontalAlignment="Center"/>
+                <TextBlock Text="Autonomous Mobile Game Automation with LLMs" FontSize="14" Foreground="#A6ADC8" HorizontalAlignment="Center"/>
+                
+                <Separator Background="#45475A"/>
+
+                <TextBlock Text="{Binding StatusText}" FontSize="14" Foreground="#CDD6F4" TextWrapping="Wrap"/>
+
+                <Border Background="#181825" CornerRadius="8" Padding="14">
+                    <TextBlock Text="{Binding HardwareSummary}" FontFamily="Consolas, monospace" FontSize="13" Foreground="#A6E3A1" TextWrapping="Wrap"/>
+                </Border>
+
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                    <Button Content="Run Pre-Flight Check" Command="{Binding RunPreflightCheckCommand}"
+                            Background="#313244" Foreground="#CDD6F4" Padding="16,8"/>
+                    <Button Content="Continue to Dashboard" Command="{Binding ContinueCommand}"
+                            IsEnabled="{Binding IsCompleted}"
+                            Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="16,8"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>
+

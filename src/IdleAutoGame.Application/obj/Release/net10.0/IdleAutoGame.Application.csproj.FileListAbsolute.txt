@@ -1,0 +1,15 @@
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/bin/Release/net10.0/IdleAutoGame.Application.deps.json
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/bin/Release/net10.0/IdleAutoGame.Application.dll
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/bin/Release/net10.0/IdleAutoGame.Application.pdb
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/bin/Release/net10.0/IdleAutoGame.Core.dll
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/bin/Release/net10.0/IdleAutoGame.Core.pdb
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.csproj.AssemblyReference.cache
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.GeneratedMSBuildEditorConfig.editorconfig
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.AssemblyInfoInputs.cache
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.AssemblyInfo.cs
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.csproj.CoreCompileInputs.cache
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAuto.BF45F58C.Up2Date
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.dll
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/refint/IdleAutoGame.Application.dll
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/IdleAutoGame.Application.pdb
+/run/media/simone/bdf9bcda-ba36-41a7-a41d-afdb4f87586c/Repos/S2S/IdleAutoGame/src/IdleAutoGame.Application/obj/Release/net10.0/ref/IdleAutoGame.Application.dll

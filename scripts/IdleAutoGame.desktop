@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=IdleAutoGame
+Comment=Autonomous Android Game Automation with LLMs
+Exec=IdleAutoGame.Presentation
+Icon=idle-auto-game
+Terminal=false
+Type=Application
+Categories=Utility;Game;Development;
+StartupNotify=true
+
