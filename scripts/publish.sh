@@ -64,6 +64,7 @@ echo "Output Directory: ${OUTPUT_DIR}"
 check_prerequisites
 
 log_info "Preparing output directory..."
+rm -rf "${OUTPUT_DIR}"
 mkdir -p "${OUTPUT_DIR}"
 
 log_info "Restoring NuGet dependencies for ${TARGET_RID}..."

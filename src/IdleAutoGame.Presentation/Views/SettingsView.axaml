@@ -11,73 +11,87 @@
         </StackPanel>
 
         <Border Grid.Row="1" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-            <TabControl Background="Transparent">
-                <!-- Tab 1: LLM -->
-                <TabItem Header="LLM &amp; Vision">
+            <TabControl Background="Transparent" SelectedIndex="{Binding SelectedTabIndex}">
+                <!-- Tab 1: Generale -->
+                <TabItem Header="Generale">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Provider:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmProvider}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Locale / Lingua dell'interfaccia:" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding Locale}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Inference Endpoint URL:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmEndpoint}" Background="#181825" Foreground="#CDD6F4"/>
+                                <TextBlock Text="Politica di errore ('pause', 'stop', 'ignore'):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ErrorPolicy}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="API Key (Optional):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmApiKey}" PasswordChar="*" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Temperature (0.0 - 2.0):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmTemperature}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Max Generation Tokens:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmMaxTokens}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Timeout Seconds:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmTimeoutSeconds}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Max Inference Retries:" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding LlmMaxRetries}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
+                            <CheckBox IsChecked="{Binding AutoReconnect}" Content="Riconnessione automatica in caso di disconnessione device" Foreground="#CDD6F4"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- Tab 2: Local LLM & Models -->
-                <TabItem Header="Local Models &amp; llama.cpp">
+                <!-- Tab 2: LLM / Modelli locali -->
+                <TabItem Header="LLM / Modelli locali">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16">
+                            <!-- Cloud & Remote Provider -->
+                            <Border Background="#181825" CornerRadius="8" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <TextBlock Text="Configurazione Provider LLM (Cloud / OpenAI / Local)" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
+                                            <TextBlock Text="Provider (LLamaSharp, openai, llama.cpp):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding LlmProvider}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,0,8">
+                                            <TextBlock Text="Endpoint URL:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding LlmEndpoint}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
+                                            <TextBlock Text="API Key (Opzionale):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding LlmApiKey}" PasswordChar="*" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4" Margin="0,0,0,8">
+                                            <TextBlock Text="Temperature (0.0 - 2.0):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding LlmTemperature}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                            <TextBlock Text="Max Token Generazione:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding LlmMaxTokens}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Spacing="4" Margin="0,0,0,0">
+                                            <TextBlock Text="Timeout Inferenza (Secondi):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding LlmTimeoutSeconds}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Hardware Auto-Config & Storage -->
                             <Border Background="#181825" CornerRadius="8" Padding="14">
                                 <StackPanel Spacing="12">
                                     <DockPanel>
-                                        <Button DockPanel.Dock="Right" Content="Auto-Configure for My Hardware"
+                                        <Button DockPanel.Dock="Right" Content="Auto-Configura per il mio Hardware"
                                                 Command="{Binding AutoConfigureLlmCommand}"
                                                 Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
-                                        <TextBlock Text="Hardware Acceleration &amp; Runtime Settings" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Accelerazione Hardware &amp; Parametri llama.cpp" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
                                     </DockPanel>
 
                                     <StackPanel Spacing="6">
-                                        <TextBlock Text="Model Storage Directory:" Foreground="#A6ADC8"/>
+                                        <TextBlock Text="Cartella Modelli GGUF:" Foreground="#A6ADC8"/>
                                         <TextBox Text="{Binding ModelStorageDirectory}" Background="#2A2A3C" Foreground="#CDD6F4"/>
                                     </StackPanel>
 
                                     <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
                                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="Context Size (tokens):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBlock Text="Context Window (tokens):" FontSize="11" Foreground="#A6ADC8"/>
                                             <TextBox Text="{Binding ContextSize}" Background="#2A2A3C" Foreground="#CDD6F4"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="CPU Threads:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBlock Text="Thread CPU:" FontSize="11" Foreground="#A6ADC8"/>
                                             <TextBox Text="{Binding ThreadCount}" Background="#2A2A3C" Foreground="#CDD6F4"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,8,8">
-                                            <TextBlock Text="GPU Layers to Offload:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBlock Text="Layer GPU in VRAM:" FontSize="11" Foreground="#A6ADC8"/>
                                             <TextBox Text="{Binding GpuLayerCount}" Background="#2A2A3C" Foreground="#CDD6F4"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="3" Spacing="4" Margin="0,0,0,8">
@@ -94,20 +108,20 @@
                                             <TextBox Text="{Binding TopK}" Background="#2A2A3C" Foreground="#CDD6F4"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="2" Spacing="4" Margin="0,0,8,0">
-                                            <TextBlock Text="Seed (0 = Random):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBlock Text="Seed (0 = Casuale):" FontSize="11" Foreground="#A6ADC8"/>
                                             <TextBox Text="{Binding Seed}" Background="#2A2A3C" Foreground="#CDD6F4"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="1" Grid.Column="3" Spacing="6" VerticalAlignment="Center">
-                                            <CheckBox IsChecked="{Binding UseMemoryMapping}" Content="Use mmap" Foreground="#CDD6F4" FontSize="11"/>
-                                            <CheckBox IsChecked="{Binding UseMemoryLock}" Content="Use mlock" Foreground="#CDD6F4" FontSize="11"/>
+                                            <CheckBox IsChecked="{Binding UseMemoryMapping}" Content="Usa mmap" Foreground="#CDD6F4" FontSize="11"/>
+                                            <CheckBox IsChecked="{Binding UseMemoryLock}" Content="Usa mlock" Foreground="#CDD6F4" FontSize="11"/>
                                         </StackPanel>
                                     </Grid>
 
                                     <DockPanel Margin="0,4,0,0">
-                                        <Button DockPanel.Dock="Right" Content="Unload Active Model from RAM"
+                                        <Button DockPanel.Dock="Right" Content="Scarica Modello Attivo dalla RAM"
                                                 Command="{Binding UnloadActiveModelCommand}"
                                                 Background="#F38BA8" Foreground="#11111B" Padding="10,4" FontSize="12"/>
-                                        <TextBlock Text="Free all allocated weights and memory contexts." Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Libera tutta la memoria RAM/VRAM allocata." Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
                                     </DockPanel>
                                 </StackPanel>
                             </Border>
@@ -116,10 +130,10 @@
                             <Border Background="#181825" CornerRadius="8" Padding="14">
                                 <StackPanel Spacing="12">
                                     <DockPanel>
-                                        <Button DockPanel.Dock="Right" Content="Refresh Models"
+                                        <Button DockPanel.Dock="Right" Content="Aggiorna Lista Modelli"
                                                 Command="{Binding RefreshLocalModelsCommand}"
                                                 Background="#313244" Foreground="#CDD6F4" Padding="10,4" FontSize="12"/>
-                                        <TextBlock Text="Catalog GGUF Models &amp; Local Storage" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Catalogo Modelli GGUF &amp; Gestione Disco" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
                                     </DockPanel>
 
                                     <ItemsControl ItemsSource="{Binding LocalModels}">
@@ -143,20 +157,20 @@
                                                             <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap"/>
                                                             <StackPanel Orientation="Horizontal" Spacing="16">
                                                                 <TextBlock Text="{Binding RecommendedRamRange, StringFormat='RAM: {0}'}" FontSize="11" Foreground="#A6ADC8"/>
-                                                                <TextBlock Text="{Binding LicenseName, StringFormat='License: {0}'}" FontSize="11" Foreground="#6C7086"/>
+                                                                <TextBlock Text="{Binding LicenseName, StringFormat='Licenza: {0}'}" FontSize="11" Foreground="#6C7086"/>
                                                             </StackPanel>
                                                         </StackPanel>
 
                                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                            <Button Content="Download"
+                                                            <Button Content="Scarica"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DownloadModelCommand}"
                                                                     CommandParameter="{Binding}"
                                                                     Background="#89B4FA" Foreground="#11111B" FontSize="11" Padding="8,4"/>
-                                                            <Button Content="Activate"
+                                                            <Button Content="Attiva"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectActiveModelCommand}"
                                                                     CommandParameter="{Binding}"
                                                                     Background="#A6E3A1" Foreground="#11111B" FontSize="11" Padding="8,4"/>
-                                                            <Button Content="Delete"
+                                                            <Button Content="Elimina"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteModelCommand}"
                                                                     CommandParameter="{Binding}"
                                                                     Background="#F38BA8" Foreground="#11111B" FontSize="11" Padding="8,4"/>
@@ -172,74 +186,94 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- Tab 3: Automation -->
-                <TabItem Header="Automation">
+                <!-- Tab 3: Dispositivo / ADB -->
+                <TabItem Header="Dispositivo / ADB">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Observation Interval (Seconds):" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Preferenza di Connessione ('usb' o 'wireless'):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ConnectionPreference}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Seriale Dispositivo Predefinito (Opzionale):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding DefaultDeviceSerial}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Timeout Comandi ADB (Secondi):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding AdbCommandTimeoutSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Tab 4: Giochi e Policy -->
+                <TabItem Header="Giochi e Policy">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Intervallo di Osservazione Screenshot (Secondi):" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding ObservationIntervalSeconds}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Error Policy ('pause', 'stop', 'ignore'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ErrorPolicy}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Max Consecutive Unknown States Before Pause:" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Stati Sconosciuti Consecutivi Massimi prima della Pausa:" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding MaxConsecutiveUnknownStates}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
-                            <CheckBox IsChecked="{Binding AutoReconnect}" Content="Automatically Reconnect Dropped Devices" Foreground="#CDD6F4"/>
 
                             <Separator Background="#313244"/>
-                            <TextBlock Text="Android Activity Guard &amp; Safety Boundary:" FontWeight="SemiBold" Foreground="#89B4FA"/>
-                            <CheckBox IsChecked="{Binding EnableActivityGuard}" Content="Enable Android Activity Guard (Foreground App Monitoring)" Foreground="#CDD6F4"/>
+                            <TextBlock Text="Android Activity Guard (Sicurezza Anti-Escursione Fuori dal Gioco):" FontWeight="SemiBold" Foreground="#89B4FA"/>
+                            <CheckBox IsChecked="{Binding EnableActivityGuard}" Content="Abilita Android Activity Guard (Monitoraggio Foreground)" Foreground="#CDD6F4"/>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Activity Polling Interval (Seconds):" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Intervallo Polling Activity (Secondi):" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding ActivityCheckIntervalSeconds}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Cancellation Grace Period Timeout (ms):" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Timeout Grazioso di Cancellazione (ms):" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding ActivityCancellationTimeoutMs}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Emergency Hard Stop Timeout (ms):" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Timeout Emergency Hard Stop (ms):" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding EmergencyStopTimeoutMs}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
+
+                            <Separator Background="#313244"/>
+                            <TextBlock Text="Policy Predefinite Valuta e Acquisti (Deny-by-Default):" FontWeight="SemiBold" Foreground="#89B4FA"/>
+                            <CheckBox IsChecked="{Binding AllowPremiumCurrencyDefault}" Content="Permetti all'LLM di usare currency premium (Predefinito: Disabilitato)" Foreground="#CDD6F4"/>
+                            <CheckBox IsChecked="{Binding AllowCreditPurchasesDefault}" Content="Permetti all'LLM di acquistare crediti (Predefinito: Disabilitato)" Foreground="#CDD6F4"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- Tab 3: General & UI -->
-                <TabItem Header="General &amp; UI">
+                <!-- Tab 5: Logging e Audit -->
+                <TabItem Header="Logging e Audit">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
-                                <TextBlock Text="Theme ('dark', 'light'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding Theme}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Device Connection Preference ('usb', 'wireless'):" Foreground="#A6ADC8"/>
-                                <TextBox Text="{Binding ConnectionPreference}" Background="#181825" Foreground="#CDD6F4"/>
-                            </StackPanel>
-                            <CheckBox IsChecked="{Binding ShowConfidence}" Content="Show Confidence Badges on Dashboard" Foreground="#CDD6F4"/>
-                            <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Show Raw Model JSON in Inspector" Foreground="#CDD6F4"/>
-                        </StackPanel>
-                    </ScrollViewer>
-                </TabItem>
-
-                <!-- Tab 4: Logging & Persistence -->
-                <TabItem Header="Logging &amp; Storage">
-                    <ScrollViewer Margin="0,16,0,0">
-                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="Log Level:" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Livello di Log ('Debug', 'Information', 'Warning', 'Error'):" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding LogLevel}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
-                                <TextBlock Text="History Retention Days:" Foreground="#A6ADC8"/>
+                                <TextBlock Text="Giorni di Conservazione Cronologia (Retention Days):" Foreground="#A6ADC8"/>
                                 <TextBox Text="{Binding RetentionDays}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
-                            <CheckBox IsChecked="{Binding SaveScreenshots}" Content="Archive Screenshot PNGs on Disk" Foreground="#CDD6F4"/>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Numero Cicli Mantenuti in Memoria (History Length):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding HistoryLength}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <CheckBox IsChecked="{Binding SaveScreenshots}" Content="Archivia file PNG degli screenshot su disco per audit/replay" Foreground="#CDD6F4"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Tab 6: Interfaccia / Aspetto -->
+                <TabItem Header="Interfaccia / Aspetto">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Tema UI ('dark', 'light'):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding Theme}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <CheckBox IsChecked="{Binding ShowConfidence}" Content="Mostra Badge di Confidenza nella Dashboard" Foreground="#CDD6F4"/>
+                            <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Mostra JSON Risposta Grezza nel Pannello Ispettore" Foreground="#CDD6F4"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

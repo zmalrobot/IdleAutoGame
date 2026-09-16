@@ -45,6 +45,12 @@ public class SettingsViewModelTests
         _viewModel.ContextSize = 4096;
         _viewModel.ThreadCount = 6;
         _viewModel.GpuLayerCount = 16;
+        _viewModel.DefaultDeviceSerial = "DEVICE12345";
+        _viewModel.AdbCommandTimeoutSeconds = 15;
+        _viewModel.AllowPremiumCurrencyDefault = true;
+        _viewModel.AllowCreditPurchasesDefault = true;
+        _viewModel.LogLevel = "Debug";
+        _viewModel.SaveScreenshots = true;
 
         await _viewModel.SaveSettingsAsync();
 
@@ -54,6 +60,12 @@ public class SettingsViewModelTests
         updated.Llm.ContextSize.Should().Be(4096);
         updated.Llm.ThreadCount.Should().Be(6);
         updated.Llm.GpuLayerCount.Should().Be(16);
+        updated.Device.DefaultDeviceSerial.Should().Be("DEVICE12345");
+        updated.Automation.AdbCommandTimeoutSeconds.Should().Be(15);
+        updated.Games.PerGame["tap-titans-2"].AllowPremiumCurrency.Should().BeTrue();
+        updated.Games.PerGame["tap-titans-2"].AllowCreditPurchases.Should().BeTrue();
+        updated.Logging.Level.Should().Be("Debug");
+        updated.Logging.SaveScreenshots.Should().BeTrue();
     }
 
     [Fact]

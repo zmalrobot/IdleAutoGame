@@ -61,6 +61,7 @@ call "%SCRIPT_DIR%common.cmd" check_prerequisites "%ROOT_DIR%"
 if !ERRORLEVEL! neq 0 exit /b 1
 
 call "%SCRIPT_DIR%common.cmd" log_info "Preparing output directory..."
+if exist "%OUTPUT_DIR%" rd /s /q "%OUTPUT_DIR%"
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%" 2>nul
 
 call "%SCRIPT_DIR%common.cmd" log_info "Restoring NuGet dependencies for %TARGET_RID%..."

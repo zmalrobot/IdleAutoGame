@@ -6,36 +6,50 @@
 
     <Grid RowDefinitions="Auto,Auto,*" Margin="24" Background="#1E1E2E">
         <!-- Top Controls Bar -->
-        <Border Grid.Row="0" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <!-- Status Badge -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                    <TextBlock Text="STATUS:" FontWeight="Bold" Foreground="#A6ADC8" VerticalAlignment="Center"/>
-                    <Border Background="#313244" CornerRadius="6" Padding="12,6">
-                        <TextBlock Text="{Binding State}" FontWeight="Bold" Foreground="#89B4FA"/>
-                    </Border>
-                </StackPanel>
+        <Border Grid.Row="0" Background="#2A2A3C" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+            <Grid RowDefinitions="Auto,Auto">
+                <!-- Row 0: Status Badge & Action Buttons -->
+                <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                        <Button Content="▶ Start" Command="{Binding StartAutomationCommand}" IsEnabled="{Binding CanStart}"
+                                Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="14,6"/>
+                        <Button Content="⏸ Pause" Command="{Binding PauseAutomationCommand}" IsEnabled="{Binding CanPause}"
+                                Background="#F9E2AF" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
+                        <Button Content="⏯ Resume" Command="{Binding ResumeAutomationCommand}" IsEnabled="{Binding CanResume}"
+                                Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
+                        <Button Content="⏹ STOP" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
+                                Background="#F38BA8" Foreground="#11111B" FontWeight="Bold" Padding="14,6"/>
+                    </StackPanel>
 
-                <!-- Active Context Summary -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding ActiveGameName, StringFormat='Game: {0}'}" Foreground="#CDD6F4"/>
-                    <TextBlock Text="•" Foreground="#45475A"/>
-                    <TextBlock Text="{Binding ActiveDeviceSerial, StringFormat='Device: {0}'}" Foreground="#CDD6F4"/>
-                    <TextBlock Text="•" Foreground="#45475A"/>
-                    <TextBlock Text="{Binding ActiveModelId, StringFormat='Model: {0}'}" Foreground="#CDD6F4"/>
-                </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="STATUS:" FontWeight="Bold" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                        <Border Background="#313244" CornerRadius="6" Padding="10,4">
+                            <TextBlock Text="{Binding State}" FontWeight="Bold" Foreground="#89B4FA"/>
+                        </Border>
+                    </StackPanel>
+                </DockPanel>
 
-                <!-- Action Buttons -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10">
-                    <Button Content="▶ Start" Command="{Binding StartAutomationCommand}" IsEnabled="{Binding CanStart}"
-                            Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,8"/>
-                    <Button Content="⏸ Pause" Command="{Binding PauseAutomationCommand}" IsEnabled="{Binding CanPause}"
-                            Background="#F9E2AF" Foreground="#11111B" FontWeight="Bold" Padding="14,8"/>
-                    <Button Content="⏯ Resume" Command="{Binding ResumeAutomationCommand}" IsEnabled="{Binding CanResume}"
-                            Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="14,8"/>
-                    <Button Content="⏹ STOP" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
-                            Background="#F38BA8" Foreground="#11111B" FontWeight="Bold" Padding="18,8"/>
-                </StackPanel>
+                <!-- Row 1: Active Context & Policy Summary -->
+                <Border Grid.Row="1" Background="#181825" CornerRadius="6" Padding="12,6">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ActiveGameName, StringFormat='🎮 Game: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
+                            <TextBlock Text="•" Foreground="#45475A"/>
+                            <TextBlock Text="{Binding ActiveDeviceSerial, StringFormat='📱 Device: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
+                            <TextBlock Text="•" Foreground="#45475A"/>
+                            <TextBlock Text="{Binding ActiveModelId, StringFormat='🧠 Model: {0}'}" Foreground="#CDD6F4" FontSize="12"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Policy:" FontSize="11" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                            <Border Background="#2A2A3C" CornerRadius="4" Padding="6,2">
+                                <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Currency: {0}'}" FontSize="10" FontWeight="Bold" Foreground="#F9E2AF"/>
+                            </Border>
+                            <Border Background="#2A2A3C" CornerRadius="4" Padding="6,2">
+                                <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="#F38BA8"/>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
             </Grid>
         </Border>
 

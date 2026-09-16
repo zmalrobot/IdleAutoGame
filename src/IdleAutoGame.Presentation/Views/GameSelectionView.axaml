@@ -31,44 +31,51 @@
             <!-- Right: Game Details -->
             <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="20">
                 <ScrollViewer>
-                    <StackPanel Spacing="16">
+                    <StackPanel Spacing="14">
                         <TextBlock Text="{Binding SelectedGame.Name}" FontSize="20" FontWeight="Bold" Foreground="#89B4FA"/>
-                        <TextBlock Text="{Binding SelectedGame.Description}" FontSize="14" Foreground="#CDD6F4" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SelectedGame.Description}" FontSize="13" Foreground="#CDD6F4" TextWrapping="Wrap"/>
 
-                        <Separator Background="#45475A"/>
+                        <!-- Security & Spending Policies (Deny By Default) Prominent Card -->
+                        <Border Background="#181825" BorderBrush="#313244" BorderThickness="1" CornerRadius="8" Padding="14">
+                            <StackPanel Spacing="10">
+                                <DockPanel>
+                                    <TextBlock Text="Security &amp; Spending Policies (Deny-by-Default):" FontSize="14" FontWeight="SemiBold" Foreground="#F9E2AF"/>
+                                    <Border DockPanel.Dock="Right" Background="#313244" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="Policy Enforced" FontSize="11" Foreground="#A6E3A1"/>
+                                    </Border>
+                                </DockPanel>
 
-                        <TextBlock Text="Gameplay Instructions &amp; Rules:" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <Border Background="#181825" CornerRadius="6" Padding="12">
-                            <TextBlock Text="{Binding SelectedGame.BasePrompt}" FontFamily="Consolas, monospace" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                                <CheckBox IsChecked="{Binding AllowPremiumCurrency}" Content="Permetti all'LLM di usare currency premium"
+                                          Foreground="#CDD6F4" FontWeight="Medium"/>
+                                <TextBlock Text="Quando disabilitato (OFF), l'LLM non può spendere diamanti, gemme o valute a pagamento."
+                                           FontSize="11" Foreground="#6C7086" Margin="28,-6,0,0"/>
+
+                                <CheckBox IsChecked="{Binding AllowCreditPurchases}" Content="Permetti all'LLM di acquistare crediti"
+                                          Foreground="#CDD6F4" FontWeight="Medium"/>
+                                <TextBlock Text="Quando disabilitato (OFF), l'LLM non può avviare acquisti in-app con denaro reale e l'Activity Guard monitora il foreground."
+                                           FontSize="11" Foreground="#6C7086" Margin="28,-6,0,0"/>
+                            </StackPanel>
                         </Border>
 
-                        <TextBlock Text="Safety Constraints:" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <TextBlock Text="Safety Constraints:" FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
                         <ItemsControl ItemsSource="{Binding SelectedGame.Constraints}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <Border Background="#181825" CornerRadius="4" Padding="8" Margin="0,0,0,6">
+                                    <Border Background="#181825" CornerRadius="4" Padding="8" Margin="0,0,0,4">
                                         <Grid ColumnDefinitions="Auto,*">
-                                            <TextBlock Grid.Column="0" Text="{Binding Id}" FontWeight="Bold" Foreground="#F38BA8" Margin="0,0,8,0"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="12" Foreground="#CDD6F4"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding Id}" FontWeight="Bold" Foreground="#F38BA8" Margin="0,0,8,0" FontSize="11"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding Description}" FontSize="11" Foreground="#CDD6F4"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <TextBlock Text="Security &amp; Spending Policies (Deny By Default):" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                        <Border Background="#181825" CornerRadius="6" Padding="12">
-                            <StackPanel Spacing="10">
-                                <CheckBox IsChecked="{Binding AllowPremiumCurrency}" Content="Permetti all'LLM di usare currency premium"
-                                          Foreground="#CDD6F4"/>
-                                <TextBlock Text="Quando disabilitato (OFF), l'LLM non può spendere diamanti, gemme o valute a pagamento."
-                                           FontSize="11" Foreground="#6C7086" Margin="28,-4,0,0"/>
-
-                                <CheckBox IsChecked="{Binding AllowCreditPurchases}" Content="Permetti all'LLM di acquistare crediti"
-                                          Foreground="#CDD6F4"/>
-                                <TextBlock Text="Quando disabilitato (OFF), l'LLM non può avviare acquisti in-app con denaro reale e l'Activity Guard monitora il foreground."
-                                           FontSize="11" Foreground="#6C7086" Margin="28,-4,0,0"/>
-                            </StackPanel>
+                        <TextBlock Text="Gameplay Instructions &amp; Prompt Summary:" FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <Border Background="#181825" CornerRadius="6" Padding="10" MaxHeight="120">
+                            <ScrollViewer>
+                                <TextBlock Text="{Binding SelectedGame.BasePrompt}" FontFamily="Consolas, monospace" FontSize="11" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                            </ScrollViewer>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>

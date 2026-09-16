@@ -41,10 +41,19 @@ public partial class App : Avalonia.Application
             configService.InitializeAsync().GetAwaiter().GetResult();
 
             var mainVm = _serviceProvider.GetRequiredService<MainWindowViewModel>();
-            desktop.MainWindow = new MainWindow
+            var mainWindow = new MainWindow
             {
                 DataContext = mainVm
             };
+            desktop.MainWindow = mainWindow;
+
+            if (desktop.Args?.Contains("--capture-screenshots") == true)
+            {
+                mainWindow.Opened += async (_, _) =>
+                {
+                    await ScreenCaptureRunner.RunAsync(desktop, mainWindow, mainVm);
+                };
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

@@ -21,6 +21,11 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty]
     private AutomationState _state = AutomationState.Idle;
 
+    partial void OnStateChanged(AutomationState value)
+    {
+        UpdateCommandStates();
+    }
+
     [ObservableProperty]
     private string? _pauseReason;
 

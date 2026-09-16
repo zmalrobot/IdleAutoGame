@@ -16,6 +16,9 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly LocalLlamaProvider _localProvider;
 
     [ObservableProperty]
+    private int _selectedTabIndex = 0;
+
+    [ObservableProperty]
     private string _locale = "system";
 
     [ObservableProperty]
@@ -100,6 +103,18 @@ public partial class SettingsViewModel : ViewModelBase
     private string _connectionPreference = "usb";
 
     [ObservableProperty]
+    private int _adbCommandTimeoutSeconds = 10;
+
+    [ObservableProperty]
+    private string? _defaultDeviceSerial;
+
+    [ObservableProperty]
+    private bool _allowPremiumCurrencyDefault = false;
+
+    [ObservableProperty]
+    private bool _allowCreditPurchasesDefault = false;
+
+    [ObservableProperty]
     private string _logLevel = "Information";
 
     [ObservableProperty]
@@ -175,6 +190,20 @@ public partial class SettingsViewModel : ViewModelBase
         EmergencyStopTimeoutMs = s.Automation.EmergencyStopTimeoutMs;
 
         ConnectionPreference = s.Device.ConnectionPreference;
+        DefaultDeviceSerial = s.Device.DefaultDeviceSerial;
+        AdbCommandTimeoutSeconds = s.Automation.AdbCommandTimeoutSeconds;
+
+        var defaultGameId = s.Games.DefaultGameId ?? "tap-titans-2";
+        if (s.Games.PerGame.TryGetValue(defaultGameId, out var defaultGameSpec))
+        {
+            AllowPremiumCurrencyDefault = defaultGameSpec.AllowPremiumCurrency;
+            AllowCreditPurchasesDefault = defaultGameSpec.AllowCreditPurchases;
+        }
+        else
+        {
+            AllowPremiumCurrencyDefault = false;
+            AllowCreditPurchasesDefault = false;
+        }
 
         LogLevel = s.Logging.Level;
         SaveScreenshots = s.Logging.SaveScreenshots;
@@ -363,7 +392,18 @@ public partial class SettingsViewModel : ViewModelBase
         s.Automation.ActivityCancellationTimeoutMs = ActivityCancellationTimeoutMs;
         s.Automation.EmergencyStopTimeoutMs = EmergencyStopTimeoutMs;
 
+        s.Automation.AdbCommandTimeoutSeconds = AdbCommandTimeoutSeconds;
         s.Device.ConnectionPreference = ConnectionPreference;
+        s.Device.DefaultDeviceSerial = DefaultDeviceSerial;
+
+        var gameId = s.Games.DefaultGameId ?? "tap-titans-2";
+        if (!s.Games.PerGame.TryGetValue(gameId, out var gSpec))
+        {
+            gSpec = new GameSpecificSettings();
+            s.Games.PerGame[gameId] = gSpec;
+        }
+        gSpec.AllowPremiumCurrency = AllowPremiumCurrencyDefault;
+        gSpec.AllowCreditPurchases = AllowCreditPurchasesDefault;
 
         s.Logging.Level = LogLevel;
         s.Logging.SaveScreenshots = SaveScreenshots;
