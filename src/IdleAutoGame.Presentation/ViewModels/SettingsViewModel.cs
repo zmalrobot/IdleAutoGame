@@ -216,7 +216,7 @@ public partial class SettingsViewModel : ViewModelBase
         _ = RefreshLocalModelsAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task RefreshLocalModelsAsync()
     {
         try
@@ -237,7 +237,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task AutoConfigureLlmAsync()
     {
         try
@@ -263,7 +263,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task DownloadModelAsync(LocalModel model)
     {
         if (model == null) return;
@@ -281,7 +281,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task DeleteModelAsync(LocalModel model)
     {
         if (model == null) return;
@@ -304,7 +304,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task SelectActiveModelAsync(LocalModel model)
     {
         if (model == null) return;
@@ -337,7 +337,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task UnloadActiveModelAsync()
     {
         try
@@ -357,7 +357,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task SaveSettingsAsync()
     {
         var s = _configService.Current;
@@ -424,7 +424,7 @@ public partial class SettingsViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task ResetDefaultsAsync()
     {
         await _configService.ResetAllAsync();

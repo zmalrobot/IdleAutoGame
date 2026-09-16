@@ -108,11 +108,19 @@ public sealed class OpenAiCompatibleProvider : ILlmProvider
             using var jsonDoc = await JsonDocument.ParseAsync(await httpResponse.Content.ReadAsStreamAsync(ct).ConfigureAwait(false), cancellationToken: ct).ConfigureAwait(false);
             var root = jsonDoc.RootElement;
 
-            var content = root
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? string.Empty;
+            if (!root.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0 ||
+                !choices[0].TryGetProperty("message", out var msg) ||
+                !msg.TryGetProperty("content", out var contentProp))
+            {
+                return new LlmResponse
+                {
+                    IsSuccess = false,
+                    Error = "Invalid OpenAI API response structure: missing or empty choices[0].message.content",
+                    LatencyMs = stopwatch.ElapsedMilliseconds
+                };
+            }
+
+            var content = contentProp.GetString() ?? string.Empty;
 
             int? tokensUsed = null;
             if (root.TryGetProperty("usage", out var usageProp) && usageProp.TryGetProperty("total_tokens", out var tokensProp))

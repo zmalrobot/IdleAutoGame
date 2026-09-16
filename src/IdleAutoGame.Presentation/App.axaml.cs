@@ -54,6 +54,41 @@ public partial class App : Avalonia.Application
                     await ScreenCaptureRunner.RunAsync(desktop, mainWindow, mainVm);
                 };
             }
+
+            desktop.ShutdownRequested += (_, _) =>
+            {
+                var engine = _serviceProvider?.GetService<IAutomationEngine>();
+                if (engine != null)
+                {
+                    try
+                    {
+                        engine.StopAsync().GetAwaiter().GetResult();
+                    }
+                    catch
+                    {
+                        // Suppress shutdown exceptions to ensure process exits cleanly
+                    }
+                }
+
+                var localLlama = _serviceProvider?.GetService<LocalLlamaProvider>();
+                if (localLlama != null)
+                {
+                    try
+                    {
+                        localLlama.UnloadModelAsync().GetAwaiter().GetResult();
+                        localLlama.Dispose();
+                    }
+                    catch
+                    {
+                        // Suppress cleanup exceptions during process exit
+                    }
+                }
+
+                if (_serviceProvider is IDisposable disp)
+                {
+                    try { disp.Dispose(); } catch { }
+                }
+            };
         }
 
         base.OnFrameworkInitializationCompleted();

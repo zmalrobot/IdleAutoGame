@@ -85,6 +85,20 @@ public sealed class SettingsValidator
             ValidateLogging(settings.Logging, result);
         }
 
+        if (settings.Games == null)
+        {
+            result.AddError("Games settings section cannot be null.");
+        }
+        else
+        {
+            ValidateGames(settings.Games, result);
+        }
+
+        if (settings.Ui == null)
+        {
+            result.AddError("UI settings section cannot be null.");
+        }
+
         return result;
     }
 
@@ -263,6 +277,27 @@ public sealed class SettingsValidator
         if (logging.RetentionDays is < 1 or > 365)
         {
             result.AddError($"Retention days must be between 1 and 365. Current: {logging.RetentionDays}.");
+        }
+    }
+
+    private static void ValidateGames(GamesSettings games, ValidationResult result)
+    {
+        if (games.PerGame == null)
+        {
+            result.AddError("PerGame dictionary in Games settings cannot be null.");
+            return;
+        }
+
+        foreach (var (gameId, spec) in games.PerGame)
+        {
+            if (string.IsNullOrWhiteSpace(gameId))
+            {
+                result.AddError("Game ID key in PerGame dictionary cannot be empty.");
+            }
+            if (spec == null)
+            {
+                result.AddError($"GameSpecificSettings entry for '{gameId}' cannot be null.");
+            }
         }
     }
 }

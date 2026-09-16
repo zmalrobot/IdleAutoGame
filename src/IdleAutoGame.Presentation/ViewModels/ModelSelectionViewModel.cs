@@ -113,7 +113,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
         _modelManager.ModelStatusChanged += OnModelStatusChanged;
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task LoadModelsAsync()
     {
         IsBusy = true;
@@ -181,7 +181,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task DownloadModelAsync(LocalModelDisplayItem item)
     {
         if (item == null) return;
@@ -214,7 +214,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task CancelDownloadAsync(LocalModelDisplayItem item)
     {
         if (item == null) return;
@@ -223,7 +223,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
         StatusMessage = $"Download cancellation requested for '{item.Model.DisplayName}'.";
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task SaveSelectionAsync()
     {
         var current = _configService.Current;

@@ -40,14 +40,14 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void NavigateToDashboard() => CurrentView = Dashboard;
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task NavigateToDevicesAsync()
     {
         CurrentView = Devices;
         await Devices.RefreshDevicesAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task NavigateToModelsAsync()
     {
         CurrentView = Models;

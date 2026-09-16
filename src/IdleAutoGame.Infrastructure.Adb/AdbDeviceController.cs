@@ -77,6 +77,11 @@ public sealed class AdbDeviceController : IDeviceController
     public async Task TapAsync(string serial, int x, int y, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        if (x < 0 || y < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(x), "Tap coordinates cannot be negative.");
+        }
+
         var device = new AdvancedSharpAdbClient.Models.DeviceData { Serial = serial };
         var receiver = new ConsoleOutputReceiver();
         await _client.ExecuteRemoteCommandAsync($"input tap {x} {y}", device, receiver, ct).ConfigureAwait(false);
@@ -86,6 +91,15 @@ public sealed class AdbDeviceController : IDeviceController
     public async Task SwipeAsync(string serial, int x1, int y1, int x2, int y2, int durationMs = 300, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        if (x1 < 0 || y1 < 0 || x2 < 0 || y2 < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(x1), "Swipe coordinates cannot be negative.");
+        }
+        if (durationMs <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(durationMs), "Swipe duration must be strictly positive.");
+        }
+
         var device = new AdvancedSharpAdbClient.Models.DeviceData { Serial = serial };
         var receiver = new ConsoleOutputReceiver();
         await _client.ExecuteRemoteCommandAsync($"input swipe {x1} {y1} {x2} {y2} {durationMs}", device, receiver, ct).ConfigureAwait(false);

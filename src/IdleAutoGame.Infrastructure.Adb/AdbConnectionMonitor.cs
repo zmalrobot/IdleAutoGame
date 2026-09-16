@@ -45,10 +45,21 @@ public sealed class AdbConnectionMonitor
                 return false;
             }
 
-            var connected = await _connectionManager.ConnectWirelessAsync(host, port, ct).ConfigureAwait(false);
-            if (connected)
+            try
             {
-                return true;
+                var connected = await _connectionManager.ConnectWirelessAsync(host, port, ct).ConfigureAwait(false);
+                if (connected)
+                {
+                    return true;
+                }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                return false;
+            }
+            catch
+            {
+                // Network/socket error during reconnect; continue backoff sequence
             }
         }
 

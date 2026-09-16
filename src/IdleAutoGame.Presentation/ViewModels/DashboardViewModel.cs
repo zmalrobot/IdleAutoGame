@@ -180,7 +180,7 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(IsPausedOrAlert));
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task StartAutomationAsync()
     {
         var settings = _configService.Current;
@@ -222,19 +222,19 @@ public partial class DashboardViewModel : ViewModelBase
         await _engine.StartAsync(deviceSerial, gameId, modelId);
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task PauseAutomationAsync()
     {
         await _engine.PauseAsync("User paused automation.");
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task ResumeAutomationAsync()
     {
         await _engine.ResumeAsync();
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task StopAutomationAsync()
     {
         await _engine.StopAsync();

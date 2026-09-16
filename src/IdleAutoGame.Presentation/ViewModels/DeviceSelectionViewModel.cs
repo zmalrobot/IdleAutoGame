@@ -48,7 +48,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         _deviceService = deviceService;
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task RefreshDevicesAsync()
     {
         IsBusy = true;
@@ -77,7 +77,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task ConnectWirelessAsync()
     {
         if (string.IsNullOrWhiteSpace(WirelessHost))
@@ -112,7 +112,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task PairWirelessAsync()
     {
         if (string.IsNullOrWhiteSpace(WirelessHost) || string.IsNullOrWhiteSpace(PairingCode))
@@ -139,7 +139,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task VerifyDeviceAsync()
     {
         if (SelectedDevice == null)
@@ -194,7 +194,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         }
     }
 
-    [RelayCommand]
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task SaveSelectionAsync()
     {
         if (SelectedDevice == null)

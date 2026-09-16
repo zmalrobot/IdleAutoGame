@@ -171,7 +171,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             {
                 State = AutomationState.ActivityLost;
             }
-            else if (reason != null && reason.Contains("Policy", StringComparison.OrdinalIgnoreCase))
+            else if (reason != null && (reason.Contains("Security Policy", StringComparison.OrdinalIgnoreCase) || reason.Contains("Policy violation", StringComparison.OrdinalIgnoreCase)))
             {
                 State = AutomationState.PolicyBlocked;
             }
@@ -212,7 +212,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
         // 1. Immediate cancellation signal
         _loopCts?.Cancel();
-        _currentCycleCts?.Cancel();
+        try { _currentCycleCts?.Cancel(); } catch (ObjectDisposedException) { }
         _resumeTcs?.TrySetCanceled();
 
         // 2. Await background loop completion with cancellation timeout
@@ -306,7 +306,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             if (moreRestrictive)
             {
                 // Invalidate currently pending cycle immediately
-                _currentCycleCts?.Cancel();
+                try { _currentCycleCts?.Cancel(); } catch (ObjectDisposedException) { }
             }
         }
 
@@ -331,7 +331,18 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 // Handle pause suspension
                 if ((State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked) && _resumeTcs != null)
                 {
-                    await _resumeTcs.Task.WaitAsync(ct).ConfigureAwait(false);
+                    try
+                    {
+                        await _resumeTcs.Task.WaitAsync(ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        break;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // Resumed or cancelled
+                    }
                 }
 
                 // 0. Pre-Cycle Activity Check: Ensure device is inside the game context
@@ -676,7 +687,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     {
         _loopCts?.Cancel();
         _loopCts?.Dispose();
-        _currentCycleCts?.Dispose();
+        _resumeTcs?.TrySetCanceled();
+        try { _currentCycleCts?.Dispose(); } catch (ObjectDisposedException) { }
     }
 
     private sealed class InMemorySettingsRepository : ISettingsRepository

@@ -29,10 +29,13 @@ public static class ScreenCaptureRunner
         Console.WriteLine("======================================================");
 
         var outDir1 = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../artifacts/screenshots"));
-        var outDir2 = "/home/simone/.gemini/antigravity/brain/c387fd6f-6fb7-4089-bc0d-775deec93fad/screenshots";
+        var outDir2 = Environment.GetEnvironmentVariable("SCREENSHOT_OUT_DIR");
 
         Directory.CreateDirectory(outDir1);
-        Directory.CreateDirectory(outDir2);
+        if (!string.IsNullOrWhiteSpace(outDir2))
+        {
+            Directory.CreateDirectory(outDir2);
+        }
 
         // Ensure window layout is realized
         await Task.Delay(600);
@@ -47,10 +50,13 @@ public static class ScreenCaptureRunner
             rtb.Render(window);
 
             var path1 = Path.Combine(outDir1, filename);
-            var path2 = Path.Combine(outDir2, filename);
-
             rtb.Save(path1);
-            rtb.Save(path2);
+
+            if (!string.IsNullOrWhiteSpace(outDir2))
+            {
+                var path2 = Path.Combine(outDir2, filename);
+                rtb.Save(path2);
+            }
 
             Console.WriteLine($"[CAPTURED] {filename} ({width}x{height})");
         }
@@ -335,3 +341,4 @@ public static class ScreenCaptureRunner
         }
     }
 }
+

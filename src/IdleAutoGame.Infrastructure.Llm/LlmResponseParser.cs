@@ -161,7 +161,14 @@ public static class LlmResponseParser
             return match.Groups[1].Value.Trim();
         }
 
-        // If no code fence, return trimmed text directly
+        // Fallback: extract outermost JSON object if LLM provided conversational commentary
+        var jsonObjMatch = Regex.Match(trimmed, @"\{[\s\S]*\}");
+        if (jsonObjMatch.Success)
+        {
+            return jsonObjMatch.Value.Trim();
+        }
+
+        // If no JSON object pattern, return trimmed text directly
         return trimmed;
     }
 }
