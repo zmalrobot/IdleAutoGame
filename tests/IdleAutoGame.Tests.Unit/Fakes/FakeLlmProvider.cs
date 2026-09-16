@@ -11,6 +11,17 @@ public class FakeLlmProvider : ILlmProvider
     public Queue<LlmResponse> NextResponses { get; } = new();
     public List<LlmRequest> CapturedRequests { get; } = new();
 
+    public void EnqueueResponse(GameAction action)
+    {
+        NextResponses.Enqueue(new LlmResponse
+        {
+            IsSuccess = true,
+            RawContent = "{}",
+            ParsedAction = action,
+            LatencyMs = 50
+        });
+    }
+
     public Task<LlmResponse> AnalyzeAsync(LlmRequest request, CancellationToken ct = default)
     {
         CapturedRequests.Add(request);

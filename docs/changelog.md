@@ -2,6 +2,95 @@
 
 Tutte le modifiche rilevanti ai requisiti, alle specifiche di prodotto e all'architettura verranno documentate in questo file per preservare l'evoluzione del progetto.
 
+## [3.4.0] - 2026-09-16 (Comprehensive Audit, Cross-Platform Architecture Hardening & Bug Fixes)
+
+### Fixed
+- **Splash Screen Navigation Resolution**:
+  - Resolved circular dependency in `App.axaml.cs` where `SplashViewModel` factory captured `MainWindowViewModel` as `null` during container resolution.
+  - Refactored `SplashViewModel` with standard decoupled event `Ready` (`event EventHandler? Ready`) subscribed by `MainWindowViewModel`.
+  - Added automatic preflight check trigger on `SplashView.Loaded`.
+- **DeviceService DI & Device Selection Validation**:
+  - Registered missing `DeviceService` in `App.axaml.cs` DI container.
+  - Injected `DeviceService` into `DeviceSelectionViewModel` and `DashboardViewModel`.
+  - Added `VerifyDeviceCommand` for real-time ADB responsiveness and resolution verification.
+  - Implemented explicit validation in `DeviceSelectionViewModel` to block selection of `Unauthorized`, `Offline`, or `Unreachable` devices with clear actionable messages.
+- **Dynamic LLM Provider & Settings in AutomationEngine**:
+  - Refactored `AutomationEngine` to dynamically resolve the active `ILlmProvider` via `Func<ILlmProvider>` and live settings via `IConfigurationService`, allowing on-the-fly switching between local llama.cpp and remote providers without engine re-instantiation.
+  - Preserved backward-compatible constructors for testing and added `initialSettings` support in `ConfigurationService`.
+- **Windows Cross-Platform Hardware Detection**:
+  - Fixed fallback in `LinuxHardwareDetector`: when `/proc/meminfo` is absent (Windows), RAM is now reliably detected via `GC.GetGCMemoryInfo().TotalAvailableMemoryBytes` rather than remaining at 0 MB.
+  - Guarded `lspci` and CPU model inspection with `!OperatingSystem.IsWindows()` to prevent process start exceptions on Windows.
+- **Windows CMD Script Robustness**:
+  - Fixed premature block closing in `scripts/doctor.cmd` and `scripts/common.cmd` caused by unescaped parentheses inside `if (...)` blocks in Windows CMD.
+  - Verified all Windows `.cmd` scripts (`doctor.cmd`, `build.cmd`, `run.cmd`, `publish.cmd`, `run-published.cmd`, `test.cmd`, `clean.cmd`) via Wine CMD.
+
+### Added
+- **Unit Tests**:
+  - Added unit test suite `SplashViewModelTests` covering preflight execution and `Ready` event dispatch.
+  - Added unit test suite `DeviceSelectionViewModelTests` covering device list refresh, state verification, and blocking unauthorized/offline devices.
+  - Added tests in `DashboardViewModelTests` covering device pre-flight checks and engine start.
+  - Increased unit test coverage to 154 passing tests with 0 warnings under `-warnaserror`.
+
+## [3.3.0] - 2026-09-16 (Cross-Platform Build, Run & Publish Automation)
+
+### Added
+- **Cross-Platform Automation Suite**:
+  - Implemented identical build lifecycle automation for **Linux** (`Bash` `.sh`) and **Windows** (`Windows CMD` `.cmd` - strictly zero PowerShell / `.ps1` dependencies).
+  - Added `scripts/build.sh` and `scripts/build.cmd`: Performs real clean builds, explicit `dotnet restore`, and Release compilation with exit code propagation.
+  - Added `scripts/run.sh` and `scripts/run.cmd`: Clean build and execution of the Avalonia Presentation desktop app with passthrough arguments.
+  - Added `scripts/publish.sh` and `scripts/publish.cmd`: Configurable publishing (`--rid <RID>`, `--self-contained [true|false]`), outputting to `artifacts/publish/<RID>/`, copying `models.json` when present, and verifying executable output.
+  - Added `scripts/run-published.sh` and `scripts/run-published.cmd`: Guarded launcher for published binaries with missing-artifact check and permission validation.
+  - Added `scripts/doctor.sh` and `scripts/doctor.cmd`: Automated environment diagnostics checking OS, architecture, .NET CLI, .NET 10 SDK, `global.json`, project file tree, NuGet sources, and disk write access.
+  - Added `scripts/test.sh` and `scripts/test.cmd`: Test runner script executing the 145-test suite with filter support and proper exit code propagation.
+  - Added `scripts/clean.sh` and `scripts/clean.cmd`: Deep clean tool removing `bin/`, `obj/`, `artifacts/`, and `dist/` without affecting source or tracked files.
+  - Added `scripts/common.sh` and `scripts/common.cmd`: Shared path resolution (`SCRIPT_DIR`, `ROOT_DIR`), prerequisite verification, and logging utilities.
+- **Repository Configuration**:
+  - Added root `global.json` pinning .NET 10 SDK (`10.0.100`, `rollForward: latestFeature`).
+  - Added root `.gitignore` properly excluding `bin/`, `obj/`, `artifacts/`, `dist/`, IDE files, and SQLite databases.
+  - Untracked legacy `bin/` and `obj/` binaries from git index.
+- **Documentation**:
+  - Updated `README.md` with comprehensive `# Build e sviluppo` section, prerequisite matrices for Linux and Windows, execution tables, and detailed troubleshooting guide.
+
+## [3.2.0] - 2026-09-16 (Native Local LLM Engine with llama.cpp & LLamaSharp)
+
+### Added
+- **Native Local LLM Subsystem (ADR-009)**:
+  - Integrated `LLamaSharp` (v0.27.0) and `LLamaSharp.Backend.Cpu` into `IdleAutoGame.Infrastructure.Llm`.
+  - Implemented `LocalLlamaProvider` as a first-class `ILlmProvider` behind the unified LLM abstraction with native lifecycle (`LoadModelAsync`, `WarmupAsync`, `UnloadModelAsync`, `Dispose`), thread-safe inference via `StatelessExecutor`, and unmanaged resource management.
+  - Implemented `LlmAutoConfigurator` automating CPU thread count, context size, and GPU offloading layers based on probed hardware memory and core count.
+- **Local Model Management**:
+  - Implemented `LocalModel` domain entity and GGUF format validation.
+  - Implemented `ModelManager` (`IModelManager`) supporting chunked resumable/cancellable downloads, SHA-256 integrity verification, single-download concurrency lock, free disk space pre-flight check (+500MB headroom), and in-use deletion protection.
+  - Implemented `ModelDownloader` (`IModelDownloader`) reporting real-time metrics (progress %, transfer speed, ETA).
+  - Implemented `JsonModelCatalog` proposing 9 curated GGUF models across 3 RAM tiers (`Tier8Gb`, `Tier16Gb`, `Tier32GbPlus`) with 3 recommended models per tier and 1.5 GB OS headroom reservation.
+- **Presentation & UI**:
+  - Enhanced `ModelSelectionViewModel` and `ModelSelectionView`: Local vs Remote mode switch, dynamic RAM tier banner, top 3 recommended models card list, live download progress with cancellation, and incompatible model selection blocking.
+  - Enhanced `SettingsViewModel` and `SettingsView`: Added "Local Models & llama.cpp" tab with runtime tuning (context size, threads, GPU layers, batch size, sampling params), hardware auto-configuration action, and model management table (load, unload, delete, status).
+- **Testing & Verification**:
+  - Added unit test suites in `LocalLlamaProviderTests`, `ModelManagerTests`, `LlmAutoConfiguratorTests`, and updated `ModelCatalogTests` and `ModelSelectionViewModelTests`.
+  - Total unit test count increased to 145 tests passing with 100% success rate and zero compiler warnings under `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`.
+
+## [3.1.0] - 2026-09-16 (Security Policy Enforcement & Activity Guard)
+
+### Added
+- **Security Policy Enforcement (ADR-008)**:
+  - Added mandatory Deny-by-Default policies: `AllowPremiumCurrency` (default `false`) and `AllowCreditPurchases` (default `false`).
+  - Added `ActionCategory` enum (`Normal`, `PremiumCurrency`, `CreditPurchase`) to `GameAction`.
+  - Implemented `ActionPolicyValidator` in validation pipeline checking category permissions, spatial shop bounding boxes, and heuristic keyword analysis.
+  - Implemented `IGamePolicyService` and `GamePolicyService` with dynamic event notifications (`GamePolicyChangedEvent`) and persistent per-game storage.
+  - Formatted System Prompt Tier 1 (`### 1.1 APPLICATION SECURITY POLICY`) to clearly state application-level security constraints to the LLM.
+- **Android Activity Guard & Race Condition Defense**:
+  - Implemented `IGameActivityGuard` querying foreground app via `dumpsys window` and fallback `dumpsys activity activities`.
+  - Added pre-cycle verification and pre-execution race condition defense immediately prior to physical input dispatch.
+  - Automatic pause on foreground mismatch or app departure with `AutomationState.ActivityLost` and informative reason banner.
+  - Graceful cancellation timeout (`ActivityCancellationTimeoutMs`) and emergency hard stop fallback (`EmergencyStopTimeoutMs`).
+- **UI & Presentation**:
+  - Added toggles in `GameSelectionView` for per-game configuration.
+  - Added live runtime toggles and status badges in `DashboardView` with automatic cycle cancellation when policies are restricted during active gameplay.
+  - Added Activity Guard settings in `SettingsView` Automation tab.
+- **Testing**:
+  - Added comprehensive unit test suites in `GamePolicyTests`, `ActivityGuardTests`, and updated `DashboardViewModelTests` and `GameSelectionViewModelTests` (115 passing unit tests total).
+
 ## [3.0.0] - 2026-09-16 (.NET 10 Migration & Implementation Complete)
 
 ### Added

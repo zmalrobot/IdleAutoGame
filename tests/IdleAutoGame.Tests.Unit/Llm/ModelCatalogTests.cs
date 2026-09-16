@@ -1,4 +1,5 @@
 using FluentAssertions;
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Infrastructure.Llm;
 using Xunit;
@@ -50,5 +51,61 @@ public class ModelCatalogTests
         model.Should().NotBeNull();
         model!.Name.Should().Contain("LLaVA");
     }
-}
 
+    [Fact]
+    public void GetAllLocalModels_ContainsNineCuratedGgufModels()
+    {
+        var catalog = new JsonModelCatalog("non-existent-models.json");
+        var localModels = catalog.GetAllLocalModels();
+
+        localModels.Should().HaveCount(9);
+        localModels.Should().OnlyContain(m => m.Provider == "LLamaSharp");
+        localModels.Should().OnlyContain(m => !string.IsNullOrWhiteSpace(m.DownloadUrl));
+        localModels.Should().OnlyContain(m => !string.IsNullOrWhiteSpace(m.Checksum));
+        localModels.Should().OnlyContain(m => !string.IsNullOrWhiteSpace(m.LicenseName));
+    }
+
+    [Theory]
+    [InlineData(RamTier.Tier8Gb, 3)]
+    [InlineData(RamTier.Tier16Gb, 3)]
+    [InlineData(RamTier.Tier32GbPlus, 3)]
+    public void GetRecommendedModelsForTier_ReturnsExactlyThreeModels(RamTier tier, int expectedCount)
+    {
+        var catalog = new JsonModelCatalog("non-existent-models.json");
+        var recommended = catalog.GetRecommendedModelsForTier(tier);
+
+        recommended.Should().HaveCount(expectedCount);
+        recommended.Should().OnlyContain(m => m.RamTier == tier);
+    }
+
+    [Theory]
+    [InlineData(8192, RamTier.Tier8Gb)]
+    [InlineData(16384, RamTier.Tier16Gb)]
+    [InlineData(32768, RamTier.Tier32GbPlus)]
+    [InlineData(65536, RamTier.Tier32GbPlus)]
+    public void DetermineRamTier_ClassifiesCorrectly(long totalRamMb, RamTier expectedTier)
+    {
+        var catalog = new JsonModelCatalog("non-existent-models.json");
+        var hardware = new HardwareInfo { TotalRamMb = totalRamMb };
+
+        var tier = catalog.DetermineRamTier(hardware);
+        tier.Should().Be(expectedTier);
+    }
+
+    [Fact]
+    public void LocalModel_IsCompatibleWith_EnforcesRamLimitsWithHeadroom()
+    {
+        var catalog = new JsonModelCatalog("non-existent-models.json");
+        var heavyModel = catalog.GetLocalModel("llama-3.2-11b-vision-q4");
+        heavyModel.Should().NotBeNull();
+
+        // 8 GB RAM cannot run 16 GB model
+        var lowRamHardware = new HardwareInfo { TotalRamMb = 8192 };
+        heavyModel!.IsCompatibleWith(lowRamHardware, out var reason).Should().BeFalse();
+        reason.Should().Contain("Requires 16.0 GB RAM");
+
+        // 32 GB RAM can easily run 16 GB model
+        var highRamHardware = new HardwareInfo { TotalRamMb = 32768 };
+        heavyModel.IsCompatibleWith(highRamHardware, out _).Should().BeTrue();
+    }
+}

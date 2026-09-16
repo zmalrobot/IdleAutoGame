@@ -15,6 +15,11 @@ public interface IAutomationEngine
     AutomationState State { get; }
 
     /// <summary>
+    /// Gets the reason why the engine is in a paused, activity-lost, or policy-blocked state, if any.
+    /// </summary>
+    string? PauseReason { get; }
+
+    /// <summary>
     /// Gets the active automation session, or null if idle/stopped.
     /// </summary>
     AutomationSession? CurrentSession { get; }
@@ -40,9 +45,9 @@ public interface IAutomationEngine
     Task StartAsync(string deviceSerial, string gameId, string modelId, CancellationToken ct = default);
 
     /// <summary>
-    /// Temporarily pauses the execution loop.
+    /// Temporarily pauses the execution loop with an optional explanation.
     /// </summary>
-    Task PauseAsync();
+    Task PauseAsync(string? reason = null);
 
     /// <summary>
     /// Resumes the execution loop from a paused state.

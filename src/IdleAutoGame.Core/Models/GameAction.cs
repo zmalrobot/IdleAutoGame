@@ -18,6 +18,11 @@ public sealed record GameAction
     public ActionParameters Parameters { get; init; } = new();
 
     /// <summary>
+    /// Gets the sensitivity category of the action for safety policy validation.
+    /// </summary>
+    public ActionCategory Category { get; init; } = ActionCategory.Normal;
+
+    /// <summary>
     /// Gets the mandatory synthetic explanation of the decision intended for user display.
     /// </summary>
     public required string Explanation { get; init; }

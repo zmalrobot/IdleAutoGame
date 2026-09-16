@@ -42,5 +42,10 @@ public interface IDeviceController
     /// Queries the screen display density (DPI) of the device.
     /// </summary>
     Task<int> GetScreenDensityAsync(string serial, CancellationToken ct = default);
+
+    /// <summary>
+    /// Queries the currently active foreground application package and activity name.
+    /// </summary>
+    Task<ForegroundAppInfo> GetForegroundAppAsync(string serial, CancellationToken ct = default);
 }
 

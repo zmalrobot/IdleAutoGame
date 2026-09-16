@@ -15,9 +15,17 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly IAutomationEngine _engine;
     private readonly IConfigurationService _configService;
     private readonly IGameRegistry _gameRegistry;
+    private readonly IGamePolicyService _policyService;
+    private readonly DeviceService? _deviceService;
 
     [ObservableProperty]
     private AutomationState _state = AutomationState.Idle;
+
+    [ObservableProperty]
+    private string? _pauseReason;
+
+    [ObservableProperty]
+    private string _activeGameId = "tap-titans-2";
 
     [ObservableProperty]
     private string _activeGameName = "None";
@@ -27,6 +35,12 @@ public partial class DashboardViewModel : ViewModelBase
 
     [ObservableProperty]
     private string _activeModelId = "None";
+
+    [ObservableProperty]
+    private bool _allowPremiumCurrency;
+
+    [ObservableProperty]
+    private bool _allowCreditPurchases;
 
     [ObservableProperty]
     private string _lastActionType = "None";
@@ -62,24 +76,51 @@ public partial class DashboardViewModel : ViewModelBase
     private ObservableCollection<CycleRecord> _recentCycles = new();
 
     public bool CanStart => State is AutomationState.Idle or AutomationState.Stopped;
-    public bool CanPause => State is not (AutomationState.Idle or AutomationState.Stopped or AutomationState.Paused or AutomationState.Stopping);
-    public bool CanResume => State is AutomationState.Paused;
+    public bool CanPause => State is not (AutomationState.Idle or AutomationState.Stopped or AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Stopping);
+    public bool CanResume => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
     public bool CanStop => State is not (AutomationState.Idle or AutomationState.Stopped);
+    public bool IsPausedOrAlert => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
+
+    public string PremiumCurrencyStatusText => AllowPremiumCurrency ? "ON" : "OFF";
+    public string CreditPurchasesStatusText => AllowCreditPurchases ? "ON" : "OFF";
 
     public DashboardViewModel(
         IAutomationEngine engine,
         IConfigurationService configService,
-        IGameRegistry gameRegistry)
+        IGameRegistry gameRegistry,
+        IGamePolicyService? policyService = null,
+        DeviceService? deviceService = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _gameRegistry = gameRegistry ?? throw new ArgumentNullException(nameof(gameRegistry));
+        _policyService = policyService ?? new GamePolicyService(configService);
+        _deviceService = deviceService;
 
         _engine.StateChanged += OnEngineStateChanged;
         _engine.CycleCompleted += OnEngineCycleCompleted;
         _engine.ActionExecuted += OnEngineActionExecuted;
 
+        // Initialize policy from current default game
+        var defaultId = _configService.Current.Games.DefaultGameId ?? "tap-titans-2";
+        ActiveGameId = defaultId;
+        var policy = _policyService.GetEffectivePolicy(defaultId);
+        _allowPremiumCurrency = policy.AllowPremiumCurrency;
+        _allowCreditPurchases = policy.AllowCreditPurchases;
+
         UpdateCommandStates();
+    }
+
+    partial void OnAllowPremiumCurrencyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(PremiumCurrencyStatusText));
+        _ = _policyService.UpdatePolicyAsync(ActiveGameId, value, AllowCreditPurchases);
+    }
+
+    partial void OnAllowCreditPurchasesChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CreditPurchasesStatusText));
+        _ = _policyService.UpdatePolicyAsync(ActiveGameId, AllowPremiumCurrency, value);
     }
 
     private void OnEngineStateChanged(object? sender, IdleAutoGame.Core.Events.AutomationStateChangedEvent e)
@@ -87,7 +128,9 @@ public partial class DashboardViewModel : ViewModelBase
         Dispatcher.UIThread.Post(() =>
         {
             State = e.CurrentState;
+            PauseReason = e.Reason ?? _engine.PauseReason;
             UpdateCommandStates();
+            OnPropertyChanged(nameof(IsPausedOrAlert));
         });
     }
 
@@ -129,20 +172,42 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanPause));
         OnPropertyChanged(nameof(CanResume));
         OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(IsPausedOrAlert));
     }
 
     [RelayCommand]
     public async Task StartAutomationAsync()
     {
         var settings = _configService.Current;
-        var deviceSerial = settings.Device.DefaultDeviceSerial ?? "usb-default";
-        var gameId = settings.Games.DefaultGameId ?? "tap-titans-2";
-        var modelId = settings.Llm.SelectedModelId ?? "llava-v1.6-7b-q4";
+        var deviceSerial = settings.Device.DefaultDeviceSerial ?? _deviceService?.SelectedDevice?.Serial;
+        if (string.IsNullOrWhiteSpace(deviceSerial) || deviceSerial == "usb-default")
+        {
+            PauseReason = "No Android device selected. Please go to Devices tab and select a connected device.";
+            return;
+        }
 
+        if (_deviceService?.SelectedDevice != null &&
+            _deviceService.SelectedDevice.Serial == deviceSerial &&
+            _deviceService.SelectedDevice.State is DeviceState.Unauthorized or DeviceState.Offline or DeviceState.Unreachable)
+        {
+            PauseReason = $"Cannot start: device '{_deviceService.SelectedDevice.DisplayName}' is {_deviceService.SelectedDevice.State}. Please resolve in Devices tab.";
+            return;
+        }
+
+        var gameId = !string.IsNullOrWhiteSpace(settings.Games.DefaultGameId) ? settings.Games.DefaultGameId : "tap-titans-2";
+        var modelId = !string.IsNullOrWhiteSpace(settings.Llm.SelectedModelId) ? settings.Llm.SelectedModelId : "llava-v1.6-7b-q4";
+
+        ActiveGameId = gameId;
         var game = _gameRegistry.GetById(gameId);
         ActiveGameName = game?.Name ?? gameId;
         ActiveDeviceSerial = deviceSerial;
         ActiveModelId = modelId;
+
+        // Apply policy
+        var policy = _policyService.GetEffectivePolicy(gameId);
+        AllowPremiumCurrency = policy.AllowPremiumCurrency;
+        AllowCreditPurchases = policy.AllowCreditPurchases;
+        PauseReason = null;
 
         RecentCycles.Clear();
         CyclesCount = 0;
@@ -155,7 +220,7 @@ public partial class DashboardViewModel : ViewModelBase
     [RelayCommand]
     public async Task PauseAutomationAsync()
     {
-        await _engine.PauseAsync();
+        await _engine.PauseAsync("User paused automation.");
     }
 
     [RelayCommand]

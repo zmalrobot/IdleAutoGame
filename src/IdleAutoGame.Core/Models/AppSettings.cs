@@ -73,7 +73,17 @@ public sealed class AppSettings
                 TimeoutSeconds = Llm.TimeoutSeconds,
                 MaxRetries = Llm.MaxRetries,
                 Temperature = Llm.Temperature,
-                MaxTokens = Llm.MaxTokens
+                MaxTokens = Llm.MaxTokens,
+                ModelStorageDirectory = Llm.ModelStorageDirectory ?? LlmSettings.DefaultModelStorageDirectory,
+                ContextSize = Llm.ContextSize,
+                GpuLayerCount = Llm.GpuLayerCount,
+                ThreadCount = Llm.ThreadCount,
+                BatchSize = Llm.BatchSize,
+                TopP = Llm.TopP,
+                TopK = Llm.TopK,
+                Seed = Llm.Seed,
+                UseMemoryMapping = Llm.UseMemoryMapping,
+                UseMemoryLock = Llm.UseMemoryLock
             } : new LlmSettings(),
             Automation = Automation != null ? new AutomationSettings
             {
@@ -81,7 +91,11 @@ public sealed class AppSettings
                 ErrorPolicy = Automation.ErrorPolicy ?? "pause",
                 AutoReconnect = Automation.AutoReconnect,
                 MaxConsecutiveUnknownStates = Automation.MaxConsecutiveUnknownStates,
-                AdbCommandTimeoutSeconds = Automation.AdbCommandTimeoutSeconds
+                AdbCommandTimeoutSeconds = Automation.AdbCommandTimeoutSeconds,
+                EnableActivityGuard = Automation.EnableActivityGuard,
+                ActivityCheckIntervalSeconds = Automation.ActivityCheckIntervalSeconds,
+                ActivityCancellationTimeoutMs = Automation.ActivityCancellationTimeoutMs,
+                EmergencyStopTimeoutMs = Automation.EmergencyStopTimeoutMs
             } : new AutomationSettings(),
             Device = Device != null ? new DeviceSettings
             {
@@ -103,6 +117,8 @@ public sealed class AppSettings
                         k => k.Key,
                         v => new GameSpecificSettings
                         {
+                            AllowPremiumCurrency = v.Value?.AllowPremiumCurrency ?? false,
+                            AllowCreditPurchases = v.Value?.AllowCreditPurchases ?? false,
                             Options = new Dictionary<string, string>(v.Value?.Options ?? new Dictionary<string, string>(), StringComparer.OrdinalIgnoreCase)
                         },
                         StringComparer.OrdinalIgnoreCase))
@@ -183,6 +199,65 @@ public sealed class LlmSettings
     /// Maximum completion tokens requested from the model.
     /// </summary>
     public int MaxTokens { get; set; } = 512;
+
+    /// <summary>
+    /// Default cross-platform storage directory for downloaded local GGUF models.
+    /// </summary>
+    public static string DefaultModelStorageDirectory =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "IdleAutoGame",
+            "models");
+
+    /// <summary>
+    /// Absolute path to the local directory where GGUF model files are stored.
+    /// </summary>
+    public string ModelStorageDirectory { get; set; } = DefaultModelStorageDirectory;
+
+    /// <summary>
+    /// Context window length in tokens for local model execution.
+    /// </summary>
+    public int ContextSize { get; set; } = 2048;
+
+    /// <summary>
+    /// Number of model layers to offload to GPU VRAM (0 = CPU only).
+    /// </summary>
+    public int GpuLayerCount { get; set; } = 0;
+
+    /// <summary>
+    /// Number of CPU threads used for token inference.
+    /// </summary>
+    public int ThreadCount { get; set; } = Math.Max(1, Environment.ProcessorCount);
+
+    /// <summary>
+    /// Prompt and generation batch processing size.
+    /// </summary>
+    public int BatchSize { get; set; } = 512;
+
+    /// <summary>
+    /// Top-P (nucleus) sampling threshold.
+    /// </summary>
+    public double TopP { get; set; } = 0.9;
+
+    /// <summary>
+    /// Top-K sampling threshold.
+    /// </summary>
+    public int TopK { get; set; } = 40;
+
+    /// <summary>
+    /// Random seed (0 = random / non-deterministic).
+    /// </summary>
+    public int Seed { get; set; } = 0;
+
+    /// <summary>
+    /// Whether to memory-map model files from disk (mmap).
+    /// </summary>
+    public bool UseMemoryMapping { get; set; } = true;
+
+    /// <summary>
+    /// Whether to lock model memory into physical RAM, preventing swap (mlock).
+    /// </summary>
+    public bool UseMemoryLock { get; set; } = false;
 }
 
 /// <summary>
@@ -214,6 +289,26 @@ public sealed class AutomationSettings
     /// Timeout in seconds for individual ADB shell/input commands.
     /// </summary>
     public int AdbCommandTimeoutSeconds { get; set; } = 10;
+
+    /// <summary>
+    /// Whether the Android Activity Guard is enabled to prevent out-of-app gestures [SETTING-SEC-001].
+    /// </summary>
+    public bool EnableActivityGuard { get; set; } = true;
+
+    /// <summary>
+    /// Polling interval in seconds for verifying the foreground Android package/activity [SETTING-SEC-002].
+    /// </summary>
+    public double ActivityCheckIntervalSeconds { get; set; } = 1.0;
+
+    /// <summary>
+    /// Maximum milliseconds allowed for graceful cancellation when activity is lost before emergency stop [SETTING-SEC-003].
+    /// </summary>
+    public int ActivityCancellationTimeoutMs { get; set; } = 2000;
+
+    /// <summary>
+    /// Timeout in milliseconds for emergency hard stop if cancellation fails to terminate within threshold [SETTING-SEC-004].
+    /// </summary>
+    public int EmergencyStopTimeoutMs { get; set; } = 3000;
 }
 
 /// <summary>

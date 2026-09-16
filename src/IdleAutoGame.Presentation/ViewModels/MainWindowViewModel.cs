@@ -32,6 +32,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Games = games ?? throw new ArgumentNullException(nameof(games));
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
         Splash = splash ?? throw new ArgumentNullException(nameof(splash));
+        Splash.Ready += (_, _) => CurrentView = Dashboard;
 
         _currentView = Splash;
     }

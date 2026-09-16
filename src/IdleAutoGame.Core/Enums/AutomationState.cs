@@ -56,6 +56,16 @@ public enum AutomationState
     Error,
 
     /// <summary>
+    /// Suspended because the foreground Android activity is outside the expected game package/activity.
+    /// </summary>
+    ActivityLost,
+
+    /// <summary>
+    /// Suspended or aborted because a proposed action violates a security policy (e.g. premium currency / credit purchase).
+    /// </summary>
+    PolicyBlocked,
+
+    /// <summary>
     /// Gracefully terminating in-flight operations.
     /// </summary>
     Stopping,

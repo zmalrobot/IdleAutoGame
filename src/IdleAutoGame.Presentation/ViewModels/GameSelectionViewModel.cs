@@ -18,12 +18,41 @@ public partial class GameSelectionViewModel : ViewModelBase
     private IGameDefinition? _selectedGame;
 
     [ObservableProperty]
+    private bool _allowPremiumCurrency;
+
+    [ObservableProperty]
+    private bool _allowCreditPurchases;
+
+    [ObservableProperty]
     private string _statusMessage = "Select a game to automate.";
 
     public GameSelectionViewModel(IGameRegistry gameRegistry, IConfigurationService configService)
     {
         _gameRegistry = gameRegistry ?? throw new ArgumentNullException(nameof(gameRegistry));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+    }
+
+    partial void OnSelectedGameChanged(IGameDefinition? value)
+    {
+        if (value == null)
+        {
+            AllowPremiumCurrency = false;
+            AllowCreditPurchases = false;
+            return;
+        }
+
+        var currentSettings = _configService.Current;
+        if (currentSettings.Games.PerGame.TryGetValue(value.Id, out var perGameSettings) && perGameSettings != null)
+        {
+            AllowPremiumCurrency = perGameSettings.AllowPremiumCurrency;
+            AllowCreditPurchases = perGameSettings.AllowCreditPurchases;
+        }
+        else
+        {
+            // Deny by default
+            AllowPremiumCurrency = false;
+            AllowCreditPurchases = false;
+        }
     }
 
     [RelayCommand]
@@ -52,7 +81,17 @@ public partial class GameSelectionViewModel : ViewModelBase
 
         var current = _configService.Current;
         current.Games.DefaultGameId = SelectedGame.Id;
+
+        if (!current.Games.PerGame.TryGetValue(SelectedGame.Id, out var perGameSettings) || perGameSettings == null)
+        {
+            perGameSettings = new IdleAutoGame.Core.Models.GameSpecificSettings();
+            current.Games.PerGame[SelectedGame.Id] = perGameSettings;
+        }
+
+        perGameSettings.AllowPremiumCurrency = AllowPremiumCurrency;
+        perGameSettings.AllowCreditPurchases = AllowCreditPurchases;
+
         await _configService.UpdateSettingsAsync(current);
-        StatusMessage = $"Selected game '{SelectedGame.Name}' saved as default.";
+        StatusMessage = $"Selected game '{SelectedGame.Name}' and security policies saved.";
     }
 }

@@ -14,15 +14,24 @@ public static class PolicyValidator
     /// <param name="action">The proposed action to validate.</param>
     /// <param name="constraints">The list of game constraints.</param>
     /// <param name="userOverrides">Optional list of user overrides.</param>
+    /// <param name="policy">Optional application security policy.</param>
     /// <returns>A <see cref="ValidationResult"/> indicating whether the policy passed.</returns>
     public static ValidationResult Validate(
         GameAction action,
         IEnumerable<GameConstraint>? constraints = null,
-        IEnumerable<UserOverride>? userOverrides = null)
+        IEnumerable<UserOverride>? userOverrides = null,
+        GamePolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(action);
 
         var result = new ValidationResult();
+
+        // 0. Enforce Application Security Policy (Premium Currency, Credit Purchases, Heuristics)
+        var policyResult = ActionPolicyValidator.Validate(action, policy, constraints);
+        if (!policyResult.IsValid)
+        {
+            return policyResult;
+        }
 
         // 1. Enforce Game Constraints
         if (constraints != null)

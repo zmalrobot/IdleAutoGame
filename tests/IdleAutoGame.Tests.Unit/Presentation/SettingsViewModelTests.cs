@@ -1,7 +1,10 @@
 using FluentAssertions;
 using IdleAutoGame.Application.Services;
+using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
+using IdleAutoGame.Infrastructure.Llm;
 using IdleAutoGame.Presentation.ViewModels;
+using NSubstitute;
 using Xunit;
 
 namespace IdleAutoGame.Tests.Unit.Presentation;
@@ -9,12 +12,19 @@ namespace IdleAutoGame.Tests.Unit.Presentation;
 public class SettingsViewModelTests
 {
     private readonly ConfigurationService _configService;
+    private readonly IModelManager _modelManager;
+    private readonly IHardwareDetector _hardwareDetector;
+    private readonly LocalLlamaProvider _localProvider;
     private readonly SettingsViewModel _viewModel;
 
     public SettingsViewModelTests()
     {
         _configService = new ConfigurationService(new InMemorySettingsRepo());
-        _viewModel = new SettingsViewModel(_configService);
+        _modelManager = Substitute.For<IModelManager>();
+        _hardwareDetector = Substitute.For<IHardwareDetector>();
+        _localProvider = new LocalLlamaProvider();
+
+        _viewModel = new SettingsViewModel(_configService, _modelManager, _hardwareDetector, _localProvider);
     }
 
     [Fact]
@@ -23,6 +33,8 @@ public class SettingsViewModelTests
         _viewModel.LlmProvider.Should().Be("llama.cpp");
         _viewModel.LlmEndpoint.Should().Be("http://localhost:8080");
         _viewModel.ObservationIntervalSeconds.Should().Be(2.0);
+        _viewModel.ContextSize.Should().Be(2048);
+        _viewModel.ThreadCount.Should().BeGreaterThanOrEqualTo(1);
     }
 
     [Fact]
@@ -30,12 +42,36 @@ public class SettingsViewModelTests
     {
         _viewModel.LlmEndpoint = "http://192.168.1.100:8080";
         _viewModel.ObservationIntervalSeconds = 3.5;
+        _viewModel.ContextSize = 4096;
+        _viewModel.ThreadCount = 6;
+        _viewModel.GpuLayerCount = 16;
 
         await _viewModel.SaveSettingsAsync();
 
         var updated = _configService.Current;
         updated.Llm.Endpoint.Should().Be("http://192.168.1.100:8080");
         updated.Automation.ObservationIntervalSeconds.Should().Be(3.5);
+        updated.Llm.ContextSize.Should().Be(4096);
+        updated.Llm.ThreadCount.Should().Be(6);
+        updated.Llm.GpuLayerCount.Should().Be(16);
+    }
+
+    [Fact]
+    public async Task AutoConfigureLlmAsync_AppliesOptimalHardwareValues()
+    {
+        _hardwareDetector.DetectAsync().Returns(new HardwareInfo
+        {
+            CpuCores = 12,
+            TotalRamMb = 32768,
+            VramMb = 8192
+        });
+
+        await _viewModel.AutoConfigureLlmAsync();
+
+        _viewModel.ThreadCount.Should().Be(11);
+        _viewModel.ContextSize.Should().Be(8192);
+        _viewModel.GpuLayerCount.Should().Be(24);
+        _viewModel.StatusMessage.Should().Contain("Auto-configuration applied");
     }
 
     [Fact]
@@ -49,7 +85,7 @@ public class SettingsViewModelTests
         _viewModel.LlmEndpoint.Should().Be("http://localhost:8080");
     }
 
-    private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
+    private class InMemorySettingsRepo : ISettingsRepository
     {
         private AppSettings _s = new();
         public Task<AppSettings> LoadAsync(CancellationToken ct = default) => Task.FromResult(_s.Clone());

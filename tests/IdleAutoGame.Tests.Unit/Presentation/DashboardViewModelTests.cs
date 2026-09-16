@@ -72,6 +72,66 @@ public class DashboardViewModelTests
         _engine.GetActiveOverrides().Should().BeEmpty();
     }
 
+    [Fact]
+    public void PolicyToggles_UpdateStatusTexts()
+    {
+        _viewModel.AllowPremiumCurrency.Should().BeFalse();
+        _viewModel.PremiumCurrencyStatusText.Should().Be("OFF");
+        _viewModel.AllowCreditPurchases.Should().BeFalse();
+        _viewModel.CreditPurchasesStatusText.Should().Be("OFF");
+
+        _viewModel.AllowPremiumCurrency = true;
+        _viewModel.PremiumCurrencyStatusText.Should().Be("ON");
+
+        _viewModel.AllowCreditPurchases = true;
+        _viewModel.CreditPurchasesStatusText.Should().Be("ON");
+    }
+
+    [Fact]
+    public void IsPausedOrAlert_IsTrue_WhenStateIsPausedOrBlocked()
+    {
+        _viewModel.IsPausedOrAlert.Should().BeFalse();
+
+        _viewModel.State = AutomationState.Paused;
+        _viewModel.IsPausedOrAlert.Should().BeTrue();
+
+        _viewModel.State = AutomationState.ActivityLost;
+        _viewModel.IsPausedOrAlert.Should().BeTrue();
+
+        _viewModel.State = AutomationState.PolicyBlocked;
+        _viewModel.IsPausedOrAlert.Should().BeTrue();
+
+        _viewModel.State = AutomationState.Observing;
+        _viewModel.IsPausedOrAlert.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task StartAutomationAsync_WhenNoDeviceConfigured_SetsPauseReasonAndBlocks()
+    {
+        // Default settings has DefaultDeviceSerial == null
+        _configService.Current.Device.DefaultDeviceSerial = null;
+
+        await _viewModel.StartAutomationAsync();
+
+        _viewModel.PauseReason.Should().Contain("No Android device selected");
+        _viewModel.State.Should().Be(AutomationState.Idle);
+    }
+
+    [Fact]
+    public async Task StartAutomationAsync_WhenValidDeviceConfigured_StartsEngine()
+    {
+        var settings = _configService.Current;
+        settings.Device.DefaultDeviceSerial = "valid-device-123";
+        await _configService.UpdateSettingsAsync(settings);
+
+        await _viewModel.StartAutomationAsync();
+
+        _viewModel.ActiveDeviceSerial.Should().Be("valid-device-123");
+        _viewModel.PauseReason.Should().BeNull();
+
+        await _viewModel.StopAutomationAsync();
+    }
+
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
     {
         private AppSettings _s = new();

@@ -1,14 +1,19 @@
+using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
+using IdleAutoGame.Infrastructure.Llm;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
 public partial class SettingsViewModel : ViewModelBase
 {
     private readonly IConfigurationService _configService;
+    private readonly IModelManager _modelManager;
+    private readonly IHardwareDetector _hardwareDetector;
+    private readonly LocalLlamaProvider _localProvider;
 
     [ObservableProperty]
     private string _locale = "system";
@@ -17,7 +22,7 @@ public partial class SettingsViewModel : ViewModelBase
     private string _theme = "dark";
 
     [ObservableProperty]
-    private string _llmProvider = "llama.cpp";
+    private string _llmProvider = "LLamaSharp";
 
     [ObservableProperty]
     private string _llmEndpoint = "http://localhost:8080";
@@ -38,6 +43,36 @@ public partial class SettingsViewModel : ViewModelBase
     private int _llmMaxTokens = 512;
 
     [ObservableProperty]
+    private string _modelStorageDirectory = LlmSettings.DefaultModelStorageDirectory;
+
+    [ObservableProperty]
+    private int _contextSize = 2048;
+
+    [ObservableProperty]
+    private int _gpuLayerCount = 0;
+
+    [ObservableProperty]
+    private int _threadCount = 4;
+
+    [ObservableProperty]
+    private int _batchSize = 512;
+
+    [ObservableProperty]
+    private double _topP = 0.9;
+
+    [ObservableProperty]
+    private int _topK = 40;
+
+    [ObservableProperty]
+    private int _seed = 0;
+
+    [ObservableProperty]
+    private bool _useMemoryMapping = true;
+
+    [ObservableProperty]
+    private bool _useMemoryLock = false;
+
+    [ObservableProperty]
     private double _observationIntervalSeconds = 2.0;
 
     [ObservableProperty]
@@ -48,6 +83,18 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private int _maxConsecutiveUnknownStates = 5;
+
+    [ObservableProperty]
+    private bool _enableActivityGuard = true;
+
+    [ObservableProperty]
+    private double _activityCheckIntervalSeconds = 1.0;
+
+    [ObservableProperty]
+    private int _activityCancellationTimeoutMs = 2000;
+
+    [ObservableProperty]
+    private int _emergencyStopTimeoutMs = 3000;
 
     [ObservableProperty]
     private string _connectionPreference = "usb";
@@ -71,11 +118,24 @@ public partial class SettingsViewModel : ViewModelBase
     private bool _showRawResponse;
 
     [ObservableProperty]
+    private ObservableCollection<LocalModel> _localModels = new();
+
+    [ObservableProperty]
     private string _statusMessage = "Settings loaded.";
 
-    public SettingsViewModel(IConfigurationService configService)
+    public SettingsViewModel(
+        IConfigurationService configService,
+        IModelManager modelManager,
+        IHardwareDetector hardwareDetector,
+        LocalLlamaProvider localProvider)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
+        _hardwareDetector = hardwareDetector ?? throw new ArgumentNullException(nameof(hardwareDetector));
+        _localProvider = localProvider ?? throw new ArgumentNullException(nameof(localProvider));
+
+        _modelManager.ModelStatusChanged += (_, _) => _ = RefreshLocalModelsAsync();
+
         LoadFromCurrent();
     }
 
@@ -94,10 +154,25 @@ public partial class SettingsViewModel : ViewModelBase
         LlmTemperature = s.Llm.Temperature;
         LlmMaxTokens = s.Llm.MaxTokens;
 
+        ModelStorageDirectory = s.Llm.ModelStorageDirectory;
+        ContextSize = s.Llm.ContextSize;
+        GpuLayerCount = s.Llm.GpuLayerCount;
+        ThreadCount = s.Llm.ThreadCount;
+        BatchSize = s.Llm.BatchSize;
+        TopP = s.Llm.TopP;
+        TopK = s.Llm.TopK;
+        Seed = s.Llm.Seed;
+        UseMemoryMapping = s.Llm.UseMemoryMapping;
+        UseMemoryLock = s.Llm.UseMemoryLock;
+
         ObservationIntervalSeconds = s.Automation.ObservationIntervalSeconds;
         ErrorPolicy = s.Automation.ErrorPolicy;
         AutoReconnect = s.Automation.AutoReconnect;
         MaxConsecutiveUnknownStates = s.Automation.MaxConsecutiveUnknownStates;
+        EnableActivityGuard = s.Automation.EnableActivityGuard;
+        ActivityCheckIntervalSeconds = s.Automation.ActivityCheckIntervalSeconds;
+        ActivityCancellationTimeoutMs = s.Automation.ActivityCancellationTimeoutMs;
+        EmergencyStopTimeoutMs = s.Automation.EmergencyStopTimeoutMs;
 
         ConnectionPreference = s.Device.ConnectionPreference;
 
@@ -108,42 +183,205 @@ public partial class SettingsViewModel : ViewModelBase
 
         ShowConfidence = s.Ui.ShowConfidence;
         ShowRawResponse = s.Ui.ShowRawResponse;
+
+        _ = RefreshLocalModelsAsync();
+    }
+
+    [RelayCommand]
+    public async Task RefreshLocalModelsAsync()
+    {
+        try
+        {
+            var models = await _modelManager.GetAllModelsAsync();
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                LocalModels.Clear();
+                foreach (var m in models)
+                {
+                    LocalModels.Add(m);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to list local models: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task AutoConfigureLlmAsync()
+    {
+        try
+        {
+            StatusMessage = "Analyzing CPU cores, RAM, and GPU VRAM...";
+            var hardware = await _hardwareDetector.DetectAsync();
+
+            var current = _configService.Current.Llm;
+            LlmAutoConfigurator.ApplyHardwareRecommendations(current, hardware);
+
+            ContextSize = current.ContextSize;
+            GpuLayerCount = current.GpuLayerCount;
+            ThreadCount = current.ThreadCount;
+            BatchSize = current.BatchSize;
+            UseMemoryMapping = current.UseMemoryMapping;
+            UseMemoryLock = current.UseMemoryLock;
+
+            StatusMessage = $"Auto-configuration applied: {ThreadCount} threads, {GpuLayerCount} GPU layers, context {ContextSize}.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Auto-configuration failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DownloadModelAsync(LocalModel model)
+    {
+        if (model == null) return;
+        StatusMessage = $"Downloading model '{model.DisplayName}'...";
+
+        try
+        {
+            await _modelManager.DownloadAndInstallModelAsync(model.Id);
+            StatusMessage = $"Model '{model.DisplayName}' downloaded and installed successfully!";
+            await RefreshLocalModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Download failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task DeleteModelAsync(LocalModel model)
+    {
+        if (model == null) return;
+
+        if (_modelManager.IsModelInUse(model.Id))
+        {
+            StatusMessage = $"Cannot delete model '{model.DisplayName}' because it is currently in use.";
+            return;
+        }
+
+        try
+        {
+            await _modelManager.DeleteModelAsync(model.Id);
+            StatusMessage = $"Model '{model.DisplayName}' deleted from disk.";
+            await RefreshLocalModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Deletion failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task SelectActiveModelAsync(LocalModel model)
+    {
+        if (model == null) return;
+
+        if (!await _modelManager.IsModelInstalledAsync(model.Id))
+        {
+            StatusMessage = $"Model '{model.DisplayName}' is not installed yet. Please download it first.";
+            return;
+        }
+
+        var current = _configService.Current;
+        current.Llm.SelectedModelId = model.Id;
+        current.Llm.Provider = "LLamaSharp";
+
+        var filePath = _modelManager.GetModelFilePath(model.Id);
+        try
+        {
+            StatusMessage = $"Loading model '{model.DisplayName}' into memory...";
+            await _localProvider.LoadModelAsync(filePath, current.Llm);
+            await _localProvider.WarmupAsync();
+            _modelManager.MarkModelInUse(model.Id, true);
+
+            await _configService.UpdateSettingsAsync(current);
+            StatusMessage = $"Model '{model.DisplayName}' is now active and loaded.";
+            await RefreshLocalModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to load model: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    public async Task UnloadActiveModelAsync()
+    {
+        try
+        {
+            await _localProvider.UnloadModelAsync();
+            var activeId = _configService.Current.Llm.SelectedModelId;
+            if (!string.IsNullOrEmpty(activeId))
+            {
+                _modelManager.MarkModelInUse(activeId, false);
+            }
+            StatusMessage = "Active model was unloaded from memory.";
+            await RefreshLocalModelsAsync();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Failed to unload model: {ex.Message}";
+        }
     }
 
     [RelayCommand]
     public async Task SaveSettingsAsync()
     {
-        var updated = _configService.Current.Clone();
-        updated.General.Locale = Locale;
-        updated.General.Theme = Theme;
+        var s = _configService.Current;
+        s.General.Locale = Locale;
+        s.General.Theme = Theme;
 
-        updated.Llm.Provider = LlmProvider;
-        updated.Llm.Endpoint = LlmEndpoint;
-        updated.Llm.ApiKey = LlmApiKey;
-        updated.Llm.TimeoutSeconds = LlmTimeoutSeconds;
-        updated.Llm.MaxRetries = LlmMaxRetries;
-        updated.Llm.Temperature = LlmTemperature;
-        updated.Llm.MaxTokens = LlmMaxTokens;
+        s.Llm.Provider = LlmProvider;
+        s.Llm.Endpoint = LlmEndpoint;
+        s.Llm.ApiKey = LlmApiKey;
+        s.Llm.TimeoutSeconds = LlmTimeoutSeconds;
+        s.Llm.MaxRetries = LlmMaxRetries;
+        s.Llm.Temperature = LlmTemperature;
+        s.Llm.MaxTokens = LlmMaxTokens;
 
-        updated.Automation.ObservationIntervalSeconds = ObservationIntervalSeconds;
-        updated.Automation.ErrorPolicy = ErrorPolicy;
-        updated.Automation.AutoReconnect = AutoReconnect;
-        updated.Automation.MaxConsecutiveUnknownStates = MaxConsecutiveUnknownStates;
+        s.Llm.ModelStorageDirectory = ModelStorageDirectory;
+        s.Llm.ContextSize = ContextSize;
+        s.Llm.GpuLayerCount = GpuLayerCount;
+        s.Llm.ThreadCount = ThreadCount;
+        s.Llm.BatchSize = BatchSize;
+        s.Llm.TopP = TopP;
+        s.Llm.TopK = TopK;
+        s.Llm.Seed = Seed;
+        s.Llm.UseMemoryMapping = UseMemoryMapping;
+        s.Llm.UseMemoryLock = UseMemoryLock;
 
-        updated.Device.ConnectionPreference = ConnectionPreference;
+        s.Automation.ObservationIntervalSeconds = ObservationIntervalSeconds;
+        s.Automation.ErrorPolicy = ErrorPolicy;
+        s.Automation.AutoReconnect = AutoReconnect;
+        s.Automation.MaxConsecutiveUnknownStates = MaxConsecutiveUnknownStates;
+        s.Automation.EnableActivityGuard = EnableActivityGuard;
+        s.Automation.ActivityCheckIntervalSeconds = ActivityCheckIntervalSeconds;
+        s.Automation.ActivityCancellationTimeoutMs = ActivityCancellationTimeoutMs;
+        s.Automation.EmergencyStopTimeoutMs = EmergencyStopTimeoutMs;
 
-        updated.Logging.Level = LogLevel;
-        updated.Logging.SaveScreenshots = SaveScreenshots;
-        updated.Logging.HistoryLength = HistoryLength;
-        updated.Logging.RetentionDays = RetentionDays;
+        s.Device.ConnectionPreference = ConnectionPreference;
 
-        updated.Ui.ShowConfidence = ShowConfidence;
-        updated.Ui.ShowRawResponse = ShowRawResponse;
+        s.Logging.Level = LogLevel;
+        s.Logging.SaveScreenshots = SaveScreenshots;
+        s.Logging.HistoryLength = HistoryLength;
+        s.Logging.RetentionDays = RetentionDays;
 
-        var result = await _configService.UpdateSettingsAsync(updated);
-        StatusMessage = result.IsValid
-            ? "Settings successfully saved and applied."
-            : $"Validation failed: {result}";
+        s.Ui.ShowConfidence = ShowConfidence;
+        s.Ui.ShowRawResponse = ShowRawResponse;
+
+        var validation = await _configService.UpdateSettingsAsync(s);
+        if (validation.IsValid)
+        {
+            StatusMessage = "Settings saved and applied successfully.";
+        }
+        else
+        {
+            StatusMessage = $"Validation failed: {string.Join("; ", validation.Errors)}";
+        }
     }
 
     [RelayCommand]
@@ -151,6 +389,6 @@ public partial class SettingsViewModel : ViewModelBase
     {
         await _configService.ResetAllAsync();
         LoadFromCurrent();
-        StatusMessage = "All settings reset to default values.";
+        StatusMessage = "Settings reset to defaults.";
     }
 }

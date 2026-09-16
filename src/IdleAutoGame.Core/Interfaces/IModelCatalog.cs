@@ -1,3 +1,4 @@
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Models;
 
 namespace IdleAutoGame.Core.Interfaces;
@@ -8,7 +9,7 @@ namespace IdleAutoGame.Core.Interfaces;
 public interface IModelCatalog
 {
     /// <summary>
-    /// Gets all registered model profiles.
+    /// Gets all registered model profiles (both local and cloud).
     /// </summary>
     IReadOnlyList<ModelProfile> GetAllModels();
 
@@ -21,5 +22,24 @@ public interface IModelCatalog
     /// Finds a model profile by its identifier.
     /// </summary>
     ModelProfile? GetModel(string modelId);
-}
 
+    /// <summary>
+    /// Gets all registered local GGUF models from the catalog.
+    /// </summary>
+    IReadOnlyList<LocalModel> GetAllLocalModels();
+
+    /// <summary>
+    /// Returns exactly the 3 recommended local models for the designated RAM tier.
+    /// </summary>
+    IReadOnlyList<LocalModel> GetRecommendedModelsForTier(RamTier tier);
+
+    /// <summary>
+    /// Classifies detected hardware into a standard RAM tier.
+    /// </summary>
+    RamTier DetermineRamTier(HardwareInfo hardware);
+
+    /// <summary>
+    /// Finds a local model by its identifier.
+    /// </summary>
+    LocalModel? GetLocalModel(string id);
+}

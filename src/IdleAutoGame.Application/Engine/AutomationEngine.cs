@@ -13,20 +13,27 @@ namespace IdleAutoGame.Application.Engine;
 /// <summary>
 /// Production implementation of the autonomous gaming cycle state machine.
 /// Coordinates ADB device capture, multimodal LLM reasoning, action validation, and touch injection.
+/// Enforces application security policies (AllowPremiumCurrency, AllowCreditPurchases) and Android Activity Guard.
 /// </summary>
 public sealed class AutomationEngine : IAutomationEngine, IDisposable
 {
     private readonly IDeviceController _deviceController;
-    private readonly ILlmProvider _llmProvider;
+    private readonly Func<ILlmProvider> _llmProviderFactory;
     private readonly IGameRegistry _gameRegistry;
     private readonly SessionRecorder _sessionRecorder;
-    private readonly AppSettings _settings;
+    private readonly IConfigurationService _configurationService;
+    private readonly IGamePolicyService _policyService;
+    private readonly IGameActivityGuard _activityGuard;
+
+    private AppSettings _settings => _configurationService.Current;
 
     private readonly List<UserOverride> _userOverrides = new();
     private readonly object _stateLock = new();
 
     private AutomationState _state = AutomationState.Idle;
+    private string? _pauseReason;
     private CancellationTokenSource? _loopCts;
+    private CancellationTokenSource? _currentCycleCts;
     private Task? _loopTask;
     private TaskCompletionSource<bool>? _resumeTcs;
 
@@ -40,14 +47,23 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         private set
         {
             AutomationState oldState;
+            string? currentReason;
             lock (_stateLock)
             {
                 if (_state == value) return;
                 oldState = _state;
                 _state = value;
+                currentReason = _pauseReason;
             }
-            StateChanged?.Invoke(this, new AutomationStateChangedEvent(oldState, value));
+            StateChanged?.Invoke(this, new AutomationStateChangedEvent(oldState, value, currentReason));
         }
+    }
+
+    /// <inheritdoc />
+    public string? PauseReason
+    {
+        get { lock (_stateLock) return _pauseReason; }
+        private set { lock (_stateLock) _pauseReason = value; }
     }
 
     /// <inheritdoc />
@@ -63,20 +79,46 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     public event EventHandler<ActionExecutedEvent>? ActionExecuted;
 
     /// <summary>
-    /// Initializes a new instance of <see cref="AutomationEngine"/>.
+    /// Initializes a new instance of <see cref="AutomationEngine"/> with dynamic provider and configuration resolution.
+    /// </summary>
+    public AutomationEngine(
+        IDeviceController deviceController,
+        Func<ILlmProvider> llmProviderFactory,
+        IGameRegistry gameRegistry,
+        SessionRecorder sessionRecorder,
+        IConfigurationService configurationService,
+        IGamePolicyService? policyService = null,
+        IGameActivityGuard? activityGuard = null)
+    {
+        _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
+        _llmProviderFactory = llmProviderFactory ?? throw new ArgumentNullException(nameof(llmProviderFactory));
+        _gameRegistry = gameRegistry ?? throw new ArgumentNullException(nameof(gameRegistry));
+        _sessionRecorder = sessionRecorder ?? throw new ArgumentNullException(nameof(sessionRecorder));
+        _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _policyService = policyService ?? new GamePolicyService(_configurationService);
+        _activityGuard = activityGuard ?? new GameActivityGuard(_deviceController);
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="AutomationEngine"/> for testing or static configurations.
     /// </summary>
     public AutomationEngine(
         IDeviceController deviceController,
         ILlmProvider llmProvider,
         IGameRegistry gameRegistry,
         SessionRecorder sessionRecorder,
-        AppSettings? settings = null)
+        AppSettings? settings = null,
+        IGamePolicyService? policyService = null,
+        IGameActivityGuard? activityGuard = null)
+        : this(
+            deviceController,
+            () => llmProvider,
+            gameRegistry,
+            sessionRecorder,
+            new ConfigurationService(new InMemorySettingsRepository(settings), new SettingsValidator(), settings),
+            policyService,
+            activityGuard)
     {
-        _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
-        _llmProvider = llmProvider ?? throw new ArgumentNullException(nameof(llmProvider));
-        _gameRegistry = gameRegistry ?? throw new ArgumentNullException(nameof(gameRegistry));
-        _sessionRecorder = sessionRecorder ?? throw new ArgumentNullException(nameof(sessionRecorder));
-        _settings = settings ?? new AppSettings();
     }
 
     /// <inheritdoc />
@@ -92,11 +134,16 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             {
                 throw new InvalidOperationException($"Cannot start automation while in state: {_state}");
             }
+            _pauseReason = null;
             State = AutomationState.Starting;
         }
 
         var game = _gameRegistry.GetById(gameId)
             ?? throw new ArgumentException($"Game with ID '{gameId}' not found in registry.");
+
+        // Initialize and apply effective policy for game
+        var effectivePolicy = _policyService.GetEffectivePolicy(gameId);
+        _policyService.SetPolicy(effectivePolicy, $"Session initialized for game '{gameId}'");
 
         await _sessionRecorder.StartSessionAsync(gameId, deviceSerial, modelId, ct).ConfigureAwait(false);
 
@@ -108,17 +155,30 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     }
 
     /// <inheritdoc />
-    public Task PauseAsync()
+    public Task PauseAsync(string? reason = null)
     {
         lock (_stateLock)
         {
-            if (_state is AutomationState.Idle or AutomationState.Stopped or AutomationState.Stopping or AutomationState.Paused)
+            if (_state is AutomationState.Idle or AutomationState.Stopped or AutomationState.Stopping)
             {
                 return Task.CompletedTask;
             }
 
             _resumeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            State = AutomationState.Paused;
+            _pauseReason = reason ?? "User requested pause";
+
+            if (reason != null && (reason.Contains("Activity", StringComparison.OrdinalIgnoreCase) || reason.Contains("package", StringComparison.OrdinalIgnoreCase)))
+            {
+                State = AutomationState.ActivityLost;
+            }
+            else if (reason != null && reason.Contains("Policy", StringComparison.OrdinalIgnoreCase))
+            {
+                State = AutomationState.PolicyBlocked;
+            }
+            else
+            {
+                State = AutomationState.Paused;
+            }
         }
         return Task.CompletedTask;
     }
@@ -128,8 +188,12 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     {
         lock (_stateLock)
         {
-            if (_state != AutomationState.Paused) return Task.CompletedTask;
+            if (_state is not (AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked))
+            {
+                return Task.CompletedTask;
+            }
 
+            _pauseReason = null;
             State = AutomationState.Observing;
             _resumeTcs?.TrySetResult(true);
             _resumeTcs = null;
@@ -148,18 +212,42 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
         // 1. Immediate cancellation signal
         _loopCts?.Cancel();
+        _currentCycleCts?.Cancel();
         _resumeTcs?.TrySetCanceled();
 
-        // 2. Await background loop completion
+        // 2. Await background loop completion with cancellation timeout
         if (_loopTask != null)
         {
+            var cancelTimeoutMs = _settings.Automation.ActivityCancellationTimeoutMs > 0
+                ? _settings.Automation.ActivityCancellationTimeoutMs
+                : 2000;
+
             try
             {
-                await _loopTask.ConfigureAwait(false);
+                using var timeoutCts = new CancellationTokenSource(cancelTimeoutMs);
+                await _loopTask.WaitAsync(timeoutCts.Token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
-                // Expected when stopping
+                // Fallback: Emergency Termination (Hard Kill) if cancellation fails to terminate
+                if (!_loopTask.IsCompleted)
+                {
+                    var emergencyTimeoutMs = _settings.Automation.EmergencyStopTimeoutMs > 0
+                        ? _settings.Automation.EmergencyStopTimeoutMs
+                        : 3000;
+
+                    try
+                    {
+                        using var emergencyCts = new CancellationTokenSource(emergencyTimeoutMs);
+                        await _loopTask.WaitAsync(emergencyCts.Token).ConfigureAwait(false);
+                    }
+                    catch
+                    {
+                        // Hard kill emergency fallback: mark error state
+                        State = AutomationState.Error;
+                        _pauseReason = "Emergency termination: Automation loop failed to respond to cancellation.";
+                    }
+                }
             }
             catch
             {
@@ -169,7 +257,10 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
         // 3. Finalize session
         await _sessionRecorder.EndSessionAsync().ConfigureAwait(false);
-        State = AutomationState.Stopped;
+        if (State != AutomationState.Error)
+        {
+            State = AutomationState.Stopped;
+        }
     }
 
     /// <inheritdoc />
@@ -206,6 +297,21 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         GameAction? previousAction = null;
         var sessionStopwatch = Stopwatch.StartNew();
 
+        // Dynamic policy change handler: invalidates pending in-flight decisions if policy becomes more restrictive
+        void OnPolicyChanged(object? sender, GamePolicyChangedEvent e)
+        {
+            bool moreRestrictive = (!e.NewPolicy.AllowPremiumCurrency && e.OldPolicy.AllowPremiumCurrency) ||
+                                   (!e.NewPolicy.AllowCreditPurchases && e.OldPolicy.AllowCreditPurchases);
+
+            if (moreRestrictive)
+            {
+                // Invalidate currently pending cycle immediately
+                _currentCycleCts?.Cancel();
+            }
+        }
+
+        _policyService.PolicyChanged += OnPolicyChanged;
+
         // Fetch resolution once for coordinate translation
         Resolution resolution;
         try
@@ -218,174 +324,228 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             resolution = new Resolution(1080, 1920);
         }
 
-        // Precompile system prompt
-        var systemPrompt = PromptBuilder.BuildSystemPrompt(game, game.DefaultSettings);
-
-        while (!ct.IsCancellationRequested)
+        try
         {
-            // Handle pause suspension
-            if (State == AutomationState.Paused && _resumeTcs != null)
+            while (!ct.IsCancellationRequested)
             {
-                await _resumeTcs.Task.WaitAsync(ct).ConfigureAwait(false);
-            }
-
-            cycleNumber++;
-            var cycleStopwatch = Stopwatch.StartNew();
-            var errors = new List<string>();
-            ScreenshotData? screenshot = null;
-            string rawResponse = string.Empty;
-            GameAction? parsedAction = null;
-            bool validationPassed = false;
-            bool actionExecuted = false;
-            string? executionResult = null;
-            long llmLatencyMs = 0;
-
-            try
-            {
-                // 1. Observing: Capture Screenshot
-                State = AutomationState.Observing;
-                screenshot = await CaptureScreenshotWithRetryAsync(deviceSerial, ct).ConfigureAwait(false);
-
-                string? procError = null;
-                string base64Image = string.Empty;
-                if (screenshot == null || !ScreenshotPipeline.Process(screenshot, out base64Image, out procError))
+                // Handle pause suspension
+                if ((State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked) && _resumeTcs != null)
                 {
-                    errors.Add(procError ?? "Screenshot capture failed after retries.");
-                    await HandleErrorPolicyAsync("Screenshot capture failed", ct).ConfigureAwait(false);
-                    continue;
+                    await _resumeTcs.Task.WaitAsync(ct).ConfigureAwait(false);
                 }
 
-                // 2. Analyzing: Multi-modal LLM Inference
-                State = AutomationState.Analyzing;
-                IReadOnlyList<UserOverride> currentOverrides;
-                lock (_userOverrides)
+                // 0. Pre-Cycle Activity Check: Ensure device is inside the game context
+                if (_settings.Automation.EnableActivityGuard)
                 {
-                    currentOverrides = _userOverrides.ToList();
-                }
-
-                var userPrompt = PromptBuilder.BuildUserPrompt(cycleNumber, sessionStopwatch.Elapsed, previousAction, currentOverrides);
-                var llmRequest = new LlmRequest
-                {
-                    ScreenshotBase64 = base64Image,
-                    SystemPrompt = systemPrompt,
-                    UserPrompt = userPrompt,
-                    Temperature = _settings.Llm.Temperature,
-                    MaxTokens = _settings.Llm.MaxTokens
-                };
-
-                var llmResponse = await AnalyzeWithRetryAsync(llmRequest, ct).ConfigureAwait(false);
-                rawResponse = llmResponse.RawContent;
-                llmLatencyMs = llmResponse.LatencyMs;
-
-                if (!llmResponse.IsSuccess || llmResponse.ParsedAction == null)
-                {
-                    errors.Add(llmResponse.Error ?? "LLM analysis failed to produce a valid action.");
-                    await HandleErrorPolicyAsync("LLM inference failure", ct).ConfigureAwait(false);
-                    continue;
-                }
-
-                parsedAction = llmResponse.ParsedAction;
-
-                // 3. Validating: Multi-stage Pipeline
-                State = AutomationState.Validating;
-                var validationResult = ActionPipelineValidator.ValidateAndSanitize(
-                    parsedAction,
-                    game.Constraints,
-                    currentOverrides,
-                    out var clampedAction);
-
-                if (!validationResult.IsValid)
-                {
-                    errors.AddRange(validationResult.Errors);
-                    // Invalid action or policy violation: skip execution and log
-                    validationPassed = false;
-                }
-                else
-                {
-                    validationPassed = true;
-                    parsedAction = clampedAction;
-
-                    // 4. Executing: Send ADB Gesture
-                    State = AutomationState.Executing;
-                    var execResult = await ExecuteActionAsync(deviceSerial, parsedAction!, resolution, ct).ConfigureAwait(false);
-                    actionExecuted = execResult.Success;
-                    executionResult = execResult.Message;
-
-                    if (!actionExecuted && execResult.Message != null)
+                    var preCycleCheck = await _activityGuard.VerifyActivityAsync(deviceSerial, game, ct).ConfigureAwait(false);
+                    if (!preCycleCheck.IsValid)
                     {
-                        errors.Add(execResult.Message);
+                        await PauseAsync($"Game Activity Lost: {preCycleCheck.Reason}").ConfigureAwait(false);
+                        continue;
+                    }
+                }
+
+                cycleNumber++;
+                var cycleStopwatch = Stopwatch.StartNew();
+                var errors = new List<string>();
+                ScreenshotData? screenshot = null;
+                string rawResponse = string.Empty;
+                GameAction? parsedAction = null;
+                bool validationPassed = false;
+                bool actionExecuted = false;
+                string? executionResult = null;
+                long llmLatencyMs = 0;
+
+                // Create per-cycle linked cancellation token source for dynamic invalidation
+                using var cycleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                _currentCycleCts = cycleCts;
+                var cycleCt = cycleCts.Token;
+
+                try
+                {
+                    // 1. Observing: Capture Screenshot
+                    State = AutomationState.Observing;
+                    screenshot = await CaptureScreenshotWithRetryAsync(deviceSerial, cycleCt).ConfigureAwait(false);
+
+                    string? procError = null;
+                    string base64Image = string.Empty;
+                    if (screenshot == null || !ScreenshotPipeline.Process(screenshot, out base64Image, out procError))
+                    {
+                        errors.Add(procError ?? "Screenshot capture failed after retries.");
+                        await HandleErrorPolicyAsync("Screenshot capture failed", cycleCt).ConfigureAwait(false);
+                        continue;
                     }
 
-                    ActionExecuted?.Invoke(this, new ActionExecutedEvent(cycleNumber, parsedAction!, actionExecuted, executionResult));
-                    previousAction = parsedAction;
-
-                    // Track consecutive unknown states
-                    if (parsedAction!.GameState == GameStateAssessment.Unknown)
+                    // 2. Analyzing: Multi-modal LLM Inference
+                    State = AutomationState.Analyzing;
+                    IReadOnlyList<UserOverride> currentOverrides;
+                    lock (_userOverrides)
                     {
-                        _consecutiveUnknownStates++;
-                        if (_consecutiveUnknownStates >= _settings.Automation.MaxConsecutiveUnknownStates)
+                        currentOverrides = _userOverrides.ToList();
+                    }
+
+                    // System prompt incorporates current active GamePolicy
+                    var activePolicy = _policyService.CurrentPolicy;
+                    var systemPrompt = PromptBuilder.BuildSystemPrompt(
+                        game,
+                        game.DefaultSettings,
+                        persistentInstructions: null,
+                        userOverrides: currentOverrides,
+                        policy: activePolicy);
+
+                    var userPrompt = PromptBuilder.BuildUserPrompt(cycleNumber, sessionStopwatch.Elapsed, previousAction, currentOverrides);
+                    var llmRequest = new LlmRequest
+                    {
+                        ScreenshotBase64 = base64Image,
+                        SystemPrompt = systemPrompt,
+                        UserPrompt = userPrompt,
+                        Temperature = _settings.Llm.Temperature,
+                        MaxTokens = _settings.Llm.MaxTokens
+                    };
+
+                    var llmResponse = await AnalyzeWithRetryAsync(llmRequest, cycleCt).ConfigureAwait(false);
+                    rawResponse = llmResponse.RawContent;
+                    llmLatencyMs = llmResponse.LatencyMs;
+
+                    if (!llmResponse.IsSuccess || llmResponse.ParsedAction == null)
+                    {
+                        errors.Add(llmResponse.Error ?? "LLM analysis failed to produce a valid action.");
+                        await HandleErrorPolicyAsync("LLM inference failure", cycleCt).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    parsedAction = llmResponse.ParsedAction;
+
+                    // 3. Validating: Multi-stage Pipeline (Schema, Semantic, Policy, Bounds)
+                    State = AutomationState.Validating;
+                    var validationResult = ActionPipelineValidator.ValidateAndSanitize(
+                        parsedAction,
+                        game.Constraints,
+                        currentOverrides,
+                        out var clampedAction,
+                        policy: _policyService.CurrentPolicy);
+
+                    if (!validationResult.IsValid)
+                    {
+                        errors.AddRange(validationResult.Errors);
+                        validationPassed = false;
+
+                        if (validationResult.Errors.Any(e => e.Contains("Policy violation", StringComparison.OrdinalIgnoreCase)))
                         {
-                            await PauseAsync().ConfigureAwait(false);
+                            State = AutomationState.PolicyBlocked;
+                            PauseReason = string.Join("; ", validationResult.Errors);
                         }
                     }
                     else
                     {
-                        _consecutiveUnknownStates = 0;
+                        validationPassed = true;
+                        parsedAction = clampedAction;
+
+                        // 4. Pre-Execution Race Condition Check:
+                        // Re-verify foreground activity immediately before issuing physical gesture
+                        if (_settings.Automation.EnableActivityGuard)
+                        {
+                            var preExecCheck = await _activityGuard.VerifyActivityAsync(deviceSerial, game, cycleCt).ConfigureAwait(false);
+                            if (!preExecCheck.IsValid)
+                            {
+                                errors.Add($"Action execution aborted due to foreground activity mismatch: {preExecCheck.Reason}");
+                                await PauseAsync($"Game Activity Lost: {preExecCheck.Reason}").ConfigureAwait(false);
+                                continue;
+                            }
+                        }
+
+                        // 5. Executing: Send ADB Gesture
+                        State = AutomationState.Executing;
+                        var execResult = await ExecuteActionAsync(deviceSerial, parsedAction!, resolution, cycleCt).ConfigureAwait(false);
+                        actionExecuted = execResult.Success;
+                        executionResult = execResult.Message;
+
+                        if (!actionExecuted && execResult.Message != null)
+                        {
+                            errors.Add(execResult.Message);
+                        }
+
+                        ActionExecuted?.Invoke(this, new ActionExecutedEvent(cycleNumber, parsedAction!, actionExecuted, executionResult));
+                        previousAction = parsedAction;
+
+                        // Track consecutive unknown states
+                        if (parsedAction!.GameState == GameStateAssessment.Unknown)
+                        {
+                            _consecutiveUnknownStates++;
+                            if (_consecutiveUnknownStates >= _settings.Automation.MaxConsecutiveUnknownStates)
+                            {
+                                await PauseAsync("Consecutive unknown game states threshold reached").ConfigureAwait(false);
+                            }
+                        }
+                        else
+                        {
+                            _consecutiveUnknownStates = 0;
+                        }
                     }
+
+                    _consecutiveErrors = 0;
                 }
-
-                _consecutiveErrors = 0;
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                errors.Add($"Unhandled cycle error: {ex.Message}");
-                await HandleErrorPolicyAsync(ex.Message, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                cycleStopwatch.Stop();
-
-                var record = new CycleRecord
-                {
-                    CycleNumber = cycleNumber,
-                    StartedAt = DateTimeOffset.UtcNow - cycleStopwatch.Elapsed,
-                    Screenshot = screenshot,
-                    PromptSent = $"Cycle #{cycleNumber}",
-                    RawResponse = rawResponse,
-                    Action = parsedAction,
-                    ValidationPassed = validationPassed,
-                    ActionExecuted = actionExecuted,
-                    ExecutionResult = executionResult,
-                    Duration = cycleStopwatch.Elapsed,
-                    Errors = errors,
-                    LlmLatencyMs = llmLatencyMs
-                };
-
-                await _sessionRecorder.RecordCycleAsync(record, CancellationToken.None).ConfigureAwait(false);
-                CycleCompleted?.Invoke(this, record);
-            }
-
-            // 5. Waiting: Cooldown / Interval delay
-            if (!ct.IsCancellationRequested && State != AutomationState.Paused)
-            {
-                State = AutomationState.Waiting;
-                var baseDelayMs = (int)(_settings.Automation.ObservationIntervalSeconds * 1000);
-                var waitAfterMs = parsedAction?.WaitAfterMs ?? 0;
-                var delayMs = Math.Max(baseDelayMs, waitAfterMs);
-
-                try
-                {
-                    await Task.Delay(delayMs, ct).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
                 {
                     break;
                 }
+                catch (OperationCanceledException)
+                {
+                    // In-flight cycle cancelled due to dynamic policy change
+                    errors.Add("Cycle cancelled due to dynamic policy update.");
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Unhandled cycle error: {ex.Message}");
+                    await HandleErrorPolicyAsync(ex.Message, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    _currentCycleCts = null;
+                    cycleStopwatch.Stop();
+
+                    var record = new CycleRecord
+                    {
+                        CycleNumber = cycleNumber,
+                        StartedAt = DateTimeOffset.UtcNow - cycleStopwatch.Elapsed,
+                        Screenshot = screenshot,
+                        PromptSent = $"Cycle #{cycleNumber}",
+                        RawResponse = rawResponse,
+                        Action = parsedAction,
+                        ValidationPassed = validationPassed,
+                        ActionExecuted = actionExecuted,
+                        ExecutionResult = executionResult,
+                        Duration = cycleStopwatch.Elapsed,
+                        Errors = errors,
+                        LlmLatencyMs = llmLatencyMs
+                    };
+
+                    await _sessionRecorder.RecordCycleAsync(record, CancellationToken.None).ConfigureAwait(false);
+                    CycleCompleted?.Invoke(this, record);
+                }
+
+                // 6. Waiting: Cooldown / Interval delay
+                if (!ct.IsCancellationRequested && State != AutomationState.Paused && State != AutomationState.ActivityLost && State != AutomationState.PolicyBlocked)
+                {
+                    State = AutomationState.Waiting;
+                    var baseDelayMs = (int)(_settings.Automation.ObservationIntervalSeconds * 1000);
+                    var waitAfterMs = parsedAction?.WaitAfterMs ?? 0;
+                    var delayMs = Math.Max(baseDelayMs, waitAfterMs);
+
+                    try
+                    {
+                        await Task.Delay(delayMs, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        break;
+                    }
+                }
             }
+        }
+        finally
+        {
+            _policyService.PolicyChanged -= OnPolicyChanged;
         }
     }
 
@@ -413,7 +573,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         for (int attempt = 0; attempt < maxRetries; attempt++)
         {
             ct.ThrowIfCancellationRequested();
-            lastResponse = await _llmProvider.AnalyzeAsync(request, ct).ConfigureAwait(false);
+            lastResponse = await _llmProviderFactory().AnalyzeAsync(request, ct).ConfigureAwait(false);
             if (lastResponse.IsSuccess && lastResponse.ParsedAction != null)
             {
                 return lastResponse;
@@ -502,7 +662,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
         if (policy == "pause")
         {
-            await PauseAsync().ConfigureAwait(false);
+            await PauseAsync($"Error policy triggered: {reason}").ConfigureAwait(false);
         }
         else if (policy == "stop")
         {
@@ -516,5 +676,29 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     {
         _loopCts?.Cancel();
         _loopCts?.Dispose();
+        _currentCycleCts?.Dispose();
+    }
+
+    private sealed class InMemorySettingsRepository : ISettingsRepository
+    {
+        private AppSettings _settings;
+
+        public InMemorySettingsRepository(AppSettings? initial = null)
+        {
+            _settings = initial?.Clone() ?? new AppSettings();
+        }
+
+        public Task<AppSettings> LoadAsync(CancellationToken ct = default) => Task.FromResult(_settings.Clone());
+        public Task SaveAsync(AppSettings settings, CancellationToken ct = default)
+        {
+            _settings = settings.Clone();
+            return Task.CompletedTask;
+        }
+        public Task<bool> ExistsAsync(CancellationToken ct = default) => Task.FromResult(true);
+        public Task<AppSettings> ResetToDefaultsAsync(CancellationToken ct = default)
+        {
+            _settings = new AppSettings();
+            return Task.FromResult(_settings.Clone());
+        }
     }
 }

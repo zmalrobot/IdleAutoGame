@@ -6,6 +6,16 @@ namespace IdleAutoGame.Core.Models;
 public sealed class GameSpecificSettings
 {
     /// <summary>
+    /// Gets or sets whether the LLM is allowed to use premium currency. Default: false (Deny By Default).
+    /// </summary>
+    public bool AllowPremiumCurrency { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether the LLM is allowed to make credit / real-money purchases. Default: false (Deny By Default).
+    /// </summary>
+    public bool AllowCreditPurchases { get; set; } = false;
+
+    /// <summary>
     /// Key-value dictionary of string options.
     /// </summary>
     public Dictionary<string, string> Options { get; set; } = new(StringComparer.OrdinalIgnoreCase);

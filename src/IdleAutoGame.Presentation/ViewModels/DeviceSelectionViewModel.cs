@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IdleAutoGame.Application.Services;
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 
@@ -12,6 +13,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     private readonly IDeviceDiscovery _discovery;
     private readonly IDeviceConnectionManager _connectionManager;
     private readonly IConfigurationService _configService;
+    private readonly DeviceService? _deviceService;
 
     [ObservableProperty]
     private ObservableCollection<DeviceInfo> _devices = new();
@@ -37,11 +39,13 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     public DeviceSelectionViewModel(
         IDeviceDiscovery discovery,
         IDeviceConnectionManager connectionManager,
-        IConfigurationService configService)
+        IConfigurationService configService,
+        DeviceService? deviceService = null)
     {
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _deviceService = deviceService;
     }
 
     [RelayCommand]
@@ -136,6 +140,61 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public async Task VerifyDeviceAsync()
+    {
+        if (SelectedDevice == null)
+        {
+            StatusMessage = "Please select a device to verify.";
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Verifying device '{SelectedDevice.DisplayName}'...";
+
+        try
+        {
+            if (_deviceService != null)
+            {
+                var result = await _deviceService.VerifyDeviceAsync(SelectedDevice.Serial);
+                if (result.IsSuccess)
+                {
+                    var updated = SelectedDevice with
+                    {
+                        State = DeviceState.Ready,
+                        ScreenResolution = result.ScreenResolution ?? SelectedDevice.ScreenResolution
+                    };
+                    var index = Devices.IndexOf(SelectedDevice);
+                    if (index >= 0)
+                    {
+                        Devices[index] = updated;
+                    }
+                    SelectedDevice = updated;
+                    StatusMessage = $"Verification passed: {updated.DisplayName} is responsive (Screen: {updated.ScreenResolution}).";
+                }
+                else
+                {
+                    StatusMessage = $"Verification failed: {result.Message}";
+                }
+            }
+            else
+            {
+                var responsive = await _connectionManager.IsDeviceResponsiveAsync(SelectedDevice.Serial);
+                StatusMessage = responsive
+                    ? $"Device '{SelectedDevice.DisplayName}' is responsive."
+                    : $"Device '{SelectedDevice.DisplayName}' is not responding to ADB ping.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Verification error: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand]
     public async Task SaveSelectionAsync()
     {
         if (SelectedDevice == null)
@@ -144,9 +203,34 @@ public partial class DeviceSelectionViewModel : ViewModelBase
             return;
         }
 
+        if (SelectedDevice.State == DeviceState.Unauthorized)
+        {
+            StatusMessage = $"Cannot select '{SelectedDevice.DisplayName}': device is Unauthorized. Please accept the RSA debugging prompt on the device screen.";
+            return;
+        }
+
+        if (SelectedDevice.State is DeviceState.Offline or DeviceState.Unreachable)
+        {
+            StatusMessage = $"Cannot select '{SelectedDevice.DisplayName}': device is {SelectedDevice.State}. Please reconnect the device.";
+            return;
+        }
+
         var current = _configService.Current;
         current.Device.DefaultDeviceSerial = SelectedDevice.Serial;
         await _configService.UpdateSettingsAsync(current);
-        StatusMessage = $"Selected device {SelectedDevice.DisplayName} set as default.";
+
+        if (_deviceService != null)
+        {
+            try
+            {
+                await _deviceService.SelectDeviceAsync(SelectedDevice.Serial);
+            }
+            catch
+            {
+                // Defer error handling
+            }
+        }
+
+        StatusMessage = $"Selected device {SelectedDevice.DisplayName} set as active.";
     }
 }

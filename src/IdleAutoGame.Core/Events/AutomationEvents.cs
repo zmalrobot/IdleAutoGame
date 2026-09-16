@@ -34,3 +34,18 @@ public record SettingsChangedEvent(
     AppSettings Settings,
     string? CategoryChanged = null);
 
+/// <summary>
+/// Event emitted when the active game security policy is updated or changed dynamically.
+/// </summary>
+public record GamePolicyChangedEvent(
+    GamePolicy OldPolicy,
+    GamePolicy NewPolicy,
+    string? Reason = null);
+
+/// <summary>
+/// Event emitted when the active foreground Android application changes.
+/// </summary>
+public record ForegroundAppChangedEventArgs(
+    ForegroundAppInfo PreviousApp,
+    ForegroundAppInfo CurrentApp);
+

@@ -20,6 +20,14 @@ public static class LlmResponseParser
     };
 
     /// <summary>
+    /// Parses a raw model completion string into a structured <see cref="GameAction"/>, or returns null on failure.
+    /// </summary>
+    public static GameAction? Parse(string? rawContent)
+    {
+        return TryParse(rawContent, out var action, out _) ? action : null;
+    }
+
+    /// <summary>
     /// Parses a raw model completion string into a structured <see cref="GameAction"/>.
     /// </summary>
     /// <param name="rawContent">The raw completion text from the model.</param>
@@ -87,6 +95,16 @@ public static class LlmResponseParser
                 waitAfterMs = waitVal;
             }
 
+            var category = ActionCategory.Normal;
+            if (root.TryGetProperty("category", out var catProp))
+            {
+                var catStr = catProp.GetString();
+                if (!string.IsNullOrWhiteSpace(catStr) && Enum.TryParse<ActionCategory>(catStr.Replace("_", ""), ignoreCase: true, out var parsedCategory))
+                {
+                    category = parsedCategory;
+                }
+            }
+
             var parameters = new ActionParameters();
             if (root.TryGetProperty("parameters", out var paramsProp) && paramsProp.ValueKind == JsonValueKind.Object)
             {
@@ -119,7 +137,8 @@ public static class LlmResponseParser
                 Explanation = explanation,
                 Confidence = confidence,
                 GameState = gameState,
-                WaitAfterMs = waitAfterMs
+                WaitAfterMs = waitAfterMs,
+                Category = category
             };
 
             return true;

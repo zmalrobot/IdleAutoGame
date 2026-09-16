@@ -21,11 +21,14 @@ public sealed class ConfigurationService : IConfigurationService
     /// <summary>
     /// Initializes a new instance of <see cref="ConfigurationService"/>.
     /// </summary>
-    public ConfigurationService(ISettingsRepository repository, SettingsValidator? validator = null)
+    public ConfigurationService(
+        ISettingsRepository repository,
+        SettingsValidator? validator = null,
+        AppSettings? initialSettings = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _validator = validator ?? new SettingsValidator();
-        _current = new AppSettings();
+        _current = initialSettings?.Clone() ?? new AppSettings();
     }
 
     /// <inheritdoc />

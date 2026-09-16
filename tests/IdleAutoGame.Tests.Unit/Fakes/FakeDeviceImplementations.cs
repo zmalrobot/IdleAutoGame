@@ -99,6 +99,14 @@ public class FakeDeviceController : IDeviceController
     {
         return Task.FromResult(ScreenDensity);
     }
+
+    public ForegroundAppInfo ForegroundApp { get; set; } = new("com.gamehivecorp.taptitans2", "com.gamehivecorp.taptitans2.MainActivity");
+
+    public Task<ForegroundAppInfo> GetForegroundAppAsync(string serial, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"GetForegroundApp({serial})");
+        return Task.FromResult(ForegroundApp);
+    }
 }
 
 public class FakeDeviceConnectionManager : IDeviceConnectionManager

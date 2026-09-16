@@ -55,6 +55,21 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+
+                        <TextBlock Text="Security &amp; Spending Policies (Deny By Default):" FontSize="14" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <Border Background="#181825" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="10">
+                                <CheckBox IsChecked="{Binding AllowPremiumCurrency}" Content="Permetti all'LLM di usare currency premium"
+                                          Foreground="#CDD6F4"/>
+                                <TextBlock Text="Quando disabilitato (OFF), l'LLM non può spendere diamanti, gemme o valute a pagamento."
+                                           FontSize="11" Foreground="#6C7086" Margin="28,-4,0,0"/>
+
+                                <CheckBox IsChecked="{Binding AllowCreditPurchases}" Content="Permetti all'LLM di acquistare crediti"
+                                          Foreground="#CDD6F4"/>
+                                <TextBlock Text="Quando disabilitato (OFF), l'LLM non può avviare acquisti in-app con denaro reale e l'Activity Guard monitora il foreground."
+                                           FontSize="11" Foreground="#6C7086" Margin="28,-4,0,0"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

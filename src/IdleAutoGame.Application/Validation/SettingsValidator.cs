@@ -135,6 +135,41 @@ public sealed class SettingsValidator
         {
             result.AddError($"LLM Max Tokens must be between 1 and 8192. Current: {llm.MaxTokens}.");
         }
+
+        if (string.IsNullOrWhiteSpace(llm.ModelStorageDirectory))
+        {
+            result.AddError("Local Model Storage Directory cannot be empty.");
+        }
+
+        if (llm.ContextSize is < 512 or > 32768)
+        {
+            result.AddError($"LLM Context Size must be between 512 and 32768 tokens. Current: {llm.ContextSize}.");
+        }
+
+        if (llm.ThreadCount is < 1 or > 128)
+        {
+            result.AddError($"LLM Thread Count must be between 1 and 128. Current: {llm.ThreadCount}.");
+        }
+
+        if (llm.BatchSize is < 64 or > 4096)
+        {
+            result.AddError($"LLM Batch Size must be between 64 and 4096. Current: {llm.BatchSize}.");
+        }
+
+        if (llm.GpuLayerCount < 0)
+        {
+            result.AddError($"LLM GPU Layer Count cannot be negative. Current: {llm.GpuLayerCount}.");
+        }
+
+        if (llm.TopP is < 0.0 or > 1.0)
+        {
+            result.AddError($"LLM Top-P must be between 0.0 and 1.0. Current: {llm.TopP}.");
+        }
+
+        if (llm.TopK < 1)
+        {
+            result.AddError($"LLM Top-K must be at least 1. Current: {llm.TopK}.");
+        }
     }
 
     private static void ValidateAutomation(AutomationSettings auto, ValidationResult result)
@@ -159,6 +194,21 @@ public sealed class SettingsValidator
         if (auto.AdbCommandTimeoutSeconds is < 1 or > 60)
         {
             result.AddError($"ADB command timeout must be between 1 and 60 seconds. Current: {auto.AdbCommandTimeoutSeconds}.");
+        }
+
+        if (auto.ActivityCheckIntervalSeconds is < 0.1 or > 60.0)
+        {
+            result.AddError($"Activity check interval must be between 0.1 and 60.0 seconds. Current: {auto.ActivityCheckIntervalSeconds}.");
+        }
+
+        if (auto.ActivityCancellationTimeoutMs is < 500 or > 30000)
+        {
+            result.AddError($"Activity cancellation timeout must be between 500 and 30000 ms. Current: {auto.ActivityCancellationTimeoutMs}.");
+        }
+
+        if (auto.EmergencyStopTimeoutMs is < 500 or > 30000)
+        {
+            result.AddError($"Emergency stop timeout must be between 500 and 30000 ms. Current: {auto.EmergencyStopTimeoutMs}.");
         }
     }
 

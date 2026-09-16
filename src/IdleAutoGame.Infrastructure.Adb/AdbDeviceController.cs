@@ -143,4 +143,64 @@ public sealed class AdbDeviceController : IDeviceController
 
         return 0;
     }
+
+    /// <inheritdoc />
+    public async Task<ForegroundAppInfo> GetForegroundAppAsync(string serial, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        var device = new AdvancedSharpAdbClient.Models.DeviceData { Serial = serial };
+
+        var receiver = new ConsoleOutputReceiver();
+        try
+        {
+            await _client.ExecuteRemoteCommandAsync("dumpsys window | grep -E 'mCurrentFocus|mFocusedApp'", device, receiver, ct).ConfigureAwait(false);
+            var output = receiver.ToString();
+            var info = ParseForegroundApp(output);
+            if (!info.IsEmpty)
+            {
+                return info;
+            }
+        }
+        catch
+        {
+            // Fallback to dumpsys activity
+        }
+
+        receiver = new ConsoleOutputReceiver();
+        try
+        {
+            await _client.ExecuteRemoteCommandAsync("dumpsys activity activities | grep -E 'mResumedActivity|topResumedActivity'", device, receiver, ct).ConfigureAwait(false);
+            var output = receiver.ToString();
+            var info = ParseForegroundApp(output);
+            if (!info.IsEmpty)
+            {
+                return info;
+            }
+        }
+        catch
+        {
+            // Suppress and return empty
+        }
+
+        return new ForegroundAppInfo(null, null);
+    }
+
+    private static ForegroundAppInfo ParseForegroundApp(string output)
+    {
+        if (string.IsNullOrWhiteSpace(output)) return new ForegroundAppInfo(null, null);
+
+        var match = Regex.Match(output, @"([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/(\.?[a-zA-Z0-9_.]+)");
+        if (match.Success)
+        {
+            var pkg = match.Groups[1].Value;
+            var act = match.Groups[2].Value;
+            if (act.StartsWith('.'))
+            {
+                act = pkg + act;
+            }
+            return new ForegroundAppInfo(pkg, act);
+        }
+
+        return new ForegroundAppInfo(null, null);
+    }
 }

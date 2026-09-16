@@ -48,7 +48,131 @@
                     </ScrollViewer>
                 </TabItem>
 
-                <!-- Tab 2: Automation -->
+                <!-- Tab 2: Local LLM & Models -->
+                <TabItem Header="Local Models &amp; llama.cpp">
+                    <ScrollViewer Margin="0,16,0,0">
+                        <StackPanel Spacing="16">
+                            <!-- Hardware Auto-Config & Storage -->
+                            <Border Background="#181825" CornerRadius="8" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Auto-Configure for My Hardware"
+                                                Command="{Binding AutoConfigureLlmCommand}"
+                                                Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="12,6"/>
+                                        <TextBlock Text="Hardware Acceleration &amp; Runtime Settings" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                    </DockPanel>
+
+                                    <StackPanel Spacing="6">
+                                        <TextBlock Text="Model Storage Directory:" Foreground="#A6ADC8"/>
+                                        <TextBox Text="{Binding ModelStorageDirectory}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                    </StackPanel>
+
+                                    <Grid ColumnDefinitions="*,*,*,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
+                                            <TextBlock Text="Context Size (tokens):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding ContextSize}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,8,8">
+                                            <TextBlock Text="CPU Threads:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding ThreadCount}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="2" Spacing="4" Margin="0,0,8,8">
+                                            <TextBlock Text="GPU Layers to Offload:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding GpuLayerCount}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="3" Spacing="4" Margin="0,0,0,8">
+                                            <TextBlock Text="Batch Size:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding BatchSize}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                            <TextBlock Text="Top-P:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding TopP}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4" Margin="0,0,8,0">
+                                            <TextBlock Text="Top-K:" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding TopK}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="2" Spacing="4" Margin="0,0,8,0">
+                                            <TextBlock Text="Seed (0 = Random):" FontSize="11" Foreground="#A6ADC8"/>
+                                            <TextBox Text="{Binding Seed}" Background="#2A2A3C" Foreground="#CDD6F4"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="3" Spacing="6" VerticalAlignment="Center">
+                                            <CheckBox IsChecked="{Binding UseMemoryMapping}" Content="Use mmap" Foreground="#CDD6F4" FontSize="11"/>
+                                            <CheckBox IsChecked="{Binding UseMemoryLock}" Content="Use mlock" Foreground="#CDD6F4" FontSize="11"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <DockPanel Margin="0,4,0,0">
+                                        <Button DockPanel.Dock="Right" Content="Unload Active Model from RAM"
+                                                Command="{Binding UnloadActiveModelCommand}"
+                                                Background="#F38BA8" Foreground="#11111B" Padding="10,4" FontSize="12"/>
+                                        <TextBlock Text="Free all allocated weights and memory contexts." Foreground="#6C7086" FontSize="12" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Model Catalog & Disk Management -->
+                            <Border Background="#181825" CornerRadius="8" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Refresh Models"
+                                                Command="{Binding RefreshLocalModelsCommand}"
+                                                Background="#313244" Foreground="#CDD6F4" Padding="10,4" FontSize="12"/>
+                                        <TextBlock Text="Catalog GGUF Models &amp; Local Storage" FontSize="15" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                                    </DockPanel>
+
+                                    <ItemsControl ItemsSource="{Binding LocalModels}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="#2A2A3C" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                                                    <Grid ColumnDefinitions="*,Auto">
+                                                        <StackPanel Grid.Column="0" Spacing="4">
+                                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="{Binding Architecture}" FontSize="10" Foreground="#89B4FA"/>
+                                                                </Border>
+                                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="{Binding Quantization}" FontSize="10" Foreground="#CBA6F7"/>
+                                                                </Border>
+                                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
+                                                                    <TextBlock Text="{Binding Status}" FontSize="10" Foreground="#F9E2AF"/>
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <TextBlock Text="{Binding Description}" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap"/>
+                                                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                                                <TextBlock Text="{Binding RecommendedRamRange, StringFormat='RAM: {0}'}" FontSize="11" Foreground="#A6ADC8"/>
+                                                                <TextBlock Text="{Binding LicenseName, StringFormat='License: {0}'}" FontSize="11" Foreground="#6C7086"/>
+                                                            </StackPanel>
+                                                        </StackPanel>
+
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                            <Button Content="Download"
+                                                                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DownloadModelCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="#89B4FA" Foreground="#11111B" FontSize="11" Padding="8,4"/>
+                                                            <Button Content="Activate"
+                                                                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectActiveModelCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="#A6E3A1" Foreground="#11111B" FontSize="11" Padding="8,4"/>
+                                                            <Button Content="Delete"
+                                                                    Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteModelCommand}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="#F38BA8" Foreground="#11111B" FontSize="11" Padding="8,4"/>
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Tab 3: Automation -->
                 <TabItem Header="Automation">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
@@ -65,6 +189,22 @@
                                 <TextBox Text="{Binding MaxConsecutiveUnknownStates}" Background="#181825" Foreground="#CDD6F4"/>
                             </StackPanel>
                             <CheckBox IsChecked="{Binding AutoReconnect}" Content="Automatically Reconnect Dropped Devices" Foreground="#CDD6F4"/>
+
+                            <Separator Background="#313244"/>
+                            <TextBlock Text="Android Activity Guard &amp; Safety Boundary:" FontWeight="SemiBold" Foreground="#89B4FA"/>
+                            <CheckBox IsChecked="{Binding EnableActivityGuard}" Content="Enable Android Activity Guard (Foreground App Monitoring)" Foreground="#CDD6F4"/>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Activity Polling Interval (Seconds):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ActivityCheckIntervalSeconds}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Cancellation Grace Period Timeout (ms):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding ActivityCancellationTimeoutMs}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Emergency Hard Stop Timeout (ms):" Foreground="#A6ADC8"/>
+                                <TextBox Text="{Binding EmergencyStopTimeoutMs}" Background="#181825" Foreground="#CDD6F4"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

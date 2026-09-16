@@ -46,5 +46,15 @@ public sealed record GameDefinition
     /// Gets default configuration values specific to this game.
     /// </summary>
     public GameSpecificSettings DefaultSettings { get; init; } = new();
+
+    /// <summary>
+    /// Gets the expected Android package name for this game.
+    /// </summary>
+    public string? ExpectedPackageName { get; init; }
+
+    /// <summary>
+    /// Gets the expected Android foreground activity name for this game.
+    /// </summary>
+    public string? ExpectedActivity { get; init; }
 }
 

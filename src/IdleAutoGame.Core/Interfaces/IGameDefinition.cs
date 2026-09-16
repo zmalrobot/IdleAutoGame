@@ -47,6 +47,16 @@ public interface IGameDefinition
     /// Gets default configuration options for this game.
     /// </summary>
     GameSpecificSettings DefaultSettings { get; }
+
+    /// <summary>
+    /// Gets the expected Android package name for this game (e.g. 'com.gamehivecorp.taptitans2').
+    /// </summary>
+    string? ExpectedPackageName { get; }
+
+    /// <summary>
+    /// Gets the expected Android foreground activity name for this game, if known.
+    /// </summary>
+    string? ExpectedActivity { get; }
 }
 
 /// <summary>

@@ -60,10 +60,14 @@ public partial class App : Avalonia.Application
         services.AddSingleton<SettingsValidator>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<SessionRecorder>();
+        services.AddSingleton<DeviceService>();
 
         // Hardware & Models
         services.AddSingleton<IHardwareDetector, LinuxHardwareDetector>();
         services.AddSingleton<IModelCatalog, JsonModelCatalog>();
+        services.AddSingleton<IModelDownloader, ModelDownloader>();
+        services.AddSingleton<IModelManager, ModelManager>();
+        services.AddSingleton<LocalLlamaProvider>();
 
         // ADB Layer
         services.AddSingleton<IDeviceDiscovery, AdbDeviceDiscovery>();
@@ -79,6 +83,32 @@ public partial class App : Avalonia.Application
         {
             var config = sp.GetRequiredService<IConfigurationService>().Current;
             var client = sp.GetRequiredService<HttpClient>();
+
+            if (config.Llm.Provider.Equals("LLamaSharp", StringComparison.OrdinalIgnoreCase) ||
+                config.Llm.Provider.Equals("local", StringComparison.OrdinalIgnoreCase) ||
+                config.Llm.Provider.Equals("local-llama", StringComparison.OrdinalIgnoreCase))
+            {
+                var localProvider = sp.GetRequiredService<LocalLlamaProvider>();
+                var modelManager = sp.GetRequiredService<IModelManager>();
+
+                if (!localProvider.IsModelLoaded && !string.IsNullOrWhiteSpace(config.Llm.SelectedModelId))
+                {
+                    var modelPath = modelManager.GetModelFilePath(config.Llm.SelectedModelId);
+                    if (File.Exists(modelPath))
+                    {
+                        try
+                        {
+                            localProvider.LoadModelAsync(modelPath, config.Llm).GetAwaiter().GetResult();
+                        }
+                        catch
+                        {
+                            // Defer error handling to execution time
+                        }
+                    }
+                }
+
+                return localProvider;
+            }
 
             if (config.Llm.Provider.Equals("openai", StringComparison.OrdinalIgnoreCase) ||
                 config.Llm.Provider.Equals("openai-compatible", StringComparison.OrdinalIgnoreCase))
@@ -96,16 +126,28 @@ public partial class App : Avalonia.Application
                 modelId: config.Llm.SelectedModelId);
         });
 
+        // Security & Safety Policy Services
+        services.AddSingleton<IGamePolicyService, GamePolicyService>();
+        services.AddSingleton<IGameActivityGuard, GameActivityGuard>();
+
         // Automation Engine
         services.AddSingleton<IAutomationEngine>(sp =>
         {
             var deviceController = sp.GetRequiredService<IDeviceController>();
-            var llmProvider = sp.GetRequiredService<ILlmProvider>();
             var gameRegistry = sp.GetRequiredService<IGameRegistry>();
             var sessionRecorder = sp.GetRequiredService<SessionRecorder>();
-            var config = sp.GetRequiredService<IConfigurationService>().Current;
+            var configService = sp.GetRequiredService<IConfigurationService>();
+            var policyService = sp.GetRequiredService<IGamePolicyService>();
+            var activityGuard = sp.GetRequiredService<IGameActivityGuard>();
 
-            return new AutomationEngine(deviceController, llmProvider, gameRegistry, sessionRecorder, config);
+            return new AutomationEngine(
+                deviceController,
+                () => sp.GetRequiredService<ILlmProvider>(),
+                gameRegistry,
+                sessionRecorder,
+                configService,
+                policyService,
+                activityGuard);
         });
 
         // ViewModels
@@ -114,21 +156,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ModelSelectionViewModel>();
         services.AddSingleton<GameSelectionViewModel>();
         services.AddSingleton<SettingsViewModel>();
-        services.AddSingleton<SplashViewModel>(sp =>
-        {
-            var detector = sp.GetRequiredService<IHardwareDetector>();
-            var dashboard = sp.GetRequiredService<DashboardViewModel>();
-            var mainVm = sp.GetService<MainWindowViewModel>();
-
-            return new SplashViewModel(detector, onReady: () =>
-            {
-                if (mainVm != null)
-                {
-                    mainVm.CurrentView = dashboard;
-                }
-            });
-        });
-
+        services.AddSingleton<SplashViewModel>();
         services.AddSingleton<MainWindowViewModel>();
     }
 

@@ -18,12 +18,14 @@ public static class ActionPipelineValidator
     /// <param name="constraints">Optional game constraints.</param>
     /// <param name="userOverrides">Optional user overrides.</param>
     /// <param name="clampedAction">The resulting action with clamped coordinates if valid.</param>
+    /// <param name="policy">Optional active security policy.</param>
     /// <returns>The aggregated validation result.</returns>
     public static ValidationResult ValidateAndSanitize(
         GameAction? action,
         IEnumerable<GameConstraint>? constraints,
         IEnumerable<UserOverride>? userOverrides,
-        out GameAction? clampedAction)
+        out GameAction? clampedAction,
+        GamePolicy? policy = null)
     {
         clampedAction = null;
 
@@ -41,8 +43,8 @@ public static class ActionPipelineValidator
             return semanticResult;
         }
 
-        // Stage 3: Policy Validation
-        var policyResult = PolicyValidator.Validate(action!, constraints, userOverrides);
+        // Stage 3: Policy Validation (including GamePolicy)
+        var policyResult = PolicyValidator.Validate(action!, constraints, userOverrides, policy);
         if (!policyResult.IsValid)
         {
             return policyResult;

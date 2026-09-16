@@ -65,6 +65,12 @@ public sealed class TapTitans2Definition : IGameDefinition
     /// <inheritdoc />
     public GameSpecificSettings DefaultSettings { get; } = CreateDefaultSettings();
 
+    /// <inheritdoc />
+    public string? ExpectedPackageName => "com.gamehivecorp.taptitans2";
+
+    /// <inheritdoc />
+    public string? ExpectedActivity => "com.gamehivecorp.taptitans2.MainActivity";
+
     private static GameSpecificSettings CreateDefaultSettings()
     {
         var settings = new GameSpecificSettings();

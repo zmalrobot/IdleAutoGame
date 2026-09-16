@@ -21,6 +21,11 @@ public sealed record PromptContext
     public GameSpecificSettings? GameSettings { get; init; }
 
     /// <summary>
+    /// Gets the active security policy for the session.
+    /// </summary>
+    public GamePolicy? Policy { get; init; }
+
+    /// <summary>
     /// Gets the persistent user instructions from application settings.
     /// </summary>
     public string? PersistentUserInstructions { get; init; }
@@ -61,19 +66,21 @@ public static class PromptBuilder
     2. Coordinates (x, y, end_x, end_y) MUST be normalized floats between 0.0 and 1.0 (0.0 = top/left, 1.0 = bottom/right).
     3. You MUST provide a clear, concise synthetic explanation (max 500 chars) for your chosen action.
     4. You MUST assess the game state (normal, boss_fight, menu, shop, dialog, loading, ad, unknown).
-    5. NEVER interact with Android system UI (notification shade, navigation bar, power dialogs).
-    6. NEVER tap on in-app purchases, diamond packs, or real-money payment buttons.
+    5. Set "category" to "normal", "premium_currency", or "credit_purchase" based on your intent.
+    6. NEVER interact with Android system UI (notification shade, navigation bar, power dialogs).
+    7. NEVER tap on in-app purchases, diamond packs, or real-money payment buttons.
     """;
 
     /// <summary>
-    /// Assembles the system prompt containing Tier 1 (System Constraints), Tier 2 (Game Rules),
+    /// Assembles the system prompt containing Tier 1 (System Constraints & Policy), Tier 2 (Game Rules),
     /// Tier 3 (Game Configuration), and Tier 4 (Persistent User Instructions).
     /// </summary>
     public static string BuildSystemPrompt(
         IGameDefinition game,
         GameSpecificSettings? gameSettings = null,
         string? persistentInstructions = null,
-        IEnumerable<UserOverride>? userOverrides = null)
+        IEnumerable<UserOverride>? userOverrides = null,
+        GamePolicy? policy = null)
     {
         ArgumentNullException.ThrowIfNull(game);
 
@@ -82,6 +89,21 @@ public static class PromptBuilder
         // Tier 1: System Constraints
         sb.AppendLine("### 1. SYSTEM CONSTRAINTS");
         sb.AppendLine(SystemConstraints);
+        sb.AppendLine();
+
+        // Tier 1.1: Binding Game Security Policy
+        var effectivePolicy = policy ?? GamePolicy.Default;
+        sb.AppendLine("### 1.1 APPLICATION SECURITY POLICY");
+        sb.AppendLine($"- Premium currency usage: {(effectivePolicy.AllowPremiumCurrency ? "ENABLED" : "DISABLED")}");
+        sb.AppendLine($"- Credit / real-money purchases: {(effectivePolicy.AllowCreditPurchases ? "ENABLED" : "DISABLED")}");
+        if (!effectivePolicy.AllowPremiumCurrency)
+        {
+            sb.AppendLine("  * YOU MUST NOT perform any actions that consume premium diamonds, gems, or paid items.");
+        }
+        if (!effectivePolicy.AllowCreditPurchases)
+        {
+            sb.AppendLine("  * YOU MUST NOT perform any actions that initiate credit purchases, store checkout, or in-app payments.");
+        }
         sb.AppendLine();
 
         // Tier 2: Game Rules

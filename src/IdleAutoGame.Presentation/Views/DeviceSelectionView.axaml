@@ -33,9 +33,14 @@
                                             <TextBlock Text="{Binding Serial}" FontSize="12" Foreground="#6C7086"/>
                                             <TextBlock Text="{Binding ScreenResolution}" FontSize="12" Foreground="#A6ADC8"/>
                                         </StackPanel>
-                                        <Border Grid.Column="1" Background="#313244" CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding ConnectionType}" FontSize="11" Foreground="#A6E3A1"/>
-                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <Border Background="#313244" CornerRadius="4" Padding="8,4" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding ConnectionType}" FontSize="11" Foreground="#A6E3A1"/>
+                                            </Border>
+                                            <Border Background="#45475A" CornerRadius="4" Padding="8,2" HorizontalAlignment="Right">
+                                                <TextBlock Text="{Binding State}" FontSize="10" Foreground="#F9E2AF"/>
+                                            </Border>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
                             </DataTemplate>
@@ -80,8 +85,12 @@
 
         <!-- Footer -->
         <DockPanel Grid.Row="2">
-            <Button DockPanel.Dock="Right" Content="Select as Active Device" Command="{Binding SaveSelectionCommand}"
-                    Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,10"/>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
+                <Button Content="Verify Device" Command="{Binding VerifyDeviceCommand}"
+                        Background="#313244" Foreground="#CDD6F4" Padding="14,10"/>
+                <Button Content="Select as Active Device" Command="{Binding SaveSelectionCommand}"
+                        Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,10"/>
+            </StackPanel>
             <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>
         </DockPanel>
     </Grid>

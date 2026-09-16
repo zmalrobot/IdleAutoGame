@@ -4,75 +4,149 @@
              x:Class="IdleAutoGame.Presentation.Views.ModelSelectionView"
              x:DataType="vm:ModelSelectionViewModel">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24" Background="#1E1E2E">
-        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,16">
+    <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="24" Background="#1E1E2E">
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,12">
             <TextBlock Text="AI / Vision Models" FontSize="24" FontWeight="Bold" Foreground="#89B4FA"/>
-            <TextBlock Text="Select local llama.cpp GGUF vision models or configure OpenAI-compatible endpoints." Foreground="#A6ADC8"/>
+            <TextBlock Text="Choose between high-privacy local GGUF models (LLamaSharp) or remote cloud endpoints." Foreground="#A6ADC8"/>
         </StackPanel>
 
-        <Grid Grid.Row="1" ColumnDefinitions="*,360" Margin="0,0,0,16">
-            <!-- Left: Model Profiles -->
-            <Border Grid.Column="0" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,12,0">
-                <Grid RowDefinitions="Auto,*">
-                    <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                        <Button DockPanel.Dock="Right" Content="Check Compatibility" Command="{Binding LoadModelsCommand}"
-                                Background="#313244" Foreground="#CDD6F4" Padding="12,6"/>
-                        <TextBlock Text="Available Model Profiles" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
-                    </DockPanel>
-
-                    <ListBox Grid.Row="1" ItemsSource="{Binding AvailableModels}" SelectedItem="{Binding SelectedItem}"
-                             Background="#181825" CornerRadius="6">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="#313244">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Grid.Column="0" Spacing="4">
-                                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding Profile.Name}" FontWeight="Bold" Foreground="#CDD6F4"/>
-                                                <Border Background="#313244" CornerRadius="4" Padding="6,2">
-                                                    <TextBlock Text="{Binding Profile.QualityTier}" FontSize="10" Foreground="#89B4FA"/>
-                                                </Border>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding Profile.Description}" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding CompatibilityReason}" FontSize="11" Foreground="#A6E3A1" FontWeight="SemiBold"/>
-                                        </StackPanel>
-                                        <Border Grid.Column="1" Background="#313244" CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Profile.Provider}" FontSize="11" Foreground="#CBA6F7"/>
-                                        </Border>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-                </Grid>
-            </Border>
-
-            <!-- Right: Endpoint Configuration -->
-            <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="16">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="Inference API Configuration" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="Endpoint URL:" FontSize="12" Foreground="#A6ADC8"/>
-                        <TextBox Text="{Binding Endpoint}" Background="#181825" Foreground="#CDD6F4"/>
-                        <TextBlock Text="e.g. http://localhost:8080 or https://api.openai.com" FontSize="11" Foreground="#6C7086"/>
-                    </StackPanel>
-
-                    <StackPanel Spacing="6">
-                        <TextBlock Text="API Key (Optional / Remote):" FontSize="12" Foreground="#A6ADC8"/>
-                        <TextBox Text="{Binding ApiKey}" PasswordChar="*" Background="#181825" Foreground="#CDD6F4"/>
-                    </StackPanel>
-
-                    <Separator Background="#45475A"/>
-
-                    <TextBlock Text="Hardware Requirements:" FontSize="13" FontWeight="SemiBold" Foreground="#CDD6F4"/>
-                    <TextBlock Text="• Minimum 8 GB RAM recommended for local 7B models." FontSize="12" Foreground="#A6ADC8"/>
-                    <TextBlock Text="• Cloud models require network access but 0 local RAM." FontSize="12" Foreground="#A6ADC8"/>
+        <!-- Mode Toggle Bar -->
+        <Border Grid.Row="1" Background="#2A2A3C" CornerRadius="8" Padding="12" Margin="0,0,0,16">
+            <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Detect Hardware" Command="{Binding LoadModelsCommand}"
+                        Background="#313244" Foreground="#CDD6F4" Padding="12,6"/>
+                <StackPanel Orientation="Horizontal" Spacing="24" VerticalAlignment="Center">
+                    <TextBlock Text="Inference Mode:" FontWeight="SemiBold" Foreground="#CDD6F4" VerticalAlignment="Center"/>
+                    <RadioButton Content="Local LLM (llama.cpp / LLamaSharp)" IsChecked="{Binding IsLocalMode}" Foreground="#CDD6F4"/>
+                    <RadioButton Content="Remote LLM (Cloud / OpenAI API)" IsChecked="{Binding !IsLocalMode}" Foreground="#CDD6F4"/>
                 </StackPanel>
-            </Border>
+            </DockPanel>
+        </Border>
+
+        <!-- Content Area -->
+        <Grid Grid.Row="2" Margin="0,0,0,16">
+            <!-- LOCAL LLM PANEL -->
+            <Grid RowDefinitions="Auto,*" IsVisible="{Binding IsLocalMode}">
+                <!-- RAM Tier Banner -->
+                <Border Grid.Row="0" Background="#181825" BorderBrush="#313244" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Border Background="#313244" CornerRadius="4" Padding="8,4">
+                                <TextBlock Text="{Binding DetectedRamTierText}" FontWeight="Bold" Foreground="#F9E2AF"/>
+                            </Border>
+                            <TextBlock Text="{Binding DetectedRamText}" Foreground="#A6ADC8" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="2" Text="3 Recommended Models for your RAM Tier" FontSize="12" Foreground="#89B4FA" VerticalAlignment="Center"/>
+                    </Grid>
+                </Border>
+
+                <!-- 3 Recommended Models List -->
+                <ListBox Grid.Row="1" ItemsSource="{Binding RecommendedLocalModels}" SelectedItem="{Binding SelectedLocalModel}"
+                         Background="#181825" CornerRadius="8" Padding="8">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="14" Margin="0,0,0,8" Background="#2A2A3C" CornerRadius="6">
+                                <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                                    <!-- Header: Name, Architecture, Quantization, RAM Requirement -->
+                                    <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Model.DisplayName}" FontSize="15" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                            <Border Background="#313244" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="{Binding Model.Architecture}" FontSize="11" Foreground="#CBA6F7"/>
+                                            </Border>
+                                            <Border Background="#313244" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="{Binding Model.Quantization}" FontSize="11" Foreground="#89B4FA"/>
+                                            </Border>
+                                            <Border Background="#313244" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="{Binding Model.LicenseName}" FontSize="11" Foreground="#A6ADC8"/>
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Model.Description}" FontSize="12" Foreground="#A6ADC8" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                    </StackPanel>
+
+                                    <!-- Right: Badges and Actions -->
+                                    <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding CompatibilityReason}" FontSize="11" FontWeight="Bold"
+                                                   Foreground="{Binding IsCompatible, Converter={x:Null}}" HorizontalAlignment="Right"/>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                            <Button Content="Download Model"
+                                                    Command="{Binding $parent[UserControl].((vm:ModelSelectionViewModel)DataContext).DownloadModelCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    IsVisible="{Binding !IsInstalled}"
+                                                    IsEnabled="{Binding IsCompatible}"
+                                                    Background="#89B4FA" Foreground="#11111B" FontWeight="Bold" Padding="10,4" FontSize="12"/>
+
+                                            <Border Background="#A6E3A1" CornerRadius="4" Padding="8,4" IsVisible="{Binding IsInstalled}">
+                                                <TextBlock Text="Installed &amp; Ready" FontSize="11" FontWeight="Bold" Foreground="#11111B"/>
+                                            </Border>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Download Progress Area -->
+                                    <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="4" Margin="0,10,0,0" IsVisible="{Binding IsDownloading}">
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding DownloadProgressText}" FontSize="11" Foreground="#CDD6F4"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding DownloadSpeedText}" FontSize="11" Foreground="#F9E2AF" Margin="12,0"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding DownloadEtaText}" FontSize="11" Foreground="#A6ADC8"/>
+                                        </Grid>
+                                        <Grid ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+                                            <ProgressBar Grid.Column="0" Value="{Binding DownloadPercentage}" Maximum="100" Height="8" Background="#181825" Foreground="#89B4FA" CornerRadius="4"/>
+                                            <Button Grid.Column="1" Content="Cancel"
+                                                    Command="{Binding $parent[UserControl].((vm:ModelSelectionViewModel)DataContext).CancelDownloadCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Background="#F38BA8" Foreground="#11111B" FontSize="11" Padding="8,2" Margin="8,0,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Grid>
+
+            <!-- REMOTE LLM PANEL -->
+            <Grid ColumnDefinitions="*,360" IsVisible="{Binding !IsLocalMode}">
+                <!-- Left: Profiles -->
+                <Border Grid.Column="0" Background="#2A2A3C" CornerRadius="8" Padding="16" Margin="0,0,12,0">
+                    <Grid RowDefinitions="Auto,*">
+                        <TextBlock Grid.Row="0" Text="Remote Cloud Providers" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4" Margin="0,0,0,12"/>
+                        <ListBox Grid.Row="1" ItemsSource="{Binding AvailableRemoteModels}" SelectedItem="{Binding SelectedRemoteItem}"
+                                 Background="#181825" CornerRadius="6">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="12" BorderThickness="0,0,0,1" BorderBrush="#313244">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding Profile.Name}" FontWeight="Bold" Foreground="#CDD6F4"/>
+                                            <TextBlock Text="{Binding Profile.Description}" FontSize="12" Foreground="#A6ADC8"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Grid>
+                </Border>
+
+                <!-- Right: Endpoint and API Key -->
+                <Border Grid.Column="1" Background="#2A2A3C" CornerRadius="8" Padding="16">
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="Endpoint Configuration" FontSize="16" FontWeight="SemiBold" Foreground="#CDD6F4"/>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Endpoint URL:" FontSize="12" Foreground="#A6ADC8"/>
+                            <TextBox Text="{Binding Endpoint}" Background="#181825" Foreground="#CDD6F4"/>
+                        </StackPanel>
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="API Key (Optional):" FontSize="12" Foreground="#A6ADC8"/>
+                            <TextBox Text="{Binding ApiKey}" PasswordChar="*" Background="#181825" Foreground="#CDD6F4"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
 
-        <DockPanel Grid.Row="2">
+        <!-- Footer -->
+        <DockPanel Grid.Row="3">
             <Button DockPanel.Dock="Right" Content="Save and Activate Model" Command="{Binding SaveSelectionCommand}"
                     Background="#A6E3A1" Foreground="#11111B" FontWeight="Bold" Padding="16,10"/>
             <TextBlock Text="{Binding StatusMessage}" VerticalAlignment="Center" Foreground="#F9E2AF"/>

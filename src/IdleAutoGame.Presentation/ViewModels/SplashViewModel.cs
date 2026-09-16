@@ -8,7 +8,9 @@ namespace IdleAutoGame.Presentation.ViewModels;
 public partial class SplashViewModel : ViewModelBase
 {
     private readonly IHardwareDetector _hardwareDetector;
-    private readonly Action _onReady;
+    private readonly Action? _onReady;
+
+    public event EventHandler? Ready;
 
     [ObservableProperty]
     private string _statusText = "Checking system environment...";
@@ -22,10 +24,10 @@ public partial class SplashViewModel : ViewModelBase
     [ObservableProperty]
     private HardwareInfo _hardware = HardwareInfo.Empty;
 
-    public SplashViewModel(IHardwareDetector hardwareDetector, Action onReady)
+    public SplashViewModel(IHardwareDetector hardwareDetector, Action? onReady = null)
     {
         _hardwareDetector = hardwareDetector ?? throw new ArgumentNullException(nameof(hardwareDetector));
-        _onReady = onReady ?? throw new ArgumentNullException(nameof(onReady));
+        _onReady = onReady;
     }
 
     [RelayCommand]
@@ -55,7 +57,8 @@ public partial class SplashViewModel : ViewModelBase
     [RelayCommand]
     public void Continue()
     {
-        _onReady();
+        _onReady?.Invoke();
+        Ready?.Invoke(this, EventArgs.Empty);
     }
 }
 

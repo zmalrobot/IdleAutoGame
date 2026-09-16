@@ -55,7 +55,11 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
         }
         catch
         {
-            // Fallback for non-Linux or permission restricted environments
+            // Ignore /proc/meminfo read errors and proceed to fallback
+        }
+
+        if (totalRamMb <= 0)
+        {
             var gcInfo = GC.GetGCMemoryInfo();
             totalRamMb = gcInfo.TotalAvailableMemoryBytes / (1024 * 1024);
             availableRamMb = totalRamMb;
@@ -83,7 +87,12 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
         }
         catch
         {
-            cpuName = "Generic Host CPU";
+            // Fallback handled below
+        }
+
+        if (OperatingSystem.IsWindows() && cpuName == "Unknown CPU")
+        {
+            cpuName = Environment.GetEnvironmentVariable("PROCESSOR_IDENTIFIER") ?? $"{Environment.ProcessorCount}-Core Processor";
         }
 
         // 3. Detect GPU & VRAM via sysfs and lspci
@@ -113,42 +122,49 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
             // Ignore sysfs reading errors
         }
 
-        try
+        if (!OperatingSystem.IsWindows())
         {
-            // Detect GPU Name via lspci
-            using var proc = new Process
+            try
             {
-                StartInfo = new ProcessStartInfo
+                // Detect GPU Name via lspci
+                using var proc = new Process
                 {
-                    FileName = "lspci",
-                    RedirectStandardOutput = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                }
-            };
-
-            if (proc.Start())
-            {
-                var output = await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
-                await proc.WaitForExitAsync(ct).ConfigureAwait(false);
-
-                var lines = output.Split('\n');
-                foreach (var line in lines)
-                {
-                    if (line.Contains("VGA compatible controller", StringComparison.OrdinalIgnoreCase) ||
-                        line.Contains("3D controller", StringComparison.OrdinalIgnoreCase) ||
-                        line.Contains("Display controller", StringComparison.OrdinalIgnoreCase))
+                    StartInfo = new ProcessStartInfo
                     {
-                        var colonIdx = line.IndexOf(':', 7); // Skip PCI address
-                        gpuName = colonIdx > 0 ? line[(colonIdx + 1)..].Trim() : line.Trim();
-                        break;
+                        FileName = "lspci",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                if (proc.Start())
+                {
+                    var output = await proc.StandardOutput.ReadToEndAsync(ct).ConfigureAwait(false);
+                    await proc.WaitForExitAsync(ct).ConfigureAwait(false);
+
+                    var lines = output.Split('\n');
+                    foreach (var line in lines)
+                    {
+                        if (line.Contains("VGA compatible controller", StringComparison.OrdinalIgnoreCase) ||
+                            line.Contains("3D controller", StringComparison.OrdinalIgnoreCase) ||
+                            line.Contains("Display controller", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var colonIdx = line.IndexOf(':', 7); // Skip PCI address
+                            gpuName = colonIdx > 0 ? line[(colonIdx + 1)..].Trim() : line.Trim();
+                            break;
+                        }
                     }
                 }
             }
+            catch
+            {
+                // lspci not found or failed, ignore
+            }
         }
-        catch
+        else
         {
-            // lspci not found or failed, ignore
+            gpuName ??= "Windows Display Adapter / D3D12";
         }
 
         return new HardwareInfo
