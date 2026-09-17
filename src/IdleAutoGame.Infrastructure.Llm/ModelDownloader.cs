@@ -22,7 +22,7 @@ public sealed class ModelDownloader : IModelDownloader
     }
 
     /// <inheritdoc />
-    public async Task DownloadModelAsync(
+    public Task DownloadModelAsync(
         LocalModel model,
         string destinationPath,
         IProgress<ModelDownloadProgress>? progress = null,
@@ -36,13 +36,29 @@ public sealed class ModelDownloader : IModelDownloader
             throw new InvalidOperationException($"Model '{model.Id}' does not specify a DownloadUrl.");
         }
 
+        return DownloadFileAsync(model.DownloadUrl, model.FileSize, destinationPath, model.Id, progress, ct);
+    }
+
+    /// <inheritdoc />
+    public async Task DownloadFileAsync(
+        string url,
+        long expectedSize,
+        string destinationPath,
+        string modelId,
+        IProgress<ModelDownloadProgress>? progress = null,
+        CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(url);
+        ArgumentException.ThrowIfNullOrWhiteSpace(destinationPath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+
         var directory = Path.GetDirectoryName(destinationPath);
         if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, model.DownloadUrl);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.UserAgent.ParseAdd("IdleAutoGame/1.0 (Desktop; Linux; Windows)");
 
         using var response = await _httpClient.SendAsync(
@@ -55,21 +71,21 @@ public sealed class ModelDownloader : IModelDownloader
             var statusCode = (int)response.StatusCode;
             if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
             {
-                throw new HttpRequestException($"Download of '{model.DisplayName}' failed with HTTP {statusCode} ({response.ReasonPhrase}). The remote model repository is restricted or requires authentication.", null, response.StatusCode);
+                throw new HttpRequestException($"Download of asset for '{modelId}' failed with HTTP {statusCode} ({response.ReasonPhrase}). The remote model repository is restricted or requires authentication.", null, response.StatusCode);
             }
 
             if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
             {
-                throw new HttpRequestException($"Download of '{model.DisplayName}' failed with HTTP 404 (Not Found). URL '{model.DownloadUrl}' is unreachable.", null, response.StatusCode);
+                throw new HttpRequestException($"Download of asset for '{modelId}' failed with HTTP 404 (Not Found). URL '{url}' is unreachable.", null, response.StatusCode);
             }
 
             response.EnsureSuccessStatusCode();
         }
 
-        long totalBytes = response.Content.Headers.ContentLength ?? model.FileSize;
+        long totalBytes = response.Content.Headers.ContentLength ?? expectedSize;
         if (totalBytes <= 0)
         {
-            totalBytes = model.FileSize;
+            totalBytes = expectedSize;
         }
 
         await using var contentStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
@@ -120,7 +136,7 @@ public sealed class ModelDownloader : IModelDownloader
 
                 progress?.Report(new ModelDownloadProgress
                 {
-                    ModelId = model.Id,
+                    ModelId = modelId,
                     BytesDownloaded = totalBytesRead,
                     TotalBytes = totalBytes,
                     Percentage = percentage,
@@ -134,7 +150,7 @@ public sealed class ModelDownloader : IModelDownloader
         // Final 100% progress report
         progress?.Report(new ModelDownloadProgress
         {
-            ModelId = model.Id,
+            ModelId = modelId,
             BytesDownloaded = totalBytesRead,
             TotalBytes = Math.Max(totalBytes, totalBytesRead),
             Percentage = 100.0,

@@ -9,29 +9,39 @@ The directory path is configurable in the application **Settings $\to$ Local Mod
 
 ```text
 IdleAutoGame/models/
-├── moondream2-2b-q4.gguf
-├── llava-v1.6-7b-q4.gguf
-└── llama-3.2-11b-vision-q4.gguf
+├── qwen3-vl-2b-instruct-q4_k_m.gguf
+├── qwen3-vl-2b-instruct-mmproj-f16.gguf
+├── gemma-4-e2b-it-q4_k_m.gguf
+├── gemma-4-e2b-it-mmproj-f16.gguf
+└── ...
 ```
 
 ---
 
-## 2. Automated Download Pipeline
-When an uninstalled model is selected:
+## 2. Automated Multi-Asset Download Pipeline
+When a vision model requiring a multimodal projector (`RequiresMmproj = true`) is downloaded:
 ```
 User clicks "Download Model"
       ↓
-Check disk free space (Required + 500 MB buffer)
+Check disk free space (Base File + mmproj File + 500 MB buffer)
       ↓
 Check single download concurrency lock
       ↓
-Stream payload to <modelId>.gguf.tmp
+Phase 1: Stream base model to <modelId>.gguf.tmp
       ↓
-Report progress (%, Downloaded/Total, MB/s, ETA)
+Report progress (0-50% normalized progress, Speed, ETA)
       ↓
-Download complete: Verify SHA-256 Checksum
-      ├── Checksum Mismatch: Delete .tmp, mark Error, abort
-      └── Checksum Verified: Rename .tmp to .gguf, mark Ready
+Phase 1 Complete: Verify Base SHA-256 Checksum
+      ├── Mismatch: Delete .tmp, mark Error, abort
+      └── Verified: Rename .tmp to <modelId>.gguf
+      ↓
+Phase 2 (if RequiresMmproj): Stream projector to <modelId>-mmproj.gguf.tmp
+      ↓
+Report progress (50-100% normalized progress, Speed, ETA)
+      ↓
+Phase 2 Complete: Verify mmproj SHA-256 Checksum
+      ├── Mismatch: Delete mmproj .tmp & base .gguf, mark Error, abort
+      └── Verified: Rename .tmp to <modelId>-mmproj.gguf, mark Ready
 ```
 
 ---

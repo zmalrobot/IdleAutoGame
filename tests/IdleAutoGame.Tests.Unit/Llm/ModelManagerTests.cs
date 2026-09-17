@@ -17,10 +17,10 @@ public class ModelManagerTests : IDisposable
 
     public ModelManagerTests()
     {
-        _testDir = Path.Combine(Path.GetTempPath(), "IdleAutoGame_Tests_" + Guid.NewGuid().ToString("N"));
+        _testDir = Path.Combine(Path.GetTempPath(), "IdleAutoGame_ModelManagerTests_" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(_testDir);
 
-        _catalog = new JsonModelCatalog();
+        _catalog = new JsonModelCatalog("non-existent-models.json");
         _downloader = Substitute.For<IModelDownloader>();
     }
 
@@ -45,38 +45,59 @@ public class ModelManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task IsModelInstalledAsync_WhenFileMissing_ReturnsFalse()
+    public async Task IsModelInstalledAsync_WhenFilesMissing_ReturnsFalse()
     {
         var manager = CreateManager();
-        var installed = await manager.IsModelInstalledAsync("moondream2-2b-q4");
+        var installed = await manager.IsModelInstalledAsync("qwen3-vl-2b-instruct");
 
         installed.Should().BeFalse();
     }
 
     [Fact]
-    public async Task IsModelInstalledAsync_WhenFileExists_ReturnsTrue()
+    public async Task IsModelInstalledAsync_WhenBaseExistsButMmprojMissing_ReturnsFalse()
     {
         var manager = CreateManager();
-        var filePath = manager.GetModelFilePath("moondream2-2b-q4");
-        await File.WriteAllTextAsync(filePath, "dummy gguf content");
+        var filePath = manager.GetModelFilePath("qwen3-vl-2b-instruct");
+        await File.WriteAllTextAsync(filePath, "dummy base gguf content");
 
-        var installed = await manager.IsModelInstalledAsync("moondream2-2b-q4");
+        // Base exists, but mmproj is missing -> not fully installed
+        var installed = await manager.IsModelInstalledAsync("qwen3-vl-2b-instruct");
+        installed.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task IsModelInstalledAsync_WhenBothBaseAndMmprojExist_ReturnsTrue()
+    {
+        var manager = CreateManager();
+        var filePath = manager.GetModelFilePath("qwen3-vl-2b-instruct");
+        var mmprojPath = manager.GetMmprojFilePath("qwen3-vl-2b-instruct");
+
+        await File.WriteAllTextAsync(filePath, "dummy base gguf content");
+        await File.WriteAllTextAsync(mmprojPath, "dummy mmproj gguf content");
+
+        var installed = await manager.IsModelInstalledAsync("qwen3-vl-2b-instruct");
         installed.Should().BeTrue();
     }
 
     [Fact]
-    public async Task DownloadAndInstallModelAsync_ValidDownload_VerifiesAndInstalls()
+    public async Task DownloadAndInstallModelAsync_MultiAssetDownload_VerifiesAndInstallsBoth()
     {
-        var manager = CreateManager();
-        var model = _catalog.GetLocalModel("moondream2-2b-q4")!;
+        var model = _catalog.GetLocalModel("qwen3-vl-2b-instruct")!;
 
-        // Configure downloader to write content matching the model's expected checksum
-        byte[] payload = "test model payload"u8.ToArray();
-        string expectedHex = Convert.ToHexString(SHA256.HashData(payload));
+        byte[] basePayload = "test base model payload"u8.ToArray();
+        string baseHex = Convert.ToHexString(SHA256.HashData(basePayload));
 
-        // Create a test catalog returning a model with our expected payload checksum
+        byte[] mmprojPayload = "test vision projector payload"u8.ToArray();
+        string mmprojHex = Convert.ToHexString(SHA256.HashData(mmprojPayload));
+
         var customCatalog = Substitute.For<IModelCatalog>();
-        var testModel = model with { Checksum = expectedHex, FileSize = payload.Length };
+        var testModel = model with
+        {
+            Checksum = baseHex,
+            FileSize = basePayload.Length,
+            MmprojChecksum = mmprojHex,
+            MmprojFileSize = mmprojPayload.Length
+        };
         customCatalog.GetLocalModel(testModel.Id).Returns(testModel);
 
         var customDownloader = Substitute.For<IModelDownloader>();
@@ -84,7 +105,14 @@ public class ModelManagerTests : IDisposable
             .Returns(async callInfo =>
             {
                 var destPath = callInfo.ArgAt<string>(1);
-                await File.WriteAllBytesAsync(destPath, payload);
+                await File.WriteAllBytesAsync(destPath, basePayload);
+            });
+
+        customDownloader.DownloadFileAsync(Arg.Any<string>(), Arg.Any<long>(), Arg.Any<string>(), Arg.Any<string>(), Arg.Any<IProgress<ModelDownloadProgress>>(), Arg.Any<CancellationToken>())
+            .Returns(async callInfo =>
+            {
+                var destPath = callInfo.ArgAt<string>(2);
+                await File.WriteAllBytesAsync(destPath, mmprojPayload);
             });
 
         var customManager = new ModelManager(customCatalog, customDownloader, storageDirectory: _testDir);
@@ -94,10 +122,11 @@ public class ModelManagerTests : IDisposable
         result.Status.Should().Be(ModelStatus.Ready);
         result.FilePath.Should().NotBeNull();
         File.Exists(result.FilePath).Should().BeTrue();
+        File.Exists(result.MmprojFilePath).Should().BeTrue();
     }
 
     [Fact]
-    public async Task DownloadAndInstallModelAsync_ChecksumMismatch_DeletesFileAndThrows()
+    public async Task DownloadAndInstallModelAsync_BaseChecksumMismatch_DeletesFilesAndThrows()
     {
         var customCatalog = Substitute.For<IModelCatalog>();
         var testModel = new LocalModel
@@ -135,7 +164,7 @@ public class ModelManagerTests : IDisposable
     public async Task DeleteModelAsync_WhenModelInUse_ThrowsInvalidOperationException()
     {
         var manager = CreateManager();
-        var modelId = "moondream2-2b-q4";
+        var modelId = "qwen3-vl-2b-instruct";
 
         manager.MarkModelInUse(modelId, true);
 
@@ -146,19 +175,54 @@ public class ModelManagerTests : IDisposable
     }
 
     [Fact]
-    public async Task DeleteModelAsync_WhenNotInstalledOrNotInUse_DeletesFile()
+    public async Task DeleteModelAsync_WhenNotInstalledOrNotInUse_DeletesBothBaseAndMmprojFiles()
     {
         var manager = CreateManager();
-        var modelId = "moondream2-2b-q4";
+        var modelId = "qwen3-vl-2b-instruct";
         var filePath = manager.GetModelFilePath(modelId);
+        var mmprojPath = manager.GetMmprojFilePath(modelId);
+
         await File.WriteAllTextAsync(filePath, "content");
+        await File.WriteAllTextAsync(mmprojPath, "mmproj content");
 
         File.Exists(filePath).Should().BeTrue();
+        File.Exists(mmprojPath).Should().BeTrue();
 
         await manager.DeleteModelAsync(modelId);
 
         File.Exists(filePath).Should().BeFalse();
+        File.Exists(mmprojPath).Should().BeFalse();
         (await manager.IsModelInstalledAsync(modelId)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task VerifyModelIntegrityAsync_VerifiesBothAssets()
+    {
+        var model = _catalog.GetLocalModel("qwen3-vl-2b-instruct")!;
+
+        byte[] basePayload = "test base model payload"u8.ToArray();
+        string baseHex = Convert.ToHexString(SHA256.HashData(basePayload));
+
+        byte[] mmprojPayload = "test vision projector payload"u8.ToArray();
+        string mmprojHex = Convert.ToHexString(SHA256.HashData(mmprojPayload));
+
+        var customCatalog = Substitute.For<IModelCatalog>();
+        var testModel = model with
+        {
+            Checksum = baseHex,
+            MmprojChecksum = mmprojHex
+        };
+        customCatalog.GetLocalModel(testModel.Id).Returns(testModel);
+
+        var manager = new ModelManager(customCatalog, _downloader, storageDirectory: _testDir);
+        var filePath = manager.GetModelFilePath(testModel.Id);
+        var mmprojPath = manager.GetMmprojFilePath(testModel.Id);
+
+        await File.WriteAllBytesAsync(filePath, basePayload);
+        await File.WriteAllBytesAsync(mmprojPath, mmprojPayload);
+
+        var valid = await manager.VerifyModelIntegrityAsync(testModel.Id);
+        valid.Should().BeTrue();
     }
 
     [Fact]
@@ -205,4 +269,3 @@ public class ModelManagerTests : IDisposable
         }
     }
 }
-

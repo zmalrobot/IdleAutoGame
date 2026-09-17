@@ -80,5 +80,10 @@ public interface IModelManager
     /// Gets the absolute file path where the specified model GGUF file is located.
     /// </summary>
     string GetModelFilePath(string modelId);
+
+    /// <summary>
+    /// Gets the absolute file path where the specified model mmproj projector GGUF file is located.
+    /// </summary>
+    string GetMmprojFilePath(string modelId);
 }
 

@@ -43,6 +43,18 @@ public sealed partial class LocalModelDisplayItem : ObservableObject
     [ObservableProperty]
     private ModelStatus _status;
 
+    public bool RequiresMmproj => Model.RequiresMmproj;
+
+    public string MmprojBadge => Model.RequiresMmproj ? "+ mmproj" : "single GGUF";
+
+    public string FormattedSize => $"{(Model.FileSize + (Model.RequiresMmproj ? Model.MmprojFileSize : 0)) / (1024.0 * 1024.0 * 1024.0):F2} GB";
+
+    public string RamBadge => Model.RecommendedRamRange;
+
+    public string QualityBadge => $"Qualità: {Model.QualityTier}";
+
+    public string SpeedBadge => $"Velocità: {Model.SpeedTier}";
+
     public LocalModelDisplayItem(LocalModel model, bool isCompatible, string compatibilityReason, bool isInstalled, bool isActive = false)
     {
         Model = model ?? throw new ArgumentNullException(nameof(model));

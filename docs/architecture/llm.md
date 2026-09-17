@@ -103,12 +103,16 @@ public interface IModelCatalog
 {
     IReadOnlyList<ModelProfile> GetAllModels();
     IReadOnlyList<ModelProfile> GetCompatibleModels(HardwareInfo hardware);
+    IReadOnlyList<ModelProfile> GetRecommendedModelsForTier(HardwareTier tier);
     ModelProfile? GetModel(string modelId);
+    string MigrateModelId(string modelId);
 }
 ```
 
 ### JsonModelCatalog
-- Reads model profiles from `models.json` shipped with the app.
-- Each `ModelProfile` includes `RequiredRamMb`, `RequiredVramMb`, `QualityTier`, `SpeedTier`.
-- `GetCompatibleModels()`: Filters models where `RequiredRamMb <= hardware.TotalRamMb` (with margin for OS/app overhead).
+- Reads model profiles and local GGUF models from embedded catalog configuration.
+- Each `ModelProfile` includes `RequiredRamMb`, `RequiredVramMb`, `QualityTier`, `SpeedTier`, and `SupportsVision`.
+- `GetRecommendedModelsForTier()`: Returns exactly 4 curated models for each hardware tier (3 vision models + 1 Gemma model).
+- `MigrateModelId()`: Automatically translates legacy model IDs to their modern replacements.
+- `GetCompatibleModels()`: Filters models where `RequiredRamMb <= hardware.TotalRamMb` (with 1.5 GB margin for OS/app overhead).
 - Presentation layer shows compatible models as selectable, incompatible as disabled with reason.

@@ -254,8 +254,8 @@ public static class ScreenCaptureRunner
             mainVm.Dashboard.ActiveDeviceConnectionType = "USB";
             mainVm.Dashboard.ActiveDeviceStatus = "Ready";
             mainVm.Dashboard.ActiveDeviceIsConnected = true;
-            mainVm.Dashboard.ActiveModelId = "gemma-2-2b-it-q4";
-            mainVm.Dashboard.ActiveModelName = "Gemma 2 2B Instruct (Q4_K_M)";
+            mainVm.Dashboard.ActiveModelId = "gemma-4-e2b-it";
+            mainVm.Dashboard.ActiveModelName = "Gemma 4 E2B (Edge Multimodal)";
             mainVm.Dashboard.ActiveModelProvider = "LLamaSharp (Local GGUF)";
             mainVm.Dashboard.ActiveModelStatus = "Pronto";
             mainVm.Dashboard.ActiveModelIsReady = true;

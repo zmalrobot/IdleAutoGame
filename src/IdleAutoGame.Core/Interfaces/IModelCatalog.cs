@@ -29,7 +29,7 @@ public interface IModelCatalog
     IReadOnlyList<LocalModel> GetAllLocalModels();
 
     /// <summary>
-    /// Returns exactly the 3 recommended local models for the designated RAM tier.
+    /// Returns exactly the 4 recommended local models for the designated RAM tier.
     /// </summary>
     IReadOnlyList<LocalModel> GetRecommendedModelsForTier(RamTier tier);
 
@@ -42,4 +42,9 @@ public interface IModelCatalog
     /// Finds a local model by its identifier.
     /// </summary>
     LocalModel? GetLocalModel(string id);
+
+    /// <summary>
+    /// Migrates a legacy model ID to its modern equivalent if recognized; otherwise returns the original ID.
+    /// </summary>
+    string MigrateModelId(string modelId);
 }

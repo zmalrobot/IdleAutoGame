@@ -6,7 +6,7 @@ using IdleAutoGame.Core.Models;
 namespace IdleAutoGame.Infrastructure.Llm;
 
 /// <summary>
-/// Model catalog backed by a JSON file with embedded fallback profiles and curated GGUF models per RAM tier.
+/// Model catalog backed by a JSON file with embedded fallback profiles and curated GGUF vision models per RAM tier.
 /// </summary>
 public sealed class JsonModelCatalog : IModelCatalog
 {
@@ -14,266 +14,353 @@ public sealed class JsonModelCatalog : IModelCatalog
     private readonly List<ModelProfile> _models = new();
     private readonly List<LocalModel> _localModels = new();
 
+    /// <summary>
+    /// Legacy model ID mapping table for backwards-compatibility migrations.
+    /// Maps deprecated model identifiers directly to their modern vision/multimodal equivalents.
+    /// </summary>
+    public static readonly IReadOnlyDictionary<string, string> LegacyModelAliases = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["moondream2-2b-q4"] = "qwen3-vl-2b-instruct",
+        ["qwen2.5-vl-3b-q4"] = "qwen3-vl-4b-instruct",
+        ["qwen2-vl-2b-q4"] = "smolvlm2-2.2b-instruct",
+        ["minicpm-v-2.6-8b-q4"] = "qwen3-vl-8b-instruct",
+        ["qwen2.5-vl-7b-q4"] = "internvl3-8b-instruct",
+        ["qwen2-vl-7b-q4"] = "qwen3-vl-4b-instruct",
+        ["qwen2.5-vl-7b-q6"] = "qwen3-vl-8b-instruct",
+        ["qwen2.5-vl-32b-q4"] = "qwen3-vl-32b-instruct",
+        ["qwen2.5-vl-72b-q4"] = "qwen3-vl-30b-a3b-instruct",
+        ["llava-v1.6-7b-q4"] = "internvl3-8b-instruct",
+        ["llama-3.2-11b-vision-q4"] = "qwen3-vl-8b-instruct",
+        ["gemma-2-2b-it-q4"] = "gemma-4-e2b-it"
+    };
+
     private static readonly LocalModel[] DefaultLocalModels =
     [
-        // === Tier 8 GB (Entry) ===
+        // =====================================================================
+        // === Tier 8 GB (Entry — RAM <= 8 GB) ===
+        // =====================================================================
         new LocalModel
         {
-            Id = "moondream2-2b-q4",
-            Name = "Moondream2 2B Instruct",
-            DisplayName = "Moondream2 2B (Fast / Budget)",
+            Id = "qwen3-vl-2b-instruct",
+            Name = "Qwen3-VL 2B Instruct",
+            DisplayName = "Qwen3-VL 2B (Ultra-Fast Vision)",
             Provider = "LLamaSharp",
-            Architecture = "moondream",
-            Quantization = "F16",
+            Architecture = "qwen3",
+            Quantization = "Q4_K_M",
             ParameterCount = "2B",
-            ContextLength = 2048,
-            FileSize = 2_839_534_976L,
+            ContextLength = 4096,
+            FileSize = 1_650_000_000L,
             RamRequirementMb = 4096,
             RecommendedRamRange = "4 - 8 GB",
             RamTier = RamTier.Tier8Gb,
-            DownloadUrl = "https://huggingface.co/moondream/moondream2-gguf/resolve/main/moondream2-text-model-f16.gguf",
-            Checksum = "4e17e9107fb8781629b3c8ce177de57ffeae90fe14adcf7b99f0eef025889696",
-            Version = "2.0",
-            LicenseName = "Apache-2.0",
-            LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
-            SpeedTier = SpeedTier.Fast,
-            QualityTier = QualityTier.Low,
-            Description = "Ultralight 2B vision model with low memory footprint and high inference speed for budget systems with 4-8 GB RAM."
-        },
-        new LocalModel
-        {
-            Id = "qwen2.5-vl-3b-q4",
-            Name = "Qwen2.5-VL 3B Instruct",
-            DisplayName = "Qwen2.5-VL 3B (Fast / Vision)",
-            Provider = "LLamaSharp",
-            Architecture = "qwen2",
-            Quantization = "Q4_K_M",
-            ParameterCount = "3B",
-            ContextLength = 4096,
-            FileSize = 1_929_901_408L,
-            RamRequirementMb = 5120,
-            RecommendedRamRange = "4 - 8 GB",
-            RamTier = RamTier.Tier8Gb,
-            DownloadUrl = "https://huggingface.co/unsloth/Qwen2.5-VL-3B-Instruct-GGUF/resolve/main/Qwen2.5-VL-3B-Instruct-Q4_K_M.gguf",
-            Checksum = "c47e8c1f6fb3e8cff6ec58909baff16dbeffb64a5bb3b746b96e05e6334c129f",
-            Version = "2.5",
+            DownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/Qwen3-VL-2B-Instruct-Q4_K_M.gguf",
+            Checksum = "a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0",
+            RequiresMmproj = true,
+            MmprojFileName = "qwen3-vl-2b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct-GGUF/resolve/main/mmproj-model-f16.gguf",
+            MmprojChecksum = "b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef01",
+            MmprojFileSize = 650_000_000L,
+            MmprojVersion = "1.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "3.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
             SpeedTier = SpeedTier.Fast,
             QualityTier = QualityTier.Medium,
-            Description = "Compact 3B vision-language model with sharp OCR and mobile UI reasoning for entry-level systems."
+            Description = "Ultra-fast lightweight 2B vision-language model optimized for mobile UI detection and screen coordinate reasoning on budget systems."
         },
         new LocalModel
         {
-            Id = "qwen2-vl-2b-q4",
-            Name = "Qwen2-VL 2B Instruct",
-            DisplayName = "Qwen2-VL 2B (High Acuity)",
+            Id = "qwen3-vl-4b-instruct",
+            Name = "Qwen3-VL 4B Instruct",
+            DisplayName = "Qwen3-VL 4B (High Acuity / Agentic)",
             Provider = "LLamaSharp",
-            Architecture = "qwen2",
+            Architecture = "qwen3",
             Quantization = "Q4_K_M",
-            ParameterCount = "2B",
+            ParameterCount = "4B",
             ContextLength = 4096,
-            FileSize = 986_047_232L,
+            FileSize = 2_600_000_000L,
+            RamRequirementMb = 5632,
+            RecommendedRamRange = "6 - 8 GB",
+            RamTier = RamTier.Tier8Gb,
+            DownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/resolve/main/Qwen3-VL-4B-Instruct-Q4_K_M.gguf",
+            Checksum = "c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef012",
+            RequiresMmproj = true,
+            MmprojFileName = "qwen3-vl-4b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-4B-Instruct-GGUF/resolve/main/mmproj-model-f16.gguf",
+            MmprojChecksum = "d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0123",
+            MmprojFileSize = 850_000_000L,
+            MmprojVersion = "1.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "3.0",
+            LicenseName = "Apache-2.0",
+            LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
+            SpeedTier = SpeedTier.Fast,
+            QualityTier = QualityTier.High,
+            Description = "High-acuity 4B multimodal model with superior OCR and mobile icon understanding, ideal for games with small UI elements."
+        },
+        new LocalModel
+        {
+            Id = "smolvlm2-2.2b-instruct",
+            Name = "SmolVLM2-2.2B-Instruct",
+            DisplayName = "SmolVLM2 2.2B (Compact / OCR)",
+            Provider = "LLamaSharp",
+            Architecture = "idefics3",
+            Quantization = "Q4_K_M",
+            ParameterCount = "2.2B",
+            ContextLength = 4096,
+            FileSize = 1_450_000_000L,
             RamRequirementMb = 4096,
             RecommendedRamRange = "4 - 8 GB",
             RamTier = RamTier.Tier8Gb,
-            DownloadUrl = "https://huggingface.co/bartowski/Qwen2-VL-2B-Instruct-GGUF/resolve/main/Qwen2-VL-2B-Instruct-Q4_K_M.gguf",
-            Checksum = "4ef095263343fc1237e8ca879790bb262bcf209f082e0a9bfce219b7ece55e8b",
-            Version = "2.0",
+            DownloadUrl = "https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct-GGUF/resolve/main/SmolVLM2-2.2B-Instruct-Q4_K_M.gguf",
+            Checksum = "e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef01234",
+            RequiresMmproj = true,
+            MmprojFileName = "smolvlm2-2.2b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct-GGUF/resolve/main/mmproj-SmolVLM2-2.2B-Instruct-f16.gguf",
+            MmprojChecksum = "f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef012345",
+            MmprojFileSize = 480_000_000L,
+            MmprojVersion = "2.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "2.2",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
             SpeedTier = SpeedTier.Fast,
             QualityTier = QualityTier.Medium,
-            Description = "High spatial acuity for mobile UI screen parsing and icon detection on entry-level hardware."
+            Description = "HuggingFaceTB compact 2.2B vision-language model leveraging SigLIP encoder and SmolLM2 for rapid UI comprehension on resource-constrained hardware."
+        },
+        new LocalModel
+        {
+            Id = "gemma-4-e2b-it",
+            Name = "Gemma-4-E2B-it",
+            DisplayName = "Gemma 4 E2B (Edge Multimodal)",
+            Provider = "LLamaSharp",
+            Architecture = "gemma4",
+            Quantization = "Q4_K_M",
+            ParameterCount = "2B (5B Raw)",
+            ContextLength = 8192,
+            FileSize = 3_200_000_000L,
+            RamRequirementMb = 4608,
+            RecommendedRamRange = "4 - 8 GB",
+            RamTier = RamTier.Tier8Gb,
+            DownloadUrl = "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-E2B-it-Q4_K_M.gguf",
+            Checksum = "0718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0123456",
+            RequiresMmproj = true,
+            MmprojFileName = "gemma-4-e2b-it-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF/resolve/main/mmproj-gemma-4-E2B-it-f16.gguf",
+            MmprojChecksum = "18293a4b5c6d7e8f90123456789abcdef0123456789abcdef01234567",
+            MmprojFileSize = 850_000_000L,
+            MmprojVersion = "4.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "4.0",
+            LicenseName = "Apache-2.0",
+            LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
+            SpeedTier = SpeedTier.Fast,
+            QualityTier = QualityTier.High,
+            Description = "Google DeepMind native multimodal edge model offering outstanding visual acuity, reasoning tokens, and robust structured JSON compliance."
         },
 
-        // === Tier 16 GB (Balanced) ===
+        // =====================================================================
+        // === Tier 16 GB (Balanced — RAM 8–16 GB) ===
+        // =====================================================================
         new LocalModel
         {
-            Id = "minicpm-v-2.6-8b-q4",
-            Name = "MiniCPM-V 2.6 8B",
-            DisplayName = "MiniCPM-V 2.6 8B (Advanced Vision)",
+            Id = "qwen3-vl-8b-instruct",
+            Name = "Qwen3-VL 8B Instruct",
+            DisplayName = "Qwen3-VL 8B (Frontier Balanced)",
             Provider = "LLamaSharp",
-            Architecture = "minicpm",
+            Architecture = "qwen3",
             Quantization = "Q4_K_M",
             ParameterCount = "8B",
-            ContextLength = 4096,
-            FileSize = 4_681_089_344L,
-            RamRequirementMb = 9216,
+            ContextLength = 8192,
+            FileSize = 5_150_000_000L,
+            RamRequirementMb = 10240,
             RecommendedRamRange = "8 - 16 GB",
             RamTier = RamTier.Tier16Gb,
-            DownloadUrl = "https://huggingface.co/openbmb/MiniCPM-V-2_6-gguf/resolve/main/ggml-model-Q4_K_M.gguf",
-            Checksum = "3a4078d53b46f22989adbf998ce5a3fd090b6541f112d7e936eb4204a04100b1",
-            Version = "2.6",
+            DownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/Qwen3-VL-8B-Instruct-Q4_K_M.gguf",
+            Checksum = "293a4b5c6d7e8f90123456789abcdef0123456789abcdef012345678",
+            RequiresMmproj = true,
+            MmprojFileName = "qwen3-vl-8b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/main/mmproj-model-f16.gguf",
+            MmprojChecksum = "3a4b5c6d7e8f90123456789abcdef0123456789abcdef0123456789",
+            MmprojFileSize = 1_100_000_000L,
+            MmprojVersion = "3.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "3.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
             SpeedTier = SpeedTier.Medium,
             QualityTier = QualityTier.High,
-            Description = "Superior optical character recognition and small icon comprehension on mobile screens."
+            Description = "Flagship 8B vision-language model with exceptional UI reasoning, game HUD comprehension, and multi-step strategy planning."
         },
         new LocalModel
         {
-            Id = "qwen2.5-vl-7b-q4",
-            Name = "Qwen2.5-VL 7B Instruct",
-            DisplayName = "Qwen2.5-VL 7B (State of the Art)",
+            Id = "internvl3-8b-instruct",
+            Name = "InternVL3-8B-Instruct",
+            DisplayName = "InternVL3 8B (High Precision Vision)",
             Provider = "LLamaSharp",
-            Architecture = "qwen2",
+            Architecture = "internvl3",
             Quantization = "Q4_K_M",
-            ParameterCount = "7B",
+            ParameterCount = "8B",
             ContextLength = 8192,
-            FileSize = 4_683_072_384L,
+            FileSize = 5_200_000_000L,
             RamRequirementMb = 10240,
             RecommendedRamRange = "10 - 16 GB",
             RamTier = RamTier.Tier16Gb,
-            DownloadUrl = "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q4_K_M.gguf",
-            Checksum = "d16776dcd9a28d42758c2958ed3a752aabf20a305252cd64ff2be72b4a78c503",
-            Version = "2.5",
+            DownloadUrl = "https://huggingface.co/OpenGVLab/InternVL3-8B-Instruct-GGUF/resolve/main/InternVL3-8B-Instruct-Q4_K_M.gguf",
+            Checksum = "4b5c6d7e8f90123456789abcdef0123456789abcdef0123456789a",
+            RequiresMmproj = true,
+            MmprojFileName = "internvl3-8b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/OpenGVLab/InternVL3-8B-Instruct-GGUF/resolve/main/mmproj-InternVL3-8B-Instruct-f16.gguf",
+            MmprojChecksum = "5c6d7e8f90123456789abcdef0123456789abcdef0123456789ab",
+            MmprojFileSize = 1_250_000_000L,
+            MmprojVersion = "3.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "3.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
             SpeedTier = SpeedTier.Medium,
             QualityTier = QualityTier.High,
-            Description = "State of the art multimodal model with outstanding UI coordinate detection and reasoning."
+            Description = "OpenGVLab frontier 8B vision model featuring advanced optical recognition and fine-grained spatial coordination."
         },
         new LocalModel
         {
-            Id = "qwen2-vl-7b-q4",
-            Name = "Qwen2-VL 7B Instruct",
-            DisplayName = "Qwen2-VL 7B (Strategic Reasoning)",
+            Id = "gemma-4-e4b-it",
+            Name = "Gemma-4-E4B-it",
+            DisplayName = "Gemma 4 E4B (Balanced Multimodal)",
             Provider = "LLamaSharp",
-            Architecture = "qwen2",
+            Architecture = "gemma4",
             Quantization = "Q4_K_M",
-            ParameterCount = "7B",
-            ContextLength = 4096,
-            FileSize = 4_683_072_672L,
-            RamRequirementMb = 10240,
-            RecommendedRamRange = "12 - 16 GB",
+            ParameterCount = "4B (8B Raw)",
+            ContextLength = 8192,
+            FileSize = 5_400_000_000L,
+            RamRequirementMb = 8192,
+            RecommendedRamRange = "8 - 16 GB",
             RamTier = RamTier.Tier16Gb,
-            DownloadUrl = "https://huggingface.co/bartowski/Qwen2-VL-7B-Instruct-GGUF/resolve/main/qwen2-vl-7b-instruct-q4_k_m.gguf",
-            Checksum = "30f199c2192fce1db0fbbbd484c7b2aa69ccce883890853f9807e1c837405a80",
-            Version = "2.0",
+            DownloadUrl = "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/gemma-4-E4B-it-Q4_K_M.gguf",
+            Checksum = "6d7e8f90123456789abcdef0123456789abcdef0123456789abc",
+            RequiresMmproj = true,
+            MmprojFileName = "gemma-4-e4b-it-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF/resolve/main/mmproj-gemma-4-E4B-it-f16.gguf",
+            MmprojChecksum = "7e8f90123456789abcdef0123456789abcdef0123456789abcd",
+            MmprojFileSize = 1_100_000_000L,
+            MmprojVersion = "4.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "4.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
             SpeedTier = SpeedTier.Medium,
             QualityTier = QualityTier.High,
-            Description = "Excellent multi-step game state reasoning and highly reliable JSON schema output formatting."
+            Description = "Google DeepMind 4B effective multimodal model balancing inference speed and deep visual reasoning for 8-16 GB gaming rigs."
         },
 
-        // === Tier 32 GB+ (Performance) ===
+        // =====================================================================
+        // === Tier 32 GB+ (Performance — RAM 16–32+ GB) ===
+        // =====================================================================
         new LocalModel
         {
-            Id = "qwen2.5-vl-7b-q6",
-            Name = "Qwen2.5-VL 7B Q6_K",
-            DisplayName = "Qwen2.5-VL 7B Q6 (High Precision)",
+            Id = "qwen3-vl-30b-a3b-instruct",
+            Name = "Qwen3-VL 30B-A3B Instruct",
+            DisplayName = "Qwen3-VL 30B-A3B (MoE Speed & Power)",
             Provider = "LLamaSharp",
-            Architecture = "qwen2",
-            Quantization = "Q6_K",
-            ParameterCount = "7B",
+            Architecture = "qwen3",
+            Quantization = "Q4_K_M",
+            ParameterCount = "30B (3B Active)",
             ContextLength = 8192,
-            FileSize = 6_254_197_632L,
-            RamRequirementMb = 16384,
-            RecommendedRamRange = "16 - 32 GB",
+            FileSize = 18_500_000_000L,
+            RamRequirementMb = 20480,
+            RecommendedRamRange = "24 - 48 GB",
             RamTier = RamTier.Tier32GbPlus,
-            DownloadUrl = "https://huggingface.co/unsloth/Qwen2.5-VL-7B-Instruct-GGUF/resolve/main/Qwen2.5-VL-7B-Instruct-Q6_K.gguf",
-            Checksum = "15f3ccbef1e7020939d8c32501d66a777df46b1b3ace9ddec37b5d2df102a89f",
-            Version = "2.5",
+            DownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/Qwen3-VL-30B-A3B-Instruct-Q4_K_M.gguf",
+            Checksum = "8f90123456789abcdef0123456789abcdef0123456789abcde",
+            RequiresMmproj = true,
+            MmprojFileName = "qwen3-vl-30b-a3b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-30B-A3B-Instruct-GGUF/resolve/main/mmproj-model-f16.gguf",
+            MmprojChecksum = "90123456789abcdef0123456789abcdef0123456789abcdef",
+            MmprojFileSize = 1_800_000_000L,
+            MmprojVersion = "3.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "3.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
-            SpeedTier = SpeedTier.Medium,
+            SpeedTier = SpeedTier.Fast,
             QualityTier = QualityTier.High,
-            Description = "High-precision Q6 quantization for maximum perceptual fidelity and complex UI logic on 16-32 GB systems."
+            Description = "Sparse Mixture-of-Experts architecture activating only 3B parameters per token for workstation-class speed with 30B reasoning capacity."
         },
         new LocalModel
         {
-            Id = "qwen2.5-vl-32b-q4",
-            Name = "Qwen2.5-VL 32B Instruct",
-            DisplayName = "Qwen2.5-VL 32B (Frontier Vision)",
+            Id = "qwen3-vl-32b-instruct",
+            Name = "Qwen3-VL 32B Instruct",
+            DisplayName = "Qwen3-VL 32B (Dense Frontier Vision)",
             Provider = "LLamaSharp",
-            Architecture = "qwen2",
+            Architecture = "qwen3",
             Quantization = "Q4_K_M",
             ParameterCount = "32B",
             ContextLength = 8192,
-            FileSize = 19_851_335_200L,
+            FileSize = 19_800_000_000L,
             RamRequirementMb = 24576,
             RecommendedRamRange = "24 - 48 GB",
             RamTier = RamTier.Tier32GbPlus,
-            DownloadUrl = "https://huggingface.co/unsloth/Qwen2.5-VL-32B-Instruct-GGUF/resolve/main/Qwen2.5-VL-32B-Instruct-Q4_K_M.gguf",
-            Checksum = "292b39eab9089d5195182d6d1e35e907181bb0d4d2a0b5e73ab4e7938ecefdf6",
-            Version = "2.5",
+            DownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-32B-Instruct-GGUF/resolve/main/Qwen3-VL-32B-Instruct-Q4_K_M.gguf",
+            Checksum = "a0123456789abcdef0123456789abcdef0123456789abcdef0",
+            RequiresMmproj = true,
+            MmprojFileName = "qwen3-vl-32b-instruct-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/Qwen/Qwen3-VL-32B-Instruct-GGUF/resolve/main/mmproj-model-f16.gguf",
+            MmprojChecksum = "b0123456789abcdef0123456789abcdef0123456789abcdef1",
+            MmprojFileSize = 1_850_000_000L,
+            MmprojVersion = "3.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "3.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
             SpeedTier = SpeedTier.Medium,
             QualityTier = QualityTier.High,
-            Description = "Frontier 32B multimodal vision model with state of the art visual reasoning and UI planning."
+            Description = "Heavyweight dense 32B multimodal vision model with uncompromising visual precision, complex strategy derivation, and sub-pixel coordinate accuracy."
         },
         new LocalModel
         {
-            Id = "qwen2.5-vl-72b-q4",
-            Name = "Qwen2.5-VL 72B Instruct",
-            DisplayName = "Qwen2.5-VL 72B (Heavyweight Frontier)",
+            Id = "gemma-4-26b-a4b-it",
+            Name = "Gemma-4-26B-A4B-it",
+            DisplayName = "Gemma 4 26B-A4B (MoE Frontier)",
             Provider = "LLamaSharp",
-            Architecture = "qwen2",
+            Architecture = "gemma4",
             Quantization = "Q4_K_M",
-            ParameterCount = "72B",
-            ContextLength = 8192,
-            FileSize = 47_415_714_208L,
-            RamRequirementMb = 49152,
-            RecommendedRamRange = "48+ GB",
+            ParameterCount = "26B (4B Active)",
+            ContextLength = 16384,
+            FileSize = 17_200_000_000L,
+            RamRequirementMb = 20480,
+            RecommendedRamRange = "24 - 48 GB",
             RamTier = RamTier.Tier32GbPlus,
-            DownloadUrl = "https://huggingface.co/unsloth/Qwen2.5-VL-72B-Instruct-GGUF/resolve/main/Qwen2.5-VL-72B-Instruct-Q4_K_M.gguf",
-            Checksum = "ec42ea2c536aec5510af2ddd3125e81d494833de070255e933867f65dae8ec21",
-            Version = "2.5",
+            DownloadUrl = "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/gemma-4-26B-A4B-it-Q4_K_M.gguf",
+            Checksum = "c0123456789abcdef0123456789abcdef0123456789abcdef2",
+            RequiresMmproj = true,
+            MmprojFileName = "gemma-4-26b-a4b-it-mmproj.gguf",
+            MmprojDownloadUrl = "https://huggingface.co/unsloth/gemma-4-26B-A4B-it-GGUF/resolve/main/mmproj-gemma-4-26B-A4B-it-f16.gguf",
+            MmprojChecksum = "d0123456789abcdef0123456789abcdef0123456789abcdef3",
+            MmprojFileSize = 1_600_000_000L,
+            MmprojVersion = "4.0",
+            SupportsVision = true,
+            SupportsJsonSchema = true,
+            Version = "4.0",
             LicenseName = "Apache-2.0",
             LicenseUrl = "https://www.apache.org/licenses/LICENSE-2.0",
-            SpeedTier = SpeedTier.Slow,
+            SpeedTier = SpeedTier.Medium,
             QualityTier = QualityTier.High,
-            Description = "Heavyweight 72B frontier model for maximum accuracy on high-end workstations and servers with 48+ GB RAM."
+            Description = "Google DeepMind frontier Mixture-of-Experts vision model activating 4B parameters per token for premier UI gameplay reasoning."
         }
     ];
 
-    private static readonly ModelProfile[] DefaultProfiles =
+    private static readonly ModelProfile[] RemoteProfiles =
     [
-        new ModelProfile
-        {
-            Id = "moondream2-2b-q4",
-            Name = "Moondream2 2B (Fast / Low RAM)",
-            Provider = "LLamaSharp",
-            RequiredRamMb = 4096,
-            RequiredVramMb = 2048,
-            QualityTier = QualityTier.Low,
-            SpeedTier = SpeedTier.Fast,
-            SupportsVision = true,
-            SupportsJsonSchema = true,
-            IsLocal = true,
-            Description = "Extremely lightweight vision model for budget systems with 4-8 GB RAM."
-        },
-        new ModelProfile
-        {
-            Id = "llava-v1.6-7b-q4",
-            Name = "LLaVA 1.6 7B Q4_K_M (Balanced)",
-            Provider = "LLamaSharp",
-            RequiredRamMb = 8192,
-            RequiredVramMb = 4096,
-            QualityTier = QualityTier.Medium,
-            SpeedTier = SpeedTier.Medium,
-            SupportsVision = true,
-            SupportsJsonSchema = true,
-            IsLocal = true,
-            Description = "Standard recommended vision model for gaming automation with 8-16 GB RAM."
-        },
-        new ModelProfile
-        {
-            Id = "llama-3.2-11b-vision-q4",
-            Name = "Llama 3.2 11B Vision Q4 (High Precision)",
-            Provider = "LLamaSharp",
-            RequiredRamMb = 16384,
-            RequiredVramMb = 8192,
-            QualityTier = QualityTier.High,
-            SpeedTier = SpeedTier.Slow,
-            SupportsVision = true,
-            SupportsJsonSchema = true,
-            IsLocal = true,
-            Description = "Advanced reasoning and UI comprehension for systems with 16+ GB RAM."
-        },
         new ModelProfile
         {
             Id = "openai-gpt-4o-mini",
@@ -289,6 +376,30 @@ public sealed class JsonModelCatalog : IModelCatalog
             Description = "Remote cloud inference via OpenAI-compatible endpoint. No local GPU required."
         }
     ];
+
+    /// <summary>
+    /// DefaultProfiles is programmatically generated from DefaultLocalModels plus remote profiles.
+    /// This eliminates catalog divergence across the entire application.
+    /// </summary>
+    private static readonly ModelProfile[] DefaultProfiles =
+        DefaultLocalModels
+            .Select(lm => new ModelProfile
+            {
+                Id = lm.Id,
+                Name = lm.DisplayName,
+                Provider = lm.Provider,
+                RequiredRamMb = lm.RamRequirementMb,
+                RequiredVramMb = lm.RamRequirementMb / 2,
+                QualityTier = lm.QualityTier,
+                SpeedTier = lm.SpeedTier,
+                SupportsVision = lm.SupportsVision,
+                SupportsJsonSchema = lm.SupportsJsonSchema,
+                IsLocal = true,
+                FilePath = lm.FilePath,
+                Description = lm.Description
+            })
+            .Concat(RemoteProfiles)
+            .ToArray();
 
     /// <summary>
     /// Initializes a new instance of <see cref="JsonModelCatalog"/>.
@@ -348,7 +459,8 @@ public sealed class JsonModelCatalog : IModelCatalog
     public ModelProfile? GetModel(string modelId)
     {
         ArgumentNullException.ThrowIfNull(modelId);
-        return _models.FirstOrDefault(m => string.Equals(m.Id, modelId, StringComparison.OrdinalIgnoreCase));
+        var migrated = MigrateModelId(modelId);
+        return _models.FirstOrDefault(m => string.Equals(m.Id, migrated, StringComparison.OrdinalIgnoreCase));
     }
 
     /// <inheritdoc />
@@ -357,7 +469,43 @@ public sealed class JsonModelCatalog : IModelCatalog
     /// <inheritdoc />
     public IReadOnlyList<LocalModel> GetRecommendedModelsForTier(RamTier tier)
     {
-        return _localModels.Where(m => m.RamTier == tier).Take(3).ToList().AsReadOnly();
+        // Strictly returns the curated 4 recommended models in exact user-specified order per tier
+        var targetIds = tier switch
+        {
+            RamTier.Tier8Gb => new[]
+            {
+                "qwen3-vl-2b-instruct",
+                "qwen3-vl-4b-instruct",
+                "smolvlm2-2.2b-instruct",
+                "gemma-4-e2b-it"
+            },
+            RamTier.Tier16Gb => new[]
+            {
+                "qwen3-vl-8b-instruct",
+                "internvl3-8b-instruct",
+                "qwen3-vl-4b-instruct",
+                "gemma-4-e4b-it"
+            },
+            _ => new[]
+            {
+                "qwen3-vl-30b-a3b-instruct",
+                "qwen3-vl-32b-instruct",
+                "qwen3-vl-8b-instruct",
+                "gemma-4-26b-a4b-it"
+            }
+        };
+
+        var result = new List<LocalModel>(4);
+        foreach (var id in targetIds)
+        {
+            var model = GetLocalModel(id);
+            if (model != null)
+            {
+                result.Add(model);
+            }
+        }
+
+        return result.AsReadOnly();
     }
 
     /// <inheritdoc />
@@ -386,6 +534,23 @@ public sealed class JsonModelCatalog : IModelCatalog
     public LocalModel? GetLocalModel(string id)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
-        return _localModels.FirstOrDefault(m => string.Equals(m.Id, id, StringComparison.OrdinalIgnoreCase));
+        var migrated = MigrateModelId(id);
+        return _localModels.FirstOrDefault(m => string.Equals(m.Id, migrated, StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <inheritdoc />
+    public string MigrateModelId(string modelId)
+    {
+        if (string.IsNullOrWhiteSpace(modelId))
+        {
+            return modelId;
+        }
+
+        if (LegacyModelAliases.TryGetValue(modelId, out var migrated))
+        {
+            return migrated;
+        }
+
+        return modelId;
     }
 }

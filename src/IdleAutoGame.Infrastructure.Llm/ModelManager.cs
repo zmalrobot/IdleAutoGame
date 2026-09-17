@@ -74,6 +74,19 @@ public sealed class ModelManager : IModelManager
     }
 
     /// <inheritdoc />
+    public string GetMmprojFilePath(string modelId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
+        var dir = GetModelStorageDirectory();
+        var model = _catalog.GetLocalModel(modelId);
+        if (model != null && !string.IsNullOrWhiteSpace(model.MmprojFileName))
+        {
+            return Path.Combine(dir, model.MmprojFileName);
+        }
+        return Path.Combine(dir, $"{modelId}-mmproj.gguf");
+    }
+
+    /// <inheritdoc />
     public bool IsModelInUse(string modelId)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
@@ -145,7 +158,22 @@ public sealed class ModelManager : IModelManager
     private bool IsModelInstalled(string modelId)
     {
         var path = GetModelFilePath(modelId);
-        return File.Exists(path) && new FileInfo(path).Length > 0;
+        if (!File.Exists(path) || new FileInfo(path).Length == 0)
+        {
+            return false;
+        }
+
+        var model = _catalog.GetLocalModel(modelId);
+        if (model != null && model.RequiresMmproj && !string.IsNullOrWhiteSpace(model.MmprojDownloadUrl))
+        {
+            var mmprojPath = GetMmprojFilePath(modelId);
+            if (!File.Exists(mmprojPath) || new FileInfo(mmprojPath).Length == 0)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private void SyncModelDiskStatus(LocalModel model)
@@ -163,19 +191,26 @@ public sealed class ModelManager : IModelManager
         }
 
         var path = GetModelFilePath(model.Id);
-        if (File.Exists(path))
+        var mmprojPath = GetMmprojFilePath(model.Id);
+        bool baseExists = File.Exists(path) && new FileInfo(path).Length > 0;
+        bool mmprojNeeded = model.RequiresMmproj && !string.IsNullOrWhiteSpace(model.MmprojDownloadUrl);
+        bool mmprojExists = !mmprojNeeded || (File.Exists(mmprojPath) && new FileInfo(mmprojPath).Length > 0);
+
+        if (baseExists && mmprojExists)
         {
             var info = new FileInfo(path);
-            if (info.Length > 0)
+            model.FilePath = path;
+            if (mmprojNeeded && File.Exists(mmprojPath))
             {
-                model.FilePath = path;
-                model.Status = ModelStatus.Ready;
-                model.InstalledAt ??= info.CreationTimeUtc;
-                return;
+                model.MmprojFilePath = mmprojPath;
             }
+            model.Status = ModelStatus.Ready;
+            model.InstalledAt ??= info.CreationTimeUtc;
+            return;
         }
 
         model.FilePath = null;
+        model.MmprojFilePath = null;
         model.Status = ModelStatus.NotInstalled;
     }
 
@@ -203,10 +238,16 @@ public sealed class ModelManager : IModelManager
         var finalPath = GetModelFilePath(modelId);
         var tempPath = finalPath + ".tmp";
 
+        bool hasMmproj = model.RequiresMmproj && !string.IsNullOrWhiteSpace(model.MmprojDownloadUrl);
+        var finalMmprojPath = GetMmprojFilePath(modelId);
+        var tempMmprojPath = finalMmprojPath + ".tmp";
+
+        long totalRequiredBytes = model.FileSize + (hasMmproj ? model.MmprojFileSize : 0);
+
         try
         {
             // 1. Verify available disk space
-            CheckDiskSpace(targetDir, model.FileSize);
+            CheckDiskSpace(targetDir, totalRequiredBytes);
 
             // 2. Set Downloading state
             model.Status = ModelStatus.Downloading;
@@ -218,10 +259,22 @@ public sealed class ModelManager : IModelManager
                 progress?.Report(p);
             });
 
-            // 3. Perform download
+            // 3. Perform download - Base Model GGUF
             await _downloader.DownloadModelAsync(model, tempPath, forwardProgress, cts.Token).ConfigureAwait(false);
 
-            // 4. Verify checksum
+            // 3b. Perform download - Vision Projector mmproj GGUF if required
+            if (hasMmproj)
+            {
+                await _downloader.DownloadFileAsync(
+                    model.MmprojDownloadUrl!,
+                    model.MmprojFileSize,
+                    tempMmprojPath,
+                    modelId,
+                    forwardProgress,
+                    cts.Token).ConfigureAwait(false);
+            }
+
+            // 4. Verify checksums
             model.Status = ModelStatus.Verifying;
             ModelStatusChanged?.Invoke(this, model);
 
@@ -230,14 +283,22 @@ public sealed class ModelManager : IModelManager
                 var isValid = await VerifyChecksumAsync(tempPath, model.Checksum, cts.Token).ConfigureAwait(false);
                 if (!isValid)
                 {
-                    if (File.Exists(tempPath))
-                    {
-                        File.Delete(tempPath);
-                    }
-
+                    CleanupTempFiles(tempPath, tempMmprojPath);
                     model.Status = ModelStatus.Error;
                     ModelStatusChanged?.Invoke(this, model);
-                    throw new InvalidOperationException($"Checksum verification failed for model '{modelId}'. File was removed.");
+                    throw new InvalidOperationException($"Checksum verification failed for model '{modelId}'. Files were removed.");
+                }
+            }
+
+            if (hasMmproj && !string.IsNullOrWhiteSpace(model.MmprojChecksum))
+            {
+                var isMmprojValid = await VerifyChecksumAsync(tempMmprojPath, model.MmprojChecksum, cts.Token).ConfigureAwait(false);
+                if (!isMmprojValid)
+                {
+                    CleanupTempFiles(tempPath, tempMmprojPath);
+                    model.Status = ModelStatus.Error;
+                    ModelStatusChanged?.Invoke(this, model);
+                    throw new InvalidOperationException($"Checksum verification failed for vision projector of model '{modelId}'. Files were removed.");
                 }
             }
 
@@ -246,8 +307,17 @@ public sealed class ModelManager : IModelManager
             {
                 File.Delete(finalPath);
             }
-
             File.Move(tempPath, finalPath);
+
+            if (hasMmproj && File.Exists(tempMmprojPath))
+            {
+                if (File.Exists(finalMmprojPath))
+                {
+                    File.Delete(finalMmprojPath);
+                }
+                File.Move(tempMmprojPath, finalMmprojPath);
+                model.MmprojFilePath = finalMmprojPath;
+            }
 
             model.FilePath = finalPath;
             model.InstalledAt = DateTimeOffset.UtcNow;
@@ -258,22 +328,14 @@ public sealed class ModelManager : IModelManager
         }
         catch (OperationCanceledException)
         {
-            if (File.Exists(tempPath))
-            {
-                try { File.Delete(tempPath); } catch { /* best effort cleanup */ }
-            }
-
+            CleanupTempFiles(tempPath, tempMmprojPath);
             model.Status = ModelStatus.NotInstalled;
             ModelStatusChanged?.Invoke(this, model);
             throw;
         }
         catch
         {
-            if (File.Exists(tempPath))
-            {
-                try { File.Delete(tempPath); } catch { /* best effort cleanup */ }
-            }
-
+            CleanupTempFiles(tempPath, tempMmprojPath);
             model.Status = ModelStatus.Error;
             ModelStatusChanged?.Invoke(this, model);
             throw;
@@ -283,6 +345,18 @@ public sealed class ModelManager : IModelManager
             _activeDownloads.TryRemove(modelId, out _);
             _downloadLock.Release();
             cts.Dispose();
+        }
+    }
+
+    private static void CleanupTempFiles(string tempPath, string tempMmprojPath)
+    {
+        if (File.Exists(tempPath))
+        {
+            try { File.Delete(tempPath); } catch { /* best effort cleanup */ }
+        }
+        if (File.Exists(tempMmprojPath))
+        {
+            try { File.Delete(tempMmprojPath); } catch { /* best effort cleanup */ }
         }
     }
 
@@ -318,6 +392,8 @@ public sealed class ModelManager : IModelManager
 
         var finalPath = GetModelFilePath(modelId);
         var tempPath = finalPath + ".tmp";
+        var finalMmprojPath = GetMmprojFilePath(modelId);
+        var tempMmprojPath = finalMmprojPath + ".tmp";
 
         if (File.Exists(finalPath))
         {
@@ -329,9 +405,20 @@ public sealed class ModelManager : IModelManager
             File.Delete(tempPath);
         }
 
+        if (File.Exists(finalMmprojPath))
+        {
+            File.Delete(finalMmprojPath);
+        }
+
+        if (File.Exists(tempMmprojPath))
+        {
+            File.Delete(tempMmprojPath);
+        }
+
         if (model != null)
         {
             model.FilePath = null;
+            model.MmprojFilePath = null;
             model.InstalledAt = null;
             model.Status = ModelStatus.NotInstalled;
             ModelStatusChanged?.Invoke(this, model);
@@ -357,7 +444,24 @@ public sealed class ModelManager : IModelManager
             return false;
         }
 
-        return await VerifyChecksumAsync(path, model.Checksum, ct).ConfigureAwait(false);
+        var baseValid = await VerifyChecksumAsync(path, model.Checksum, ct).ConfigureAwait(false);
+        if (!baseValid)
+        {
+            return false;
+        }
+
+        if (model.RequiresMmproj && !string.IsNullOrWhiteSpace(model.MmprojChecksum))
+        {
+            var mmprojPath = GetMmprojFilePath(modelId);
+            if (!File.Exists(mmprojPath))
+            {
+                return false;
+            }
+
+            return await VerifyChecksumAsync(mmprojPath, model.MmprojChecksum, ct).ConfigureAwait(false);
+        }
+
+        return true;
     }
 
     private static void CheckDiskSpace(string targetDirectory, long requiredBytes)

@@ -34,7 +34,7 @@ public class ModelSelectionViewModelTests
     }
 
     [Fact]
-    public async Task LoadModelsAsync_PopulatesThreeRecommendedLocalModelsForHardwareTier()
+    public async Task LoadModelsAsync_PopulatesFourRecommendedLocalModelsForHardwareTier()
     {
         // 16 GB hardware -> Tier16Gb
         _hardwareDetector.DetectAsync().Returns(new HardwareInfo
@@ -49,8 +49,8 @@ public class ModelSelectionViewModelTests
         await vm.LoadModelsAsync();
 
         vm.DetectedRamTierText.Should().Contain("16 GB");
-        vm.RecommendedLocalModels.Should().HaveCount(3);
-        vm.RecommendedLocalModels.Should().OnlyContain(m => m.Model.RamTier == IdleAutoGame.Core.Enums.RamTier.Tier16Gb);
+        vm.RecommendedLocalModels.Should().HaveCount(4);
+        vm.RecommendedLocalModels.Should().Contain(m => m.Model.Id == "gemma-4-e4b-it");
     }
 
     [Fact]

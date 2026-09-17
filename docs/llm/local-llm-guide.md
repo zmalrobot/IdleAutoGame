@@ -44,15 +44,15 @@ The Game Agent receives structured JSON actions conforming to the `GameAction` p
 
 ---
 
-## 4. Hardware Tiers & 3 Curated Models Per Tier
+## 4. Hardware Tiers & 4 Curated Models Per Tier
 
-The system automatically probes physical host RAM and assigns one of three standard tiers:
+The system automatically probes physical host RAM and assigns one of three standard tiers, offering 4 curated models per tier (at least 3 vision models + 1 Gemma model):
 
-| RAM Tier | Qualifying Hardware | Recommended Model 1 | Recommended Model 2 | Recommended Model 3 |
-|---|---|---|---|---|
-| **Tier 8 GB** (Entry) | $\le 8\text{ GB}$ Total RAM | **Moondream2 2B** (`Q4_K_M`, 4 GB RAM) | **SmolVLM 2B** (`Q4_K_M`, 4.5 GB RAM) | **Qwen2-VL 2B** (`Q4_K_M`, 5 GB RAM) |
-| **Tier 16 GB** (Balanced) | $8\text{ GB} - 16\text{ GB}$ Total RAM | **LLaVA 1.6 7B** (`Q4_K_M`, 8.5 GB RAM) | **MiniCPM-V 2.6 8B** (`Q4_K_M`, 9.5 GB RAM) | **Qwen2-VL 7B** (`Q4_K_M`, 10 GB RAM) |
-| **Tier 32 GB+** (Performance) | $16\text{ GB} - 32+\text{ GB}$ Total RAM | **Llama 3.2 11B Vision** (`Q4_K_M`, 16 GB RAM) | **CogVLM2 19B** (`Q4_K_M`, 24 GB RAM) | **Qwen2-VL 72B** (`Q4_K_M`, 48 GB RAM) |
+| RAM Tier | Qualifying Hardware | Recommended Model 1 | Recommended Model 2 | Recommended Model 3 | Recommended Model 4 (Gemma) |
+|---|---|---|---|---|---|
+| **Tier 8 GB** (Entry) | $\le 8\text{ GB}$ Total RAM | **Qwen3-VL 2B Instruct** (`Q4_K_M`, 4.0 GB RAM) | **Qwen3-VL 4B Instruct** (`Q4_K_M`, 5.6 GB RAM) | **SmolVLM2 2.2B Instruct** (`Q4_K_M`, 4.2 GB RAM) | **Gemma 4 E2B-it** (`Q4_K_M`, 4.0 GB RAM) |
+| **Tier 16 GB** (Balanced) | $8\text{ GB} - 16\text{ GB}$ Total RAM | **Qwen3-VL 8B Instruct** (`Q4_K_M`, 9.0 GB RAM) | **InternVL3 8B Instruct** (`Q4_K_M`, 9.5 GB RAM) | **Qwen3-VL 4B Instruct** (`Q4_K_M`, 5.6 GB RAM) | **Gemma 4 E4B-it** (`Q4_K_M`, 6.5 GB RAM) |
+| **Tier 32 GB+** (Performance) | $16\text{ GB} - 32+\text{ GB}$ Total RAM | **Qwen3-VL 8B Instruct** (`Q4_K_M`, 9.0 GB RAM) | **Qwen3-VL 32B Instruct** (`Q4_K_M`, 26.0 GB RAM) | **Qwen3-VL 30B-A3B Instruct** (`Q4_K_M`, 18.0 GB RAM) | **Gemma 4 26B-A4B-it** (`Q4_K_M`, 19.5 GB RAM) |
 
 ### Incompatibility Policy
 The application enforces a **1.5 GB OS & Desktop Headroom**:

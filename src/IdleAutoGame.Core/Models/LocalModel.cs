@@ -68,6 +68,51 @@ public sealed record LocalModel
     public string? Checksum { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether this vision model requires a separate multimodal projector (mmproj) GGUF.
+    /// </summary>
+    public bool RequiresMmproj { get; init; } = false;
+
+    /// <summary>
+    /// Gets the optional custom file name for the mmproj file on disk.
+    /// </summary>
+    public string? MmprojFileName { get; init; }
+
+    /// <summary>
+    /// Gets the verified download URL for the mmproj projector GGUF file.
+    /// </summary>
+    public string? MmprojDownloadUrl { get; init; }
+
+    /// <summary>
+    /// Gets the SHA-256 integrity checksum for the mmproj projector file.
+    /// </summary>
+    public string? MmprojChecksum { get; init; }
+
+    /// <summary>
+    /// Gets the mmproj projector file size in bytes.
+    /// </summary>
+    public long MmprojFileSize { get; init; }
+
+    /// <summary>
+    /// Gets the absolute or relative file path on disk to the mmproj projector when installed.
+    /// </summary>
+    public string? MmprojFilePath { get; set; }
+
+    /// <summary>
+    /// Gets the version tag for the mmproj projector asset.
+    /// </summary>
+    public string? MmprojVersion { get; init; }
+
+    /// <summary>
+    /// Gets a value indicating whether the model supports image/vision inputs.
+    /// </summary>
+    public bool SupportsVision { get; init; } = true;
+
+    /// <summary>
+    /// Gets a value indicating whether the model supports JSON schema constrained output decoding.
+    /// </summary>
+    public bool SupportsJsonSchema { get; init; } = true;
+
+    /// <summary>
     /// Gets or sets the current installation/operational status of the model.
     /// </summary>
     public ModelStatus Status { get; set; } = ModelStatus.NotInstalled;

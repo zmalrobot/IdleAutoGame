@@ -90,6 +90,15 @@
                                             <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
                                                 <TextBlock Text="{Binding Model.Quantization}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
                                             </Border>
+                                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="{Binding MmprojBadge}" FontSize="11" Foreground="{DynamicResource WarningBrush}"/>
+                                            </Border>
+                                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="{Binding RamBadge}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </Border>
+                                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
+                                                <TextBlock Text="{Binding FormattedSize}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </Border>
                                         </StackPanel>
                                         <TextBlock Text="{Binding Model.Description}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                     </StackPanel>
