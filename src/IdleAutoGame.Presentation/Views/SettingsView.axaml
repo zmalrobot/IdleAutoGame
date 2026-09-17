@@ -207,6 +207,42 @@
                                     </ItemsControl>
                                 </StackPanel>
                             </Border>
+
+                            <!-- Generic System Prompt Configuration -->
+                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Ripristina Prompt Predefinito"
+                                                Command="{Binding ResetGenericSystemPromptCommand}"
+                                                Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="11"/>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="Prompt di Sistema Generico (Comune a tutti i giochi)" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="Istruisce il modello sul suo ruolo di agente autonomo, formato JSON di risposta, mosse e dati disponibili." FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        </StackPanel>
+                                    </DockPanel>
+
+                                    <TextBox Text="{Binding GenericSystemPrompt}"
+                                             AcceptsReturn="True"
+                                             TextWrapping="Wrap"
+                                             FontFamily="Consolas, monospace"
+                                             FontSize="11"
+                                             MinHeight="220"
+                                             MaxHeight="380"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                             Background="{DynamicResource Surface1Brush}"
+                                             Foreground="{DynamicResource TextPrimaryBrush}"
+                                             BorderBrush="{DynamicResource BorderLightBrush}"/>
+
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="16">
+                                            <TextBlock Text="{Binding GenericPromptCharCount, StringFormat='Caratteri: {0:N0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBlock Text="{Binding EstimatedTokenCount, StringFormat='Token stimati: ~{0:N0}'}" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="💡 Questo prompt viene combinato dinamicamente con le regole specifiche del gioco attivo." FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

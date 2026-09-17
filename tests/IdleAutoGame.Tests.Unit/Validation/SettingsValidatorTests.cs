@@ -264,4 +264,33 @@ public class SettingsValidatorTests
         result.IsValid.Should().BeFalse();
         result.Errors.Should().Contain(e => e.Contains("Logging level") && e.Contains("is invalid"));
     }
+
+    [Fact]
+    public void Validate_WhenGenericSystemPromptExceedsLengthLimit_ShouldReturnError()
+    {
+        // Arrange
+        var settings = new AppSettings();
+        settings.Llm.GenericSystemPrompt = new string('A', 50001);
+
+        // Act
+        var result = _validator.Validate(settings);
+
+        // Assert
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("Generic System Prompt cannot exceed 50,000 characters"));
+    }
+
+    [Fact]
+    public void Validate_WhenGenericSystemPromptWithinLimit_ShouldBeValid()
+    {
+        // Arrange
+        var settings = new AppSettings();
+        settings.Llm.GenericSystemPrompt = "Custom instructions for all idle games.";
+
+        // Act
+        var result = _validator.Validate(settings);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
 }

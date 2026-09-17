@@ -57,41 +57,13 @@ public sealed record PromptContext
 public static class PromptBuilder
 {
     /// <summary>
-    /// Hardcoded system constraints and JSON schema instruction (Tier 1).
+    /// Fallback and backward-compatible system constraints (Tier 1).
+    /// References <see cref="LlmSettings.DefaultGenericSystemPrompt"/>.
     /// </summary>
-    public const string SystemConstraints = """
-    You are an autonomous mobile gaming agent analyzing Android game screenshots in real time.
-    MANDATORY SYSTEM RULES:
-    1. You MUST respond with a single, valid JSON object matching the GameAction schema. Do NOT include markdown text outside the JSON.
-    2. Coordinates (x, y, end_x, end_y) MUST be normalized floats between 0.0 and 1.0 (0.0 = top/left, 1.0 = bottom/right).
-    3. Supported action types and parameters:
-       - "tap": single touch at "x", "y". Optional "parameters": {"count": 1, "interval_ms": 50}.
-       - "multi_tap": multiple rapid taps at "x", "y". "parameters": {"count": 2-30, "interval_ms": 10-2000}.
-       - "double_tap": two quick taps at "x", "y". Optional "parameters": {"interval_ms": 40-400}.
-       - "long_press": sustained hold at "x", "y". "parameters": {"duration_ms": 500-5000}.
-       - "swipe": quick flick from "x", "y" to "end_x", "end_y". "parameters": {"duration_ms": 100-3000}.
-       - "drag": sustained drag from "x", "y" to "end_x", "end_y". "parameters": {"duration_ms": 300-10000}.
-       - "scroll": directional scroll. "parameters": {"direction": "up"|"down"|"left"|"right", "distance": 0.05-0.95}.
-       - "text_input": safe text input. "parameters": {"text": "<string>"}. No shell characters.
-       - "key_press": hardware key event. "parameters": {"key_code": "back"|"enter"|"space"|"tab"|"escape"|"dpad_up"|...}.
-       - "key_sequence": key series. "parameters": {"key_codes": ["<key1>", "<key2>"], "interval_ms": 50-1000}.
-       - "back": Android Back button.
-       - "wait": pause before next observation. "parameters": {"duration_ms": 100-10000}.
-       - "do_nothing": no action necessary at this moment.
-    4. Diagnostic reasoning breakdown:
-       - "observation_summary": what you identify on screen (e.g. boss active, stage 45, upgrade buttons, fairy).
-       - "objective": current strategic or tactical goal (e.g. tap titan to deal damage, upgrade active hero).
-       - "decision_summary": concise reason why this action was selected over alternatives.
-       - "explanation": clear synthetic explanation (max 500 chars) for user display.
-       STRICTLY FORBIDDEN: NEVER output hidden chain-of-thought, thought tags, or internal reasoning tokens.
-    5. You MUST assess the game state (normal, boss_fight, menu, shop, dialog, loading, ad, unknown).
-    6. Set "category" to "normal", "premium_currency", or "credit_purchase" based on your intent.
-    7. NEVER interact with Android system UI (notification shade, navigation bar, power dialogs).
-    8. NEVER tap on in-app purchases, diamond packs, or real-money payment buttons.
-    """;
+    public const string SystemConstraints = LlmSettings.DefaultGenericSystemPrompt;
 
     /// <summary>
-    /// Assembles the system prompt containing Tier 1 (System Constraints & Policy), Tier 2 (Game Rules),
+    /// Assembles the system prompt containing Tier 1 (Generic System Prompt & Policy), Tier 2 (Game Rules),
     /// Tier 3 (Game Configuration), and Tier 4 (Persistent User Instructions).
     /// </summary>
     public static string BuildSystemPrompt(
@@ -99,15 +71,20 @@ public static class PromptBuilder
         GameSpecificSettings? gameSettings = null,
         string? persistentInstructions = null,
         IEnumerable<UserOverride>? userOverrides = null,
-        GamePolicy? policy = null)
+        GamePolicy? policy = null,
+        string? genericSystemPrompt = null)
     {
         ArgumentNullException.ThrowIfNull(game);
 
         var sb = new StringBuilder();
 
-        // Tier 1: System Constraints
-        sb.AppendLine("### 1. SYSTEM CONSTRAINTS");
-        sb.AppendLine(SystemConstraints);
+        // Tier 1: Generic System Prompt
+        var effectiveGenericPrompt = !string.IsNullOrWhiteSpace(genericSystemPrompt)
+            ? genericSystemPrompt.Trim()
+            : LlmSettings.DefaultGenericSystemPrompt;
+
+        sb.AppendLine("### 1. SYSTEM CONSTRAINTS & ROLE INSTRUCTIONS");
+        sb.AppendLine(effectiveGenericPrompt);
         sb.AppendLine();
 
         // Tier 1.1: Binding Game Security Policy

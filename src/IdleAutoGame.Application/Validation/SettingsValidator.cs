@@ -184,6 +184,11 @@ public sealed class SettingsValidator
         {
             result.AddError($"LLM Top-K must be at least 1. Current: {llm.TopK}.");
         }
+
+        if (llm.GenericSystemPrompt != null && llm.GenericSystemPrompt.Length > 50000)
+        {
+            result.AddError($"Generic System Prompt cannot exceed 50,000 characters. Current: {llm.GenericSystemPrompt.Length}.");
+        }
     }
 
     private static void ValidateAutomation(AutomationSettings auto, ValidationResult result)

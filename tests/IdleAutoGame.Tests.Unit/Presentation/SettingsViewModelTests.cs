@@ -109,6 +109,29 @@ public class SettingsViewModelTests
     }
 
     [Fact]
+    public void GenericSystemPrompt_InitializesWithDefaultAndCalculatesCounts()
+    {
+        _viewModel.GenericSystemPrompt.Should().Be(LlmSettings.DefaultGenericSystemPrompt);
+        _viewModel.GenericPromptCharCount.Should().Be(LlmSettings.DefaultGenericSystemPrompt.Length);
+        _viewModel.EstimatedTokenCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task GenericSystemPrompt_SaveAndReset_WorksAsExpected()
+    {
+        _viewModel.GenericSystemPrompt = "Custom instructions for agent.";
+        _viewModel.GenericPromptCharCount.Should().Be("Custom instructions for agent.".Length);
+        _viewModel.EstimatedTokenCount.Should().Be((int)Math.Ceiling("Custom instructions for agent.".Length / 4.0));
+
+        await _viewModel.SaveSettingsAsync();
+        _configService.Current.Llm.GenericSystemPrompt.Should().Be("Custom instructions for agent.");
+
+        _viewModel.ResetGenericSystemPrompt();
+        _viewModel.GenericSystemPrompt.Should().Be(LlmSettings.DefaultGenericSystemPrompt);
+        _viewModel.StatusMessage.Should().Contain("Prompt generico ripristinato");
+    }
+
+    [Fact]
     public async Task SelectActiveModelAsync_WhenHardwareNotSupported_FallsBackToLlamaCppMode()
     {
         if (LocalLlamaProvider.IsHardwareSupported(out _))

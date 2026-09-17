@@ -88,6 +88,22 @@ public partial class SettingsViewModel : ViewModelBase
     private bool _useMemoryLock = false;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(GenericPromptCharCount))]
+    [NotifyPropertyChangedFor(nameof(EstimatedTokenCount))]
+    private string _genericSystemPrompt = LlmSettings.DefaultGenericSystemPrompt;
+
+    public int GenericPromptCharCount => GenericSystemPrompt?.Length ?? 0;
+
+    public int EstimatedTokenCount => (int)Math.Ceiling((GenericSystemPrompt?.Length ?? 0) / 4.0);
+
+    [RelayCommand]
+    public void ResetGenericSystemPrompt()
+    {
+        GenericSystemPrompt = LlmSettings.DefaultGenericSystemPrompt;
+        StatusMessage = "Prompt generico ripristinato al default.";
+    }
+
+    [ObservableProperty]
     private double _observationIntervalSeconds = 2.0;
 
     [ObservableProperty]
@@ -220,6 +236,7 @@ public partial class SettingsViewModel : ViewModelBase
         Seed = s.Llm.Seed;
         UseMemoryMapping = s.Llm.UseMemoryMapping;
         UseMemoryLock = s.Llm.UseMemoryLock;
+        GenericSystemPrompt = s.Llm.GenericSystemPrompt ?? LlmSettings.DefaultGenericSystemPrompt;
 
         ObservationIntervalSeconds = s.Automation.ObservationIntervalSeconds;
         ErrorPolicy = s.Automation.ErrorPolicy;
@@ -447,6 +464,7 @@ public partial class SettingsViewModel : ViewModelBase
         s.Llm.Seed = Seed;
         s.Llm.UseMemoryMapping = UseMemoryMapping;
         s.Llm.UseMemoryLock = UseMemoryLock;
+        s.Llm.GenericSystemPrompt = GenericSystemPrompt;
 
         s.Automation.ObservationIntervalSeconds = ObservationIntervalSeconds;
         s.Automation.ErrorPolicy = ErrorPolicy;

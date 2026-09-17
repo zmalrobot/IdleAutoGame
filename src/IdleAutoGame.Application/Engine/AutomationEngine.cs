@@ -508,14 +508,15 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         currentOverrides = _userOverrides.ToList();
                     }
 
-                    // System prompt incorporates current active GamePolicy
+                    // System prompt incorporates current active GamePolicy and configurable generic system prompt
                     var activePolicy = _policyService.CurrentPolicy;
                     var systemPrompt = PromptBuilder.BuildSystemPrompt(
                         game,
                         game.DefaultSettings,
                         persistentInstructions: null,
                         userOverrides: currentOverrides,
-                        policy: activePolicy);
+                        policy: activePolicy,
+                        genericSystemPrompt: _settings.Llm.GenericSystemPrompt);
 
                     var userPrompt = PromptBuilder.BuildUserPrompt(cycleNumber, sessionStopwatch.Elapsed, previousAction, currentOverrides);
                     var llmRequest = new LlmRequest
