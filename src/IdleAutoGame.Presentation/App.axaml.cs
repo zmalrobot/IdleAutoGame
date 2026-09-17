@@ -214,6 +214,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<GameSelectionViewModel>();
         services.AddSingleton<SettingsViewModel>();
         services.AddSingleton<SplashViewModel>();
+        services.AddSingleton<AiDecisionDetailsViewModel>();
         services.AddSingleton<MainWindowViewModel>();
     }
 

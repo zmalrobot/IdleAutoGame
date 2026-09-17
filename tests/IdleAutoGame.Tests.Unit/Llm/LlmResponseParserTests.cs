@@ -95,5 +95,42 @@ public class LlmResponseParserTests
         action.Should().BeNull();
         error.Should().Contain("explanation");
     }
+
+    [Fact]
+    public void TryParse_MultiTapAndStructuredObservations_ParsesAllFields()
+    {
+        var json = """
+        {
+          "action": "tap",
+          "parameters": {
+            "x": 0.45,
+            "y": 0.55,
+            "count": 10,
+            "interval_ms": 40
+          },
+          "explanation": "Rapid tap on boss monster weak point.",
+          "confidence": 0.98,
+          "game_state": "boss_fight",
+          "observation_summary": "Boss Titan HP is low, timer at 12s, fairy floating top left.",
+          "objective": "Defeat stage boss before timer expires.",
+          "decision_summary": "Perform multi-tap sequence on central titan body."
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out var error);
+
+        ok.Should().BeTrue();
+        error.Should().BeNull();
+        action.Should().NotBeNull();
+        action!.Action.Should().Be(ActionType.Tap);
+        action.Parameters.X.Should().Be(0.45);
+        action.Parameters.Y.Should().Be(0.55);
+        action.Parameters.Count.Should().Be(10);
+        action.Parameters.IntervalMs.Should().Be(40);
+        action.GameState.Should().Be(GameStateAssessment.BossFight);
+        action.ObservationSummary.Should().Be("Boss Titan HP is low, timer at 12s, fairy floating top left.");
+        action.Objective.Should().Be("Defeat stage boss before timer expires.");
+        action.DecisionSummary.Should().Be("Perform multi-tap sequence on central titan body.");
+    }
 }
 

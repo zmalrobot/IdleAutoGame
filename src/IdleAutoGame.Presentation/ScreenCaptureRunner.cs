@@ -368,6 +368,14 @@ public static class ScreenCaptureRunner
             mainVm.Dashboard.AgentDetailText = mainVm.Dashboard.PauseReason;
             await Capture("screen5c_dashboard_paused_alert.png");
 
+            // 5d: Emergency Stopped State
+            mainVm.Dashboard.State = AutomationState.Stopped;
+            mainVm.Dashboard.PauseReason = "ARRESTO DI EMERGENZA ATTIVATO DALL'UTENTE. Tutti i task, token di inferenza e gesti ADB sono stati abortiti istantaneamente.";
+            mainVm.Dashboard.AgentStateText = "ARRESTATO (EMERGENZA)";
+            mainVm.Dashboard.AgentDetailText = mainVm.Dashboard.PauseReason;
+            mainVm.Dashboard.LastActionType = "Tap (x: 540, y: 1280) × 10 (intervallo: 50ms)";
+            await Capture("screen5d_dashboard_emergency_stopped.png");
+
             // -------------------------------------------------------------
             // SCREEN 6: Settings (All 6 Tabs)
             // -------------------------------------------------------------
@@ -410,6 +418,120 @@ public static class ScreenCaptureRunner
             mainVm.CurrentView = mainVm.Settings;
             mainVm.Settings.SelectedTabIndex = 1; // LLM tab in small window
             await CaptureSized("screen7c_responsive_small_settings.png", 900, 600);
+
+            // -------------------------------------------------------------
+            // SCREEN 8: AI Decision Details Diagnostic Window
+            // -------------------------------------------------------------
+            Console.WriteLine("Capturing Screen 8: AI Decision Details Diagnostic Window...");
+            var diagVm = mainVm.Dashboard.AiDecisionDetails;
+            diagVm.ClearHistory();
+
+            // Create a small placeholder base64 screenshot for the inspector
+            string placeholderBase64 = string.Empty;
+            try
+            {
+                using var placeholderRtb = new RenderTargetBitmap(new PixelSize(540, 960), new Vector(96, 96));
+                using var ms = new MemoryStream();
+                placeholderRtb.Save(ms);
+                placeholderBase64 = Convert.ToBase64String(ms.ToArray());
+            }
+            catch
+            {
+                // Fallback to empty if bitmap allocation fails
+            }
+
+            diagVm.AddDecision(new AiDecisionDetails
+            {
+                CycleNumber = 140,
+                Timestamp = DateTime.UtcNow.AddSeconds(-8),
+                ActionType = "Wait",
+                ParametersSummary = "Attesa 1000ms",
+                Confidence = 0.99,
+                GameState = GameStateAssessment.Normal,
+                ObservationSummary = "Transizione animazione tra ondate di nemici.",
+                Objective = "Attesa completamento transizione grafica.",
+                DecisionSummary = "Pausa breve di stabilizzazione.",
+                SyntheticExplanation = "Nessuna azione offensiva o gestionale richiesta durante la transizione di livello.",
+                PolicyStatus = "Verifica Policy: Azione Standard Consentita",
+                ValidationPassed = true,
+                ValidationErrors = Array.Empty<string>(),
+                ActionExecuted = true,
+                ExecutionResult = "Attesa 1000ms completata",
+                LatencyMs = 95
+            });
+
+            diagVm.AddDecision(new AiDecisionDetails
+            {
+                CycleNumber = 141,
+                Timestamp = DateTime.UtcNow.AddSeconds(-5),
+                ActionType = "Tap",
+                ParametersSummary = "(220.00, 1850.00)",
+                Confidence = 0.98,
+                GameState = GameStateAssessment.BossFight,
+                ObservationSummary = "Icona abilità 'Heavenly Strike' pronta e carica nella barra inferiore.",
+                Objective = "Attivazione abilità attiva Heavenly Strike per infliggere danno istantaneo massivo.",
+                DecisionSummary = "Tap su abilità speciale slot 1.",
+                SyntheticExplanation = "Abilità attiva disponibile durante la boss fight: trigger immediato approvato.",
+                PolicyStatus = "Verifica Policy: Azione Standard Consentita",
+                ValidationPassed = true,
+                ValidationErrors = Array.Empty<string>(),
+                ActionExecuted = true,
+                ExecutionResult = "Skill attivata con successo",
+                LatencyMs = 138,
+                TargetX = 220,
+                TargetY = 1850
+            });
+
+            diagVm.AddDecision(new AiDecisionDetails
+            {
+                CycleNumber = 142,
+                Timestamp = DateTime.UtcNow.AddSeconds(-2),
+                ActionType = "Tap",
+                ParametersSummary = "(540.00, 1280.00) × 10 (intervallo: 50ms)",
+                Confidence = 0.96,
+                GameState = GameStateAssessment.BossFight,
+                ObservationSummary = "Schermata di battaglia Boss: Titan Core esposto con barra vita al 45%. Timer del Boss attivo con 12s rimanenti.",
+                Objective = "Attacco rapido a raffica (Multi-Tap) sul Titan Core per massimizzare il DPS prima della scadenza del timer.",
+                DecisionSummary = "Esecuzione di una sequenza di 10 tap coordinati sull'area di impatto principale (540, 1280).",
+                SyntheticExplanation = "Il modello ha identificato la fase critica del Boss. La strategia ottimale secondo la policy di gioco consiste nell'attivare una raffica di colpi manuali per sconfiggere il titano entro il tempo limite.",
+                PolicyStatus = "Verifica Policy: Azione Standard Consentita",
+                ValidationPassed = true,
+                ValidationErrors = Array.Empty<string>(),
+                ActionExecuted = true,
+                ExecutionResult = "10 tap eseguiti con successo in 520ms",
+                LatencyMs = 142,
+                TargetX = 540,
+                TargetY = 1280,
+                ScreenshotBase64 = placeholderBase64
+            });
+
+            diagVm.SelectedDecision = diagVm.Decisions.First();
+
+            var diagWindow = new AiDecisionDetailsWindow
+            {
+                DataContext = diagVm,
+                Width = 1050,
+                Height = 680
+            };
+
+            diagWindow.Show();
+            await Task.Delay(500);
+
+            var dWidth = (int)Math.Max(1050, diagWindow.Bounds.Width);
+            var dHeight = (int)Math.Max(680, diagWindow.Bounds.Height);
+            using (var rtbDiag = new RenderTargetBitmap(new PixelSize(dWidth, dHeight), new Vector(96, 96)))
+            {
+                rtbDiag.Render(diagWindow);
+                var dPath1 = Path.Combine(outDir1, "screen8_ai_decision_details.png");
+                rtbDiag.Save(dPath1);
+                if (!string.IsNullOrWhiteSpace(outDir2))
+                {
+                    var dPath2 = Path.Combine(outDir2, "screen8_ai_decision_details.png");
+                    rtbDiag.Save(dPath2);
+                }
+                Console.WriteLine($"[CAPTURED] screen8_ai_decision_details.png ({dWidth}x{dHeight})");
+            }
+            diagWindow.Close();
 
             Console.WriteLine("======================================================");
             Console.WriteLine("  All Visual Inspection & Responsive Screenshots Captured! ");

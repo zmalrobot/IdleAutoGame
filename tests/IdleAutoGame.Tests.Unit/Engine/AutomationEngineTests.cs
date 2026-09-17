@@ -3,6 +3,7 @@ using IdleAutoGame.Application.Engine;
 using IdleAutoGame.Application.Registry;
 using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Enums;
+using IdleAutoGame.Core.Events;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Games.TapTitans2;
@@ -193,5 +194,84 @@ public class AutomationEngineTests
 
         // 0.5 * 999 = 500, 0.25 * 1999 = 500
         _deviceController.ExecutedCommands.Should().Contain(cmd => cmd.Contains("Tap(device-1, 500, 500)"));
+    }
+
+    [Fact]
+    public async Task PauseAsync_CancelsInFlightCycleAndIsIdempotent()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(50);
+
+        // First pause
+        await engine.PauseAsync("User paused test 1");
+        engine.State.Should().Be(AutomationState.Paused);
+
+        // Idempotent second pause
+        await engine.PauseAsync("User paused test 2");
+        engine.State.Should().Be(AutomationState.Paused);
+
+        int countWhilePaused = _deviceController.ExecutedCommands.Count;
+        await Task.Delay(150);
+        _deviceController.ExecutedCommands.Count.Should().Be(countWhilePaused);
+
+        await engine.ResumeAsync();
+        await Task.Delay(150);
+        _deviceController.ExecutedCommands.Count.Should().BeGreaterThan(countWhilePaused);
+
+        await engine.StopAsync();
+    }
+
+    [Fact]
+    public async Task EmergencyStopAsync_TerminatesImmediately()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(50);
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        await engine.EmergencyStopAsync();
+        sw.Stop();
+
+        engine.State.Should().Be(AutomationState.Stopped);
+        sw.ElapsedMilliseconds.Should().BeLessThan(500);
+    }
+
+    [Fact]
+    public async Task Execution_MultiTap_ExecutesCountWithInterval()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        _deviceController.ScreenResolution = new Resolution(1000, 2000);
+
+        // Propose tapping 3 times with 15ms interval
+        _llmProvider.NextResponses.Enqueue(new LlmResponse
+        {
+            IsSuccess = true,
+            ParsedAction = new GameAction
+            {
+                Action = ActionType.Tap,
+                Parameters = new ActionParameters { X = 0.5, Y = 0.5, Count = 3, IntervalMs = 15 },
+                Explanation = "Tap 3 times fast",
+                Confidence = 1.0,
+                GameState = GameStateAssessment.Normal
+            }
+        });
+
+        var executedEvents = new List<ActionExecutedEvent>();
+        engine.ActionExecuted += (_, e) => executedEvents.Add(e);
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(200);
+        await engine.StopAsync();
+
+        executedEvents.Should().NotBeEmpty();
+        executedEvents[0].Action.Parameters.Count.Should().Be(3);
+        executedEvents[0].ErrorMessage.Should().Contain("Tapped 3/3 times");
+
+        var tapCommands = _deviceController.ExecutedCommands.FindAll(c => c.StartsWith("Tap("));
+        tapCommands.Count.Should().BeGreaterThanOrEqualTo(3);
     }
 }

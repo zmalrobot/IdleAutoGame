@@ -95,7 +95,12 @@ public sealed class AppSettings
                 EnableActivityGuard = Automation.EnableActivityGuard,
                 ActivityCheckIntervalSeconds = Automation.ActivityCheckIntervalSeconds,
                 ActivityCancellationTimeoutMs = Automation.ActivityCancellationTimeoutMs,
-                EmergencyStopTimeoutMs = Automation.EmergencyStopTimeoutMs
+                EmergencyStopTimeoutMs = Automation.EmergencyStopTimeoutMs,
+                MaxTapCount = Automation.MaxTapCount,
+                DefaultTapIntervalMs = Automation.DefaultTapIntervalMs,
+                MinTapIntervalMs = Automation.MinTapIntervalMs,
+                MaxTapIntervalMs = Automation.MaxTapIntervalMs,
+                RecentDecisionsHistoryLimit = Automation.RecentDecisionsHistoryLimit
             } : new AutomationSettings(),
             Device = Device != null ? new DeviceSettings
             {
@@ -309,6 +314,31 @@ public sealed class AutomationSettings
     /// Timeout in milliseconds for emergency hard stop if cancellation fails to terminate within threshold [SETTING-SEC-004].
     /// </summary>
     public int EmergencyStopTimeoutMs { get; set; } = 3000;
+
+    /// <summary>
+    /// Maximum allowed number of taps in a single multi-tap action.
+    /// </summary>
+    public int MaxTapCount { get; set; } = 30;
+
+    /// <summary>
+    /// Default interval in milliseconds between taps in a multi-tap sequence if unspecified.
+    /// </summary>
+    public int DefaultTapIntervalMs { get; set; } = 50;
+
+    /// <summary>
+    /// Minimum allowed interval in milliseconds between taps.
+    /// </summary>
+    public int MinTapIntervalMs { get; set; } = 10;
+
+    /// <summary>
+    /// Maximum allowed interval in milliseconds between taps.
+    /// </summary>
+    public int MaxTapIntervalMs { get; set; } = 2000;
+
+    /// <summary>
+    /// Maximum number of recent AI decision details retained in memory for diagnostic inspection.
+    /// </summary>
+    public int RecentDecisionsHistoryLimit { get; set; } = 10;
 }
 
 /// <summary>

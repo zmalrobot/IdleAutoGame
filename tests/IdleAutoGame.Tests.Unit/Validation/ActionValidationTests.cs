@@ -165,5 +165,62 @@ public class ActionValidationTests
         sanitized!.Parameters.X.Should().Be(1.0);
         sanitized.Parameters.Y.Should().Be(0.5);
     }
+
+    [Fact]
+    public void ActionValidator_MultiTap_ValidatesCountAndIntervalBounds()
+    {
+        // Negative count
+        var action1 = new GameAction
+        {
+            Action = ActionType.Tap,
+            Explanation = "Invalid count",
+            Parameters = new ActionParameters { X = 0.5, Y = 0.5, Count = 0 }
+        };
+        ActionValidator.Validate(action1).IsValid.Should().BeFalse();
+
+        // Excess count
+        var action2 = new GameAction
+        {
+            Action = ActionType.Tap,
+            Explanation = "Too many taps",
+            Parameters = new ActionParameters { X = 0.5, Y = 0.5, Count = 100 }
+        };
+        ActionValidator.Validate(action2).IsValid.Should().BeFalse();
+
+        // Invalid interval
+        var action3 = new GameAction
+        {
+            Action = ActionType.Tap,
+            Explanation = "Invalid interval",
+            Parameters = new ActionParameters { X = 0.5, Y = 0.5, Count = 5, IntervalMs = 2 }
+        };
+        ActionValidator.Validate(action3).IsValid.Should().BeFalse();
+
+        // Valid multi-tap
+        var action4 = new GameAction
+        {
+            Action = ActionType.Tap,
+            Explanation = "Valid multi-tap",
+            Parameters = new ActionParameters { X = 0.5, Y = 0.5, Count = 10, IntervalMs = 50 }
+        };
+        ActionValidator.Validate(action4).IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public void ActionValidator_Clamp_PreservesAndSanitizesCount()
+    {
+        var parameters = new ActionParameters
+        {
+            X = 0.5,
+            Y = 0.5,
+            Count = 80,
+            IntervalMs = 50
+        };
+
+        var clamped = ActionValidator.Clamp(parameters, out bool wasClamped);
+        wasClamped.Should().BeTrue();
+        clamped.Count.Should().Be(50);
+        clamped.IntervalMs.Should().Be(50);
+    }
 }
 

@@ -155,6 +155,20 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     }
 
     /// <inheritdoc />
+    private bool TrySetOperationalState(AutomationState newState)
+    {
+        lock (_stateLock)
+        {
+            if (_state is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Stopping or AutomationState.Stopped or AutomationState.Error)
+            {
+                return false;
+            }
+            State = newState;
+            return true;
+        }
+    }
+
+    /// <inheritdoc />
     public Task PauseAsync(string? reason = null)
     {
         lock (_stateLock)
@@ -164,7 +178,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 return Task.CompletedTask;
             }
 
-            _resumeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (_state is not (AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked) || _resumeTcs == null || _resumeTcs.Task.IsCompleted)
+            {
+                _resumeTcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            }
+
             _pauseReason = reason ?? "User requested pause";
 
             if (reason != null && (reason.Contains("Activity", StringComparison.OrdinalIgnoreCase) || reason.Contains("package", StringComparison.OrdinalIgnoreCase)))
@@ -180,6 +198,14 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 State = AutomationState.Paused;
             }
         }
+
+        // Cancel currently in-flight cycle operations (inference, delays, gestures) immediately
+        try
+        {
+            _currentCycleCts?.Cancel();
+        }
+        catch (ObjectDisposedException) { }
+
         return Task.CompletedTask;
     }
 
@@ -261,6 +287,48 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         {
             State = AutomationState.Stopped;
         }
+    }
+
+    /// <inheritdoc />
+    public async Task EmergencyStopAsync()
+    {
+        lock (_stateLock)
+        {
+            if (_state is AutomationState.Idle or AutomationState.Stopped) return;
+            State = AutomationState.Stopping;
+            _pauseReason = "Arresto di Emergenza richiesto dall'utente";
+        }
+
+        // 1. Instant abort across all tokens
+        try { _loopCts?.Cancel(); } catch { }
+        try { _currentCycleCts?.Cancel(); } catch { }
+        try { _resumeTcs?.TrySetCanceled(); } catch { }
+
+        // 2. Fast timeout termination
+        if (_loopTask != null && !_loopTask.IsCompleted)
+        {
+            try
+            {
+                using var fastDrain = new CancellationTokenSource(500);
+                await _loopTask.WaitAsync(fastDrain.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Fast cutoff
+            }
+        }
+
+        // 3. Force stop session
+        try
+        {
+            await _sessionRecorder.EndSessionAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Suppress cleanup exceptions during emergency shutdown
+        }
+
+        State = AutomationState.Stopped;
     }
 
     /// <inheritdoc />
@@ -375,7 +443,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 try
                 {
                     // 1. Observing: Capture Screenshot
-                    State = AutomationState.Observing;
+                    if (!TrySetOperationalState(AutomationState.Observing)) continue;
                     screenshot = await CaptureScreenshotWithRetryAsync(deviceSerial, cycleCt).ConfigureAwait(false);
 
                     string? procError = null;
@@ -388,7 +456,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                     }
 
                     // 2. Analyzing: Multi-modal LLM Inference
-                    State = AutomationState.Analyzing;
+                    if (!TrySetOperationalState(AutomationState.Analyzing)) continue;
                     IReadOnlyList<UserOverride> currentOverrides;
                     lock (_userOverrides)
                     {
@@ -428,7 +496,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                     parsedAction = llmResponse.ParsedAction;
 
                     // 3. Validating: Multi-stage Pipeline (Schema, Semantic, Policy, Bounds)
-                    State = AutomationState.Validating;
+                    if (!TrySetOperationalState(AutomationState.Validating)) continue;
                     var validationResult = ActionPipelineValidator.ValidateAndSanitize(
                         parsedAction,
                         game.Constraints,
@@ -466,7 +534,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         }
 
                         // 5. Executing: Send ADB Gesture
-                        State = AutomationState.Executing;
+                        if (!TrySetOperationalState(AutomationState.Executing)) continue;
                         var execResult = await ExecuteActionAsync(deviceSerial, parsedAction!, resolution, cycleCt).ConfigureAwait(false);
                         actionExecuted = execResult.Success;
                         executionResult = execResult.Message;
@@ -502,8 +570,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 }
                 catch (OperationCanceledException)
                 {
-                    // In-flight cycle cancelled due to dynamic policy change
-                    errors.Add("Cycle cancelled due to dynamic policy update.");
+                    // In-flight cycle cancelled due to pause, dynamic policy update, or stop
+                    string cancelMsg = State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked
+                        ? $"Cycle paused by user ({PauseReason ?? "Paused"})."
+                        : "Cycle cancelled due to dynamic policy update or stop.";
+                    errors.Add(cancelMsg);
                 }
                 catch (Exception ex)
                 {
@@ -536,9 +607,9 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 }
 
                 // 6. Waiting: Cooldown / Interval delay
-                if (!ct.IsCancellationRequested && State != AutomationState.Paused && State != AutomationState.ActivityLost && State != AutomationState.PolicyBlocked)
+                if (!ct.IsCancellationRequested && State != AutomationState.Paused && State != AutomationState.ActivityLost && State != AutomationState.PolicyBlocked && State != AutomationState.Stopping && State != AutomationState.Stopped)
                 {
-                    State = AutomationState.Waiting;
+                    TrySetOperationalState(AutomationState.Waiting);
                     var baseDelayMs = (int)(_settings.Automation.ObservationIntervalSeconds * 1000);
                     var waitAfterMs = parsedAction?.WaitAfterMs ?? 0;
                     var delayMs = Math.Max(baseDelayMs, waitAfterMs);
@@ -606,6 +677,13 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         Resolution resolution,
         CancellationToken ct)
     {
+        // Fail-safe pre-execution state guard
+        if (State is AutomationState.Paused or AutomationState.Stopping or AutomationState.Stopped or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Error)
+        {
+            return (false, "Action aborted: engine is paused, stopping, or blocked.");
+        }
+
+        ct.ThrowIfCancellationRequested();
         var p = action.Parameters;
 
         try
@@ -617,8 +695,34 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                     {
                         int absX = (int)Math.Round(p.X.Value * (resolution.Width - 1));
                         int absY = (int)Math.Round(p.Y.Value * (resolution.Height - 1));
-                        await _deviceController.TapAsync(serial, absX, absY, ct).ConfigureAwait(false);
-                        return (true, $"Tapped at ({absX}, {absY})");
+                        int maxCount = _settings.Automation.MaxTapCount > 0 ? _settings.Automation.MaxTapCount : 50;
+                        int count = Math.Clamp(p.Count, 1, maxCount);
+                        int intervalMs = p.IntervalMs.HasValue && p.IntervalMs.Value >= 10
+                            ? p.IntervalMs.Value
+                            : (_settings.Automation.DefaultTapIntervalMs >= 10 ? _settings.Automation.DefaultTapIntervalMs : 50);
+
+                        int completedTaps = 0;
+                        for (int i = 0; i < count; i++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            if (State is AutomationState.Paused or AutomationState.Stopping or AutomationState.Stopped or AutomationState.ActivityLost or AutomationState.PolicyBlocked)
+                            {
+                                return (completedTaps > 0, $"Multi-tap interrupted after {completedTaps}/{count} taps due to engine state change.");
+                            }
+
+                            await _deviceController.TapAsync(serial, absX, absY, ct).ConfigureAwait(false);
+                            completedTaps++;
+
+                            if (i < count - 1)
+                            {
+                                await Task.Delay(intervalMs, ct).ConfigureAwait(false);
+                            }
+                        }
+
+                        string tapMsg = count > 1
+                            ? $"Tapped {completedTaps}/{count} times at ({absX}, {absY}) (interval: {intervalMs}ms)"
+                            : $"Tapped at ({absX}, {absY})";
+                        return (true, tapMsg);
                     }
                     return (false, "Missing coordinates for tap");
 

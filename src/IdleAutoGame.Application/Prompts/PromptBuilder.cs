@@ -64,11 +64,17 @@ public static class PromptBuilder
     MANDATORY SYSTEM RULES:
     1. You MUST respond with a single, valid JSON object matching the GameAction schema. Do NOT include markdown text outside the JSON.
     2. Coordinates (x, y, end_x, end_y) MUST be normalized floats between 0.0 and 1.0 (0.0 = top/left, 1.0 = bottom/right).
-    3. You MUST provide a clear, concise synthetic explanation (max 500 chars) for your chosen action.
-    4. You MUST assess the game state (normal, boss_fight, menu, shop, dialog, loading, ad, unknown).
-    5. Set "category" to "normal", "premium_currency", or "credit_purchase" based on your intent.
-    6. NEVER interact with Android system UI (notification shade, navigation bar, power dialogs).
-    7. NEVER tap on in-app purchases, diamond packs, or real-money payment buttons.
+    3. Multi-tap support: For 'tap' actions, you can specify "count" (1-30, default 1) and "interval_ms" (10-2000, default 50) inside "parameters".
+    4. Diagnostic reasoning breakdown:
+       - "observation_summary": what you identify on screen (e.g. boss active, stage 45, upgrade buttons, fairy).
+       - "objective": current strategic or tactical goal (e.g. tap titan to deal damage, upgrade active hero).
+       - "decision_summary": concise reason why this action was selected over alternatives.
+       - "explanation": clear synthetic explanation (max 500 chars) for user display.
+       STRICTLY FORBIDDEN: NEVER output hidden chain-of-thought, thought tags, or internal reasoning tokens.
+    5. You MUST assess the game state (normal, boss_fight, menu, shop, dialog, loading, ad, unknown).
+    6. Set "category" to "normal", "premium_currency", or "credit_purchase" based on your intent.
+    7. NEVER interact with Android system UI (notification shade, navigation bar, power dialogs).
+    8. NEVER tap on in-app purchases, diamond packs, or real-money payment buttons.
     """;
 
     /// <summary>

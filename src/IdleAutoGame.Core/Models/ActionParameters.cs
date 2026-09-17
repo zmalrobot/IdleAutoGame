@@ -35,5 +35,15 @@ public sealed record ActionParameters
     /// Gets an optional semantic name of the visual element targeted by the action (e.g. 'UpgradeHeroButton').
     /// </summary>
     public string? Target { get; init; }
+
+    /// <summary>
+    /// Gets the number of consecutive taps to execute for Tap actions. Defaults to 1.
+    /// </summary>
+    public int Count { get; init; } = 1;
+
+    /// <summary>
+    /// Gets the interval in milliseconds between consecutive taps for multi-tap actions.
+    /// </summary>
+    public int? IntervalMs { get; init; }
 }
 

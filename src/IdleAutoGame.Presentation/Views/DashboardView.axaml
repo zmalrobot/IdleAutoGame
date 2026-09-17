@@ -10,13 +10,16 @@
             <DockPanel>
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
                     <Button Content="▶ Avvia" Command="{Binding StartAutomationCommand}" IsEnabled="{Binding CanStart}"
-                            Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="16,8"/>
+                            Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,8"/>
                     <Button Content="⏸ Pausa" Command="{Binding PauseAutomationCommand}" IsEnabled="{Binding CanPause}"
-                            Background="{DynamicResource WarningBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,8"/>
+                            Background="{DynamicResource WarningBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,8"/>
                     <Button Content="⏯ Riprendi" Command="{Binding ResumeAutomationCommand}" IsEnabled="{Binding CanResume}"
-                            Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,8"/>
-                    <Button Content="⏹ ARRESTA" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
-                            Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="16,8"/>
+                            Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,8"/>
+                    <Button Content="⏹ Arresta" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
+                            Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontWeight="Bold" Padding="12,8"/>
+                    <Button Content="🚨 EMERGENZA" Command="{Binding EmergencyStopAutomationCommand}" IsEnabled="{Binding CanEmergencyStop}"
+                            Background="{DynamicResource ErrorBrush}" Foreground="#FFFFFF" FontWeight="Bold" Padding="14,8"/>
                 </StackPanel>
 
                 <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
@@ -161,6 +164,12 @@
                         <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
                             <TextBlock Text="{Binding LastActionExplanation}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                         </Border>
+
+                        <Button Content="🔍 Diagnostica Decisione AI (Dettagli)" Command="{Binding OpenAiDecisionDetailsCommand}"
+                                Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource PrimaryLightBrush}"
+                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                FontWeight="Bold" Padding="10,8" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
 

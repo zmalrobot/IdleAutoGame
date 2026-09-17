@@ -60,6 +60,11 @@ public interface IAutomationEngine
     Task StopAsync();
 
     /// <summary>
+    /// Instantly triggers emergency fail-safe termination of the automation session, aborting all active and pending operations.
+    /// </summary>
+    Task EmergencyStopAsync();
+
+    /// <summary>
     /// Adds a dynamic user instruction override.
     /// </summary>
     void AddOverride(UserOverride userOverride);

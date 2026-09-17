@@ -43,6 +43,21 @@ public sealed record GameAction
     public int? WaitAfterMs { get; init; }
 
     /// <summary>
+    /// Gets a structured summary of what the model visually identified on screen (e.g. entities, boss, menus).
+    /// </summary>
+    public string? ObservationSummary { get; init; }
+
+    /// <summary>
+    /// Gets the immediate tactical or strategic objective pursued by the agent.
+    /// </summary>
+    public string? Objective { get; init; }
+
+    /// <summary>
+    /// Gets a concise summary of why this specific action was selected over alternatives.
+    /// </summary>
+    public string? DecisionSummary { get; init; }
+
+    /// <summary>
     /// Creates a default no-op wait action.
     /// </summary>
     public static GameAction Wait(string reason, int waitMs = 2000) => new()

@@ -142,10 +142,16 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty]
     private ObservableCollection<CycleRecord> _recentCycles = new();
 
+    private readonly AiDecisionDetailsViewModel _aiDecisionDetailsVm;
+    private Avalonia.Controls.Window? _decisionWindow;
+
+    public AiDecisionDetailsViewModel AiDecisionDetails => _aiDecisionDetailsVm;
+
     public bool CanStart => State is AutomationState.Idle or AutomationState.Stopped;
     public bool CanPause => State is not (AutomationState.Idle or AutomationState.Stopped or AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Stopping);
     public bool CanResume => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
     public bool CanStop => State is not (AutomationState.Idle or AutomationState.Stopped);
+    public bool CanEmergencyStop => State is not (AutomationState.Idle or AutomationState.Stopped);
     public bool IsPausedOrAlert => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
 
     public string PremiumCurrencyStatusText => AllowPremiumCurrency ? "ON" : "OFF";
@@ -157,7 +163,8 @@ public partial class DashboardViewModel : ViewModelBase
         IGameRegistry gameRegistry,
         IActiveContextService activeContext,
         IGamePolicyService? policyService = null,
-        DeviceService? deviceService = null)
+        DeviceService? deviceService = null,
+        AiDecisionDetailsViewModel? aiDecisionDetailsVm = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -165,6 +172,7 @@ public partial class DashboardViewModel : ViewModelBase
         _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         _policyService = policyService ?? new GamePolicyService(configService);
         _deviceService = deviceService;
+        _aiDecisionDetailsVm = aiDecisionDetailsVm ?? new AiDecisionDetailsViewModel(engine, configService);
 
         _engine.StateChanged += OnEngineStateChanged;
         _engine.CycleCompleted += OnEngineCycleCompleted;
@@ -297,7 +305,9 @@ public partial class DashboardViewModel : ViewModelBase
 
             if (cycle.Action != null)
             {
-                LastActionType = cycle.Action.Action.ToString();
+                LastActionType = (cycle.Action.Action == ActionType.Tap && cycle.Action.Parameters.Count > 1)
+                    ? $"Tap × {cycle.Action.Parameters.Count}"
+                    : cycle.Action.Action.ToString();
                 LastActionExplanation = cycle.Action.Explanation;
                 LastActionConfidence = cycle.Action.Confidence;
                 LastGameState = cycle.Action.GameState;
@@ -326,6 +336,7 @@ public partial class DashboardViewModel : ViewModelBase
         OnPropertyChanged(nameof(CanPause));
         OnPropertyChanged(nameof(CanResume));
         OnPropertyChanged(nameof(CanStop));
+        OnPropertyChanged(nameof(CanEmergencyStop));
         OnPropertyChanged(nameof(IsPausedOrAlert));
     }
 
@@ -409,6 +420,29 @@ public partial class DashboardViewModel : ViewModelBase
     public async Task StopAutomationAsync()
     {
         await _engine.StopAsync();
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task EmergencyStopAutomationAsync()
+    {
+        await _engine.EmergencyStopAsync();
+    }
+
+    [RelayCommand]
+    public void OpenAiDecisionDetails()
+    {
+        if (_decisionWindow != null && _decisionWindow.IsVisible)
+        {
+            _decisionWindow.Activate();
+            return;
+        }
+
+        _decisionWindow = new Views.AiDecisionDetailsWindow
+        {
+            DataContext = _aiDecisionDetailsVm
+        };
+        _decisionWindow.Closed += (_, _) => _decisionWindow = null;
+        _decisionWindow.Show();
     }
 
     [RelayCommand]

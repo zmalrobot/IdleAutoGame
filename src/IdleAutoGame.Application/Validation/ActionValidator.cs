@@ -26,6 +26,18 @@ public static class ActionValidator
         {
             case ActionType.Tap:
                 ValidatePoint(p.X, p.Y, "Tap", result);
+                if (p.Count < 1)
+                {
+                    result.AddError($"Tap count ({p.Count}) must be at least 1.");
+                }
+                else if (p.Count > 50)
+                {
+                    result.AddError($"Tap count ({p.Count}) exceeds maximum allowed limit (50).");
+                }
+                if (p.IntervalMs.HasValue && (p.IntervalMs.Value < 10 || p.IntervalMs.Value > 5000))
+                {
+                    result.AddError($"Tap interval ({p.IntervalMs.Value} ms) must be between 10 ms and 5000 ms.");
+                }
                 break;
 
             case ActionType.Swipe:
@@ -73,6 +85,8 @@ public static class ActionValidator
         double? y = ClampVal(p.Y, ref wasClamped);
         double? endX = ClampVal(p.EndX, ref wasClamped);
         double? endY = ClampVal(p.EndY, ref wasClamped);
+        int clampedCount = Math.Clamp(p.Count, 1, 50);
+        if (clampedCount != p.Count) wasClamped = true;
 
         if (!wasClamped) return p;
 
@@ -83,7 +97,9 @@ public static class ActionValidator
             EndX = endX,
             EndY = endY,
             DurationMs = p.DurationMs,
-            Target = p.Target
+            Target = p.Target,
+            Count = clampedCount,
+            IntervalMs = p.IntervalMs
         };
     }
 

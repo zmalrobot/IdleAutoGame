@@ -105,12 +105,32 @@ public static class LlmResponseParser
                 }
             }
 
+            string? observationSummary = null;
+            if (root.TryGetProperty("observation_summary", out var obsProp))
+            {
+                observationSummary = obsProp.GetString();
+            }
+
+            string? objective = null;
+            if (root.TryGetProperty("objective", out var objProp))
+            {
+                objective = objProp.GetString();
+            }
+
+            string? decisionSummary = null;
+            if (root.TryGetProperty("decision_summary", out var decProp))
+            {
+                decisionSummary = decProp.GetString();
+            }
+
             var parameters = new ActionParameters();
             if (root.TryGetProperty("parameters", out var paramsProp) && paramsProp.ValueKind == JsonValueKind.Object)
             {
                 double? x = null, y = null, endX = null, endY = null;
                 int? durationMs = null;
                 string? target = null;
+                int count = 1;
+                int? intervalMs = null;
 
                 if (paramsProp.TryGetProperty("x", out var xProp) && xProp.TryGetDouble(out var xVal)) x = xVal;
                 if (paramsProp.TryGetProperty("y", out var yProp) && yProp.TryGetDouble(out var yVal)) y = yVal;
@@ -118,6 +138,8 @@ public static class LlmResponseParser
                 if (paramsProp.TryGetProperty("end_y", out var endYProp) && endYProp.TryGetDouble(out var endYVal)) endY = endYVal;
                 if (paramsProp.TryGetProperty("duration_ms", out var durProp) && durProp.TryGetInt32(out var durVal)) durationMs = durVal;
                 if (paramsProp.TryGetProperty("target", out var targetProp)) target = targetProp.GetString();
+                if (paramsProp.TryGetProperty("count", out var countProp) && countProp.TryGetInt32(out var countVal)) count = countVal;
+                if (paramsProp.TryGetProperty("interval_ms", out var intervalProp) && intervalProp.TryGetInt32(out var intervalVal)) intervalMs = intervalVal;
 
                 parameters = new ActionParameters
                 {
@@ -126,7 +148,9 @@ public static class LlmResponseParser
                     EndX = endX,
                     EndY = endY,
                     DurationMs = durationMs,
-                    Target = target
+                    Target = target,
+                    Count = count,
+                    IntervalMs = intervalMs
                 };
             }
 
@@ -138,7 +162,10 @@ public static class LlmResponseParser
                 Confidence = confidence,
                 GameState = gameState,
                 WaitAfterMs = waitAfterMs,
-                Category = category
+                Category = category,
+                ObservationSummary = observationSummary,
+                Objective = objective,
+                DecisionSummary = decisionSummary
             };
 
             return true;
