@@ -213,17 +213,26 @@ public static class ActionValidator
     private static double? ClampVal(double? val, ref bool clamped)
     {
         if (!val.HasValue) return null;
-        if (val.Value < 0.0)
+
+        double v = val.Value;
+        // Auto-scale if emitted on 0-1000 coordinate grid (e.g. Qwen-VL, InternVL integer coordinates >= 10)
+        if (v >= 10.0 && v <= 1000.0)
+        {
+            v /= 1000.0;
+            clamped = true;
+        }
+
+        if (v < 0.0)
         {
             clamped = true;
             return 0.0;
         }
-        if (val.Value > 1.0)
+        if (v > 1.0)
         {
             clamped = true;
             return 1.0;
         }
-        return val.Value;
+        return v;
     }
 
     private static void ValidatePoint(double? x, double? y, string label, ValidationResult result)
@@ -241,20 +250,34 @@ public static class ActionValidator
             return;
         }
 
-        if (x.Value < -Tolerance || x.Value > (1.0 + Tolerance))
+        double xVal = x.Value;
+        if (xVal >= 10.0 && xVal <= 1000.0)
+        {
+            result.AddWarning($"{label} X coordinate ({xVal}) is on [0, 1000] scale; will be auto-normalized to [0.0, 1.0].");
+            xVal /= 1000.0;
+        }
+
+        if (xVal < -Tolerance || xVal > (1.0 + Tolerance))
         {
             result.AddError($"{label} X coordinate ({x.Value}) is outside normalized range [0.0, 1.0].");
         }
-        else if (x.Value < 0.0 || x.Value > 1.0)
+        else if (xVal < 0.0 || xVal > 1.0)
         {
             result.AddWarning($"{label} X coordinate ({x.Value}) is slightly out of bounds and will be clamped.");
         }
 
-        if (y.Value < -Tolerance || y.Value > (1.0 + Tolerance))
+        double yVal = y.Value;
+        if (yVal >= 10.0 && yVal <= 1000.0)
+        {
+            result.AddWarning($"{label} Y coordinate ({yVal}) is on [0, 1000] scale; will be auto-normalized to [0.0, 1.0].");
+            yVal /= 1000.0;
+        }
+
+        if (yVal < -Tolerance || yVal > (1.0 + Tolerance))
         {
             result.AddError($"{label} Y coordinate ({y.Value}) is outside normalized range [0.0, 1.0].");
         }
-        else if (y.Value < 0.0 || y.Value > 1.0)
+        else if (yVal < 0.0 || yVal > 1.0)
         {
             result.AddWarning($"{label} Y coordinate ({y.Value}) is slightly out of bounds and will be clamped.");
         }

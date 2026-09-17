@@ -222,5 +222,35 @@ public class ActionValidationTests
         clamped.Count.Should().Be(50);
         clamped.IntervalMs.Should().Be(50);
     }
+
+    [Fact]
+    public void ActionValidator_OneThousandGridCoordinates_AutoNormalizes()
+    {
+        var parameters = new ActionParameters
+        {
+            X = 500.0,
+            Y = 750.0,
+            EndX = 250.0,
+            EndY = 100.0
+        };
+
+        var clamped = ActionValidator.Clamp(parameters, out bool wasClamped);
+        wasClamped.Should().BeTrue();
+        clamped.X.Should().Be(0.5);
+        clamped.Y.Should().Be(0.75);
+        clamped.EndX.Should().Be(0.25);
+        clamped.EndY.Should().Be(0.1);
+
+        var action = new GameAction
+        {
+            Action = ActionType.Tap,
+            Explanation = "Tap center via 1000-grid",
+            Parameters = parameters
+        };
+
+        var valResult = ActionValidator.Validate(action);
+        valResult.IsValid.Should().BeTrue();
+        valResult.Warnings.Should().Contain(w => w.Contains("0, 1000"));
+    }
 }
 
