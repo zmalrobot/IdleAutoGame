@@ -371,6 +371,7 @@
                                 <TextBox Text="{Binding HistoryLength}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <CheckBox IsChecked="{Binding SaveScreenshots}" Content="Archivia file PNG degli screenshot su disco per audit/replay" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <CheckBox IsChecked="{Binding SaveRawLlmOutput}" Content="Registra stream e raw output completo LLM nei log diagnostici" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>
@@ -390,6 +391,14 @@
                             </StackPanel>
                             <CheckBox IsChecked="{Binding ShowConfidence}" Content="Mostra Badge di Confidenza nella Dashboard" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Mostra JSON Risposta Grezza nel Pannello Ispettore" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Dimensione Massima Buffer Raw Output Streaming (caratteri):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding MaxVisibleRawOutputCharacters}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Intervallo Flush UI Streaming (ms, min 10):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding StreamingUiUpdateIntervalMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
                         </StackPanel>
                     </ScrollViewer>
                 </TabItem>

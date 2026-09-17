@@ -202,6 +202,7 @@ public partial class DashboardViewModel : ViewModelBase
         _engine.StateChanged += OnEngineStateChanged;
         _engine.CycleCompleted += OnEngineCycleCompleted;
         _engine.ActionExecuted += OnEngineActionExecuted;
+        _engine.LlmChunkReceived += OnEngineLlmChunkReceived;
         _activeContext.ContextChanged += OnActiveContextChanged;
 
         if (_localProvider != null)
@@ -239,6 +240,45 @@ public partial class DashboardViewModel : ViewModelBase
                 _ => e.Phase.ToString().ToUpperInvariant()
             };
             IsLlmWarmingUp = e.Phase == LlmLifecyclePhase.WarmingUp;
+        });
+    }
+
+    private void OnEngineLlmChunkReceived(object? sender, LlmOutputChunk e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (e.State == LlmStreamState.Streaming)
+            {
+                var tps = e.TokensPerSecond.HasValue ? $" ({e.TokensPerSecond.Value:F1} t/s)" : "";
+                LlmPhaseText = $"🧠 STREAMING #{e.TotalTokensSoFar ?? e.ChunkIndex}{tps}";
+                LlmStatusDetail = $"Token #{e.TotalTokensSoFar ?? e.ChunkIndex} in streaming{tps}";
+            }
+            else if (e.State == LlmStreamState.Inferring)
+            {
+                LlmPhaseText = "🧠 INFERENZA...";
+                LlmStatusDetail = "In attesa del primo token...";
+            }
+            else if (e.State == LlmStreamState.Preparing)
+            {
+                LlmPhaseText = "⚙️ PREPARAZIONE";
+                LlmStatusDetail = "Preparazione prompt ed elaborazione frame...";
+            }
+            else if (e.State == LlmStreamState.Completed)
+            {
+                var tps = e.TokensPerSecond.HasValue ? $" @ {e.TokensPerSecond.Value:F1} t/s" : "";
+                LlmPhaseText = "✅ COMPLETATO";
+                LlmStatusDetail = $"Generati {e.TotalTokensSoFar ?? 0} token in {e.ElapsedMs} ms{tps}";
+            }
+            else if (e.State == LlmStreamState.Cancelled)
+            {
+                LlmPhaseText = "⚠️ ANNULLATO";
+                LlmStatusDetail = "Inferenza annullata";
+            }
+            else if (e.State == LlmStreamState.Failed)
+            {
+                LlmPhaseText = "❌ FALLITA";
+                LlmStatusDetail = e.Error ?? "Errore inferenza";
+            }
         });
     }
 

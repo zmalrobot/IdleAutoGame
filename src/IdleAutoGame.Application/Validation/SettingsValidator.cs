@@ -98,8 +98,25 @@ public sealed class SettingsValidator
         {
             result.AddError("UI settings section cannot be null.");
         }
+        else
+        {
+            ValidateUi(settings.Ui, result);
+        }
 
         return result;
+    }
+
+    private static void ValidateUi(UiSettings ui, ValidationResult result)
+    {
+        if (ui.MaxVisibleRawOutputCharacters is < 500 or > 1_000_000)
+        {
+            result.AddError($"Max visible raw output characters must be between 500 and 1,000,000. Current: {ui.MaxVisibleRawOutputCharacters}.");
+        }
+
+        if (ui.StreamingUiUpdateIntervalMs is < 10 or > 2000)
+        {
+            result.AddError($"Streaming UI update interval must be between 10ms and 2000ms. Current: {ui.StreamingUiUpdateIntervalMs}.");
+        }
     }
 
     private static void ValidateGeneral(GeneralSettings general, ValidationResult result)

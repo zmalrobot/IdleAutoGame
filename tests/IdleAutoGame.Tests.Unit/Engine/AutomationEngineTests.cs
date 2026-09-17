@@ -302,4 +302,33 @@ public class AutomationEngineTests
         engine.State.Should().Be(AutomationState.Stopped);
         engine.PauseReason.Should().Contain("emergenza");
     }
+
+    [Fact]
+    public async Task Engine_EmitsLlmChunkReceived_DuringInference()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        var receivedChunks = new List<LlmOutputChunk>();
+        engine.LlmChunkReceived += (_, chunk) =>
+        {
+            lock (receivedChunks)
+            {
+                receivedChunks.Add(chunk);
+            }
+        };
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(300);
+        await engine.StopAsync();
+
+        receivedChunks.Should().NotBeEmpty();
+        receivedChunks.Should().Contain(c => c.State == LlmStreamState.Preparing);
+        receivedChunks.Should().Contain(c => c.State == LlmStreamState.Streaming);
+        receivedChunks.Should().Contain(c => c.State == LlmStreamState.Completed);
+
+        // All chunks from the same inference share the same Correlation ID
+        var firstInferenceId = receivedChunks[0].InferenceId;
+        firstInferenceId.Should().NotBeNullOrWhiteSpace();
+        receivedChunks.Where(c => c.InferenceId == firstInferenceId).Should().HaveCountGreaterThanOrEqualTo(3);
+    }
 }

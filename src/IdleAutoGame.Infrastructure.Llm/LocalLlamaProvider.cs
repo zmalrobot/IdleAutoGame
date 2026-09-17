@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using LLama;
@@ -489,27 +490,49 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     }
 
     /// <inheritdoc />
-    public async Task<LlmResponse> AnalyzeAsync(LlmRequest request, CancellationToken ct = default)
+    public async IAsyncEnumerable<LlmOutputChunk> StreamAnalyzeAsync(
+        LlmRequest request,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var inferenceId = Guid.NewGuid().ToString("N");
+
         if (!IsModelLoaded || _executor == null)
         {
-            SetStatus(LlmLifecyclePhase.Error, "Inferenza non possibile: modello non caricato.");
-            return new LlmResponse
+            const string notLoadedError = "Local LLM model is not loaded. Please select and load a model first.";
+            yield return new LlmOutputChunk
             {
-                IsSuccess = false,
-                Error = "Local LLM model is not loaded. Please select and load a model first."
+                InferenceId = inferenceId,
+                State = LlmStreamState.Unavailable,
+                Error = notLoadedError,
+                FinalResponse = new LlmResponse
+                {
+                    IsSuccess = false,
+                    Error = notLoadedError,
+                    LatencyMs = 0
+                }
             };
+            yield break;
         }
+
+        yield return new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Preparing,
+            ChunkIndex = 0
+        };
+
+        SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: acquisizione lock ed elaborazione screenshot...");
+        await _inferenceLock.WaitAsync(ct).ConfigureAwait(false);
 
         var totalStopwatch = Stopwatch.StartNew();
         var firstTokenStopwatch = Stopwatch.StartNew();
         bool isFirstToken = true;
         int tokenCount = 0;
+        int chunkIndex = 0;
+        var outputBuilder = new StringBuilder();
 
-        SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: acquisizione lock ed elaborazione screenshot...");
-        await _inferenceLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             ct.ThrowIfCancellationRequested();
@@ -539,8 +562,15 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 AntiPrompts = new List<string> { "<|im_end|>", "<|endoftext|>", "</s>" }
             };
 
-            var outputBuilder = new StringBuilder();
             SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: streaming token da modello locale...");
+
+            yield return new LlmOutputChunk
+            {
+                InferenceId = inferenceId,
+                State = LlmStreamState.Inferring,
+                ChunkIndex = ++chunkIndex,
+                ElapsedMs = totalStopwatch.ElapsedMilliseconds
+            };
 
             await foreach (var text in _executor.InferAsync(prompt, inferenceParams, ct).ConfigureAwait(false))
             {
@@ -553,6 +583,22 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
                 outputBuilder.Append(text);
                 tokenCount++;
+                chunkIndex++;
+
+                long elapsedMs = totalStopwatch.ElapsedMilliseconds;
+                double tps = elapsedMs > 0 ? (double)tokenCount / (elapsedMs / 1000.0) : 0.0;
+
+                yield return new LlmOutputChunk
+                {
+                    InferenceId = inferenceId,
+                    DeltaText = text,
+                    AccumulatedText = outputBuilder.ToString(),
+                    ChunkIndex = chunkIndex,
+                    State = LlmStreamState.Streaming,
+                    TotalTokensSoFar = tokenCount,
+                    TokensPerSecond = tps,
+                    ElapsedMs = elapsedMs
+                };
             }
 
             totalStopwatch.Stop();
@@ -568,7 +614,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
             SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);
 
-            return new LlmResponse
+            var finalResponse = new LlmResponse
             {
                 RawContent = rawContent,
                 ParsedAction = parsedAction,
@@ -577,25 +623,44 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 LatencyMs = totalMs,
                 TokensUsed = tokenCount
             };
-        }
-        catch (OperationCanceledException)
-        {
-            SetStatus(LlmLifecyclePhase.Ready, "Inferenza locale interrotta su richiesta.");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            SetStatus(LlmLifecyclePhase.Error, $"Errore inferenza locale: {ex.Message}");
-            return new LlmResponse
+
+            yield return new LlmOutputChunk
             {
-                IsSuccess = false,
-                Error = $"Local inference error: {ex.Message}"
+                InferenceId = inferenceId,
+                DeltaText = string.Empty,
+                AccumulatedText = rawContent,
+                ChunkIndex = ++chunkIndex,
+                State = parsedAction != null ? LlmStreamState.Completed : LlmStreamState.Failed,
+                Error = finalResponse.Error,
+                TotalTokensSoFar = tokenCount,
+                TokensPerSecond = LastTokensPerSecond,
+                ElapsedMs = totalMs,
+                FinalResponse = finalResponse
             };
         }
         finally
         {
             _inferenceLock.Release();
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<LlmResponse> AnalyzeAsync(LlmRequest request, CancellationToken ct = default)
+    {
+        LlmResponse? response = null;
+        string? lastError = null;
+        await foreach (var chunk in StreamAnalyzeAsync(request, ct).ConfigureAwait(false))
+        {
+            if (chunk.FinalResponse != null)
+            {
+                response = chunk.FinalResponse;
+            }
+            else if (!string.IsNullOrEmpty(chunk.Error))
+            {
+                lastError = chunk.Error;
+            }
+        }
+        return response ?? new LlmResponse { IsSuccess = false, Error = lastError ?? "Inference produced no response." };
     }
 
     /// <inheritdoc />
@@ -611,6 +676,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         {
             SupportsVision = true,
             SupportsJsonSchema = true,
+            SupportsStreaming = true,
             MaxContextTokens = _modelParams?.ContextSize.HasValue == true ? (int)_modelParams.ContextSize.Value : 4096
         });
     }

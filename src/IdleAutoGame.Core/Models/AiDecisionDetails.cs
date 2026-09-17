@@ -142,5 +142,10 @@ public sealed record AiDecisionDetails
     /// Gets the base64 encoded screenshot image inspected by the model.
     /// </summary>
     public string? ScreenshotBase64 { get; init; }
+
+    /// <summary>
+    /// Gets the raw model completion string returned during this decision cycle.
+    /// </summary>
+    public string RawResponse { get; init; } = string.Empty;
 }
 

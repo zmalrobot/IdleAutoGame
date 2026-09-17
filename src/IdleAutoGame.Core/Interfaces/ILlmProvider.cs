@@ -90,6 +90,11 @@ public sealed record ModelCapabilities
     public bool SupportsJsonSchema { get; init; } = true;
 
     /// <summary>
+    /// Whether the model backend supports token-by-token streaming inference.
+    /// </summary>
+    public bool SupportsStreaming { get; init; } = true;
+
+    /// <summary>
     /// Maximum context window size in tokens.
     /// </summary>
     public int MaxContextTokens { get; init; } = 4096;
@@ -109,6 +114,11 @@ public interface ILlmProvider
     /// Sends a multimodal observation request to the model and returns the parsed result.
     /// </summary>
     Task<LlmResponse> AnalyzeAsync(LlmRequest request, CancellationToken ct = default);
+
+    /// <summary>
+    /// Streams a multimodal observation request yielding real-time raw output token chunks.
+    /// </summary>
+    IAsyncEnumerable<LlmOutputChunk> StreamAnalyzeAsync(LlmRequest request, CancellationToken ct = default);
 
     /// <summary>
     /// Checks whether the model endpoint is currently reachable and loaded.

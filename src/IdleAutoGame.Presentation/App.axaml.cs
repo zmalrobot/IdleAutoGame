@@ -13,6 +13,7 @@ using IdleAutoGame.Games.TapTitans2;
 using IdleAutoGame.Infrastructure.Adb;
 using IdleAutoGame.Infrastructure.Llm;
 using IdleAutoGame.Infrastructure.Persistence;
+using IdleAutoGame.Presentation.Services;
 using IdleAutoGame.Presentation.ViewModels;
 using IdleAutoGame.Presentation.Views;
 using Microsoft.Extensions.DependencyInjection;
@@ -112,6 +113,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<SessionRecorder>();
         services.AddSingleton<DeviceService>();
         services.AddSingleton<IActiveContextService, ActiveContextService>();
+        services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
 
         // Hardware & Models
         services.AddSingleton<IHardwareDetector, LinuxHardwareDetector>();

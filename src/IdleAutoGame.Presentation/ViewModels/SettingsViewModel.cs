@@ -178,6 +178,9 @@ public partial class SettingsViewModel : ViewModelBase
     private bool _saveScreenshots;
 
     [ObservableProperty]
+    private bool _saveRawLlmOutput;
+
+    [ObservableProperty]
     private int _historyLength = 50;
 
     [ObservableProperty]
@@ -188,6 +191,12 @@ public partial class SettingsViewModel : ViewModelBase
 
     [ObservableProperty]
     private bool _showRawResponse;
+
+    [ObservableProperty]
+    private int _maxVisibleRawOutputCharacters = 50_000;
+
+    [ObservableProperty]
+    private int _streamingUiUpdateIntervalMs = 50;
 
     [ObservableProperty]
     private ObservableCollection<LocalModel> _localModels = new();
@@ -276,11 +285,14 @@ public partial class SettingsViewModel : ViewModelBase
 
         LogLevel = s.Logging.Level;
         SaveScreenshots = s.Logging.SaveScreenshots;
+        SaveRawLlmOutput = s.Logging.SaveRawLlmOutput;
         HistoryLength = s.Logging.HistoryLength;
         RetentionDays = s.Logging.RetentionDays;
 
         ShowConfidence = s.Ui.ShowConfidence;
         ShowRawResponse = s.Ui.ShowRawResponse;
+        MaxVisibleRawOutputCharacters = s.Ui.MaxVisibleRawOutputCharacters;
+        StreamingUiUpdateIntervalMs = s.Ui.StreamingUiUpdateIntervalMs;
 
         _ = RefreshLocalModelsAsync();
     }
@@ -501,11 +513,14 @@ public partial class SettingsViewModel : ViewModelBase
 
         s.Logging.Level = LogLevel;
         s.Logging.SaveScreenshots = SaveScreenshots;
+        s.Logging.SaveRawLlmOutput = SaveRawLlmOutput;
         s.Logging.HistoryLength = HistoryLength;
         s.Logging.RetentionDays = RetentionDays;
 
         s.Ui.ShowConfidence = ShowConfidence;
         s.Ui.ShowRawResponse = ShowRawResponse;
+        s.Ui.MaxVisibleRawOutputCharacters = MaxVisibleRawOutputCharacters;
+        s.Ui.StreamingUiUpdateIntervalMs = StreamingUiUpdateIntervalMs;
 
         var validation = await _configService.UpdateSettingsAsync(s);
         if (validation.IsValid)

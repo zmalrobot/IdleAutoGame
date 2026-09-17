@@ -2,6 +2,25 @@
 
 Tutte le modifiche rilevanti ai requisiti, alle specifiche di prodotto e all'architettura verranno documentate in questo file per preservare l'evoluzione del progetto.
 
+## [1.1.0] - 2026-09-18 (Real-Time Streaming Raw Output LLM)
+
+### Added
+- **Real-Time LLM Streaming Pipeline**:
+  - Provider-agnostic `StreamAnalyzeAsync` returning `IAsyncEnumerable<LlmOutputChunk>` with correlation IDs (`InferenceId`), incremental deltas, accumulated text, throughput speed ($t/s$), and stream state.
+  - Native token-by-token streaming in `LocalLlamaProvider` via LLamaSharp `_executor.InferAsync()`.
+  - SSE line streaming (`stream: true`) in `LlamaCppProvider` and `OpenAiCompatibleProvider` on `/v1/chat/completions`, with fallback to direct JSON parsing.
+- **Diagnostics Terminal & Live Agent Details (`AiDecisionDetailsWindow.axaml`)**:
+  - Monospace dark streaming console (`#0A0E14`) with live badge (`STREAMING ATTIVO`, `COMPLETATO`, `ERRORE`, etc.), token counter, throughput speed, and latency.
+  - Auto-scroll toggle, copy to clipboard (`IClipboardService`), clear terminal button, and historical cycle raw output inspection.
+  - 50ms thread-safe buffer throttling to prevent UI thread lock.
+- **Dashboard Step 2 Live Telemetry**:
+  - Real-time token counter and generation speed indicator dynamically displayed during the LLM inference step.
+- **Settings & Logging**:
+  - Option to record full raw LLM output to diagnostic logs.
+  - User controls for maximum streaming buffer character length and UI flush interval.
+- **Test Suite**:
+  - Unit tests for streaming chunks, buffer throttling, clipboard copy, auto-scroll, historical raw switching, late chunk dropping, and engine chunk emissions (279/279 tests passing).
+
 ## [1.0.0] - 2026-09-17 (Official Production Release)
 
 ### Release Highlights

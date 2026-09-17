@@ -148,13 +148,16 @@ public sealed class AppSettings
             {
                 Level = Logging.Level ?? "Information",
                 SaveScreenshots = Logging.SaveScreenshots,
+                SaveRawLlmOutput = Logging.SaveRawLlmOutput,
                 HistoryLength = Logging.HistoryLength,
                 RetentionDays = Logging.RetentionDays
             } : new LoggingSettings(),
             Ui = Ui != null ? new UiSettings
             {
                 ShowConfidence = Ui.ShowConfidence,
-                ShowRawResponse = Ui.ShowRawResponse
+                ShowRawResponse = Ui.ShowRawResponse,
+                MaxVisibleRawOutputCharacters = Ui.MaxVisibleRawOutputCharacters,
+                StreamingUiUpdateIntervalMs = Ui.StreamingUiUpdateIntervalMs
             } : new UiSettings()
         };
     }
@@ -602,6 +605,11 @@ public sealed class LoggingSettings
     public bool SaveScreenshots { get; set; }
 
     /// <summary>
+    /// Whether to record raw model LLM output streams in telemetry logs [SETTING-LOG-004].
+    /// </summary>
+    public bool SaveRawLlmOutput { get; set; } = false;
+
+    /// <summary>
     /// Number of action history records retained in dashboard memory [SETTING-LOG-003].
     /// </summary>
     public int HistoryLength { get; set; } = 50;
@@ -626,4 +634,14 @@ public sealed class UiSettings
     /// Whether to enable advanced inspector tab showing raw model response.
     /// </summary>
     public bool ShowRawResponse { get; set; }
+
+    /// <summary>
+    /// Maximum visible raw output characters before trimming older text [SETTING-UI-003].
+    /// </summary>
+    public int MaxVisibleRawOutputCharacters { get; set; } = 50_000;
+
+    /// <summary>
+    /// Throttle interval in milliseconds for flushing streaming token chunks to the UI [SETTING-UI-004].
+    /// </summary>
+    public int StreamingUiUpdateIntervalMs { get; set; } = 50;
 }

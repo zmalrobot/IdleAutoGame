@@ -240,7 +240,21 @@
                             <TextBlock Text="{Binding LastActionExplanation}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                         </Border>
 
-                        <Button Content="🔍 Diagnostica Decisione AI (Dettagli)" Command="{Binding OpenAiDecisionDetailsCommand}"
+                        <!-- Live Streaming Indicator Banner -->
+                        <Border Background="#161B22" BorderBrush="{DynamicResource PrimaryLightBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6"
+                                IsVisible="{Binding AiDecisionDetails.IsStreamingActive}">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding AiDecisionDetails.StreamTokensCount, StringFormat='Tokens: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="📡" FontSize="12"/>
+                                    <TextBlock Text="Streaming token live in corso..." FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Button Content="🔍 Diagnostica Decisione AI &amp; Streaming Raw" Command="{Binding OpenAiDecisionDetailsCommand}"
                                 Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource PrimaryLightBrush}"
                                 BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"

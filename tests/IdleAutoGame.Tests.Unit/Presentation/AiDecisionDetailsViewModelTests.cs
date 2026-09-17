@@ -104,6 +104,223 @@ public class AiDecisionDetailsViewModelTests
         vm.SelectedScreenshotBitmap.Should().BeNull();
     }
 
+    [Fact]
+    public void LiveStreaming_UpdatesTerminalBufferAndState()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+        const string inferenceId = "inf-12345";
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Preparing,
+            ChunkIndex = 0
+        });
+
+        vm.StreamState.Should().Be(LlmStreamState.Preparing);
+        vm.IsStreamingActive.Should().BeTrue();
+        vm.StreamStateBadge.Should().Be("PREPARAZIONE");
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Streaming,
+            DeltaText = "{\"action\":",
+            AccumulatedText = "{\"action\":",
+            ChunkIndex = 1,
+            TotalTokensSoFar = 5,
+            TokensPerSecond = 25.0,
+            ElapsedMs = 200
+        });
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Streaming,
+            DeltaText = " \"tap\"}",
+            AccumulatedText = "{\"action\": \"tap\"}",
+            ChunkIndex = 2,
+            TotalTokensSoFar = 10,
+            TokensPerSecond = 30.0,
+            ElapsedMs = 350
+        });
+
+        vm.FlushBufferToUi();
+
+        vm.StreamingRawOutput.Should().Be("{\"action\": \"tap\"}");
+        vm.DisplayedRawOutput.Should().Be("{\"action\": \"tap\"}");
+        vm.StreamTokensCount.Should().Be(10);
+        vm.StreamTokensPerSecond.Should().Be(30.0);
+        vm.StreamElapsedMs.Should().Be(350);
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Completed,
+            DeltaText = string.Empty,
+            AccumulatedText = "{\"action\": \"tap\"}",
+            ChunkIndex = 3,
+            TotalTokensSoFar = 10,
+            TokensPerSecond = 30.0,
+            ElapsedMs = 400
+        });
+
+        vm.StreamState.Should().Be(LlmStreamState.Completed);
+        vm.IsStreamingActive.Should().BeFalse();
+        vm.StreamStateBadge.Should().Be("COMPLETATO");
+    }
+
+    [Fact]
+    public void ClearRawOutputCommand_ClearsTerminalBuffer()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+        const string inferenceId = "inf-clear-test";
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Preparing
+        });
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Completed,
+            AccumulatedText = "Some raw text"
+        });
+
+        vm.StreamingRawOutput.Should().Be("Some raw text");
+
+        vm.ClearRawOutputCommand.Execute(null);
+
+        vm.StreamingRawOutput.Should().BeEmpty();
+        vm.StreamTokensCount.Should().Be(0);
+        vm.StreamTokensPerSecond.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CopyRawOutputCommand_CopiesToClipboard()
+    {
+        var clipboard = new FakeClipboardService();
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService, clipboard);
+        const string inferenceId = "inf-clip-test";
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Preparing
+        });
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Completed,
+            AccumulatedText = "{\"action\":\"tap\"}"
+        });
+
+        await vm.CopyRawOutputAsync();
+
+        clipboard.Text.Should().Be("{\"action\":\"tap\"}");
+    }
+
+    [Fact]
+    public void AutoScrollToggle_TogglesProperty()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+        vm.AutoScrollEnabled.Should().BeTrue();
+
+        vm.ToggleAutoScrollCommand.Execute(null);
+        vm.AutoScrollEnabled.Should().BeFalse();
+
+        vm.ToggleAutoScrollCommand.Execute(null);
+        vm.AutoScrollEnabled.Should().BeTrue();
+    }
+
+    [Fact]
+    public void HistoricalSelection_DisplaysRecordedRawResponse()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+
+        // Add live stream content
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "live-inf",
+            State = LlmStreamState.Completed,
+            AccumulatedText = "LIVE_RAW_STREAM"
+        });
+
+        vm.DisplayedRawOutput.Should().Be("LIVE_RAW_STREAM");
+
+        // Add a historical decision with recorded raw output
+        var historicalDecision = new AiDecisionDetails
+        {
+            CycleNumber = 42,
+            ActionType = "Tap",
+            RawResponse = "HISTORICAL_RAW_RESPONSE_42"
+        };
+        vm.AddDecision(historicalDecision);
+
+        // User examines historical decision
+        vm.SelectDecision(historicalDecision);
+        vm.IsViewingHistoricalRaw = true;
+
+        vm.DisplayedRawOutput.Should().Be("HISTORICAL_RAW_RESPONSE_42");
+
+        // User clicks "Torna a Live Stream"
+        vm.ViewLiveStreamCommand.Execute(null);
+
+        vm.IsViewingHistoricalRaw.Should().BeFalse();
+        vm.DisplayedRawOutput.Should().Be("LIVE_RAW_STREAM");
+    }
+
+    [Fact]
+    public void LateChunks_WithMismatchedInferenceId_AreDropped()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+
+        // Cycle 1 starts
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "cycle-1",
+            State = LlmStreamState.Preparing
+        });
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "cycle-1",
+            State = LlmStreamState.Streaming,
+            DeltaText = "Cycle1_Chunk1"
+        });
+
+        // Cycle 2 starts (e.g. previous was cancelled or completed)
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "cycle-2",
+            State = LlmStreamState.Preparing
+        });
+
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "cycle-2",
+            State = LlmStreamState.Streaming,
+            DeltaText = "Cycle2_Chunk1"
+        });
+
+        // Belated chunk from Cycle 1 arrives late over network
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "cycle-1",
+            State = LlmStreamState.Streaming,
+            DeltaText = "_LateOutdatedData"
+        });
+
+        vm.FlushBufferToUi();
+
+        // Must NOT contain the outdated chunk
+        vm.StreamingRawOutput.Should().Be("Cycle2_Chunk1");
+        vm.StreamingRawOutput.Should().NotContain("LateOutdatedData");
+    }
+
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
     {
         private AppSettings _s;

@@ -81,6 +81,9 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     /// <inheritdoc />
     public event EventHandler<ActionExecutedEvent>? ActionExecuted;
 
+    /// <inheritdoc />
+    public event EventHandler<LlmOutputChunk>? LlmChunkReceived;
+
     /// <summary>
     /// Initializes a new instance of <see cref="AutomationEngine"/> with dynamic provider and configuration resolution.
     /// </summary>
@@ -729,7 +732,36 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         for (int attempt = 0; attempt < maxRetries; attempt++)
         {
             ct.ThrowIfCancellationRequested();
-            lastResponse = await _llmProviderFactory().AnalyzeAsync(request, ct).ConfigureAwait(false);
+            var provider = _llmProviderFactory();
+            LlmResponse? streamResponse = null;
+
+            try
+            {
+                await foreach (var chunk in provider.StreamAnalyzeAsync(request, ct).ConfigureAwait(false))
+                {
+                    LlmChunkReceived?.Invoke(this, chunk);
+
+                    if (chunk.FinalResponse != null)
+                    {
+                        streamResponse = chunk.FinalResponse;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                streamResponse = new LlmResponse
+                {
+                    IsSuccess = false,
+                    Error = $"Streaming inference failed: {ex.Message}"
+                };
+            }
+
+            lastResponse = streamResponse ?? new LlmResponse { IsSuccess = false, Error = "Inference produced no response" };
+
             if (lastResponse.IsSuccess && lastResponse.ParsedAction != null)
             {
                 return lastResponse;

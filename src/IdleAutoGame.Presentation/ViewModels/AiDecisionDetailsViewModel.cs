@@ -1,6 +1,8 @@
 using System;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Text;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -12,17 +14,24 @@ using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
+using IdleAutoGame.Presentation.Services;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
 /// <summary>
 /// ViewModel driving the real-time AI decision diagnostic inspection window.
-/// Provides deep visibility into visual screen interpretations and tactical objectives without exposing private chain-of-thought tokens.
+/// Provides deep visibility into visual screen interpretations, tactical objectives,
+/// and live token-by-token streaming of the model's raw LLM output.
 /// </summary>
 public partial class AiDecisionDetailsViewModel : ViewModelBase
 {
     private readonly IAutomationEngine _engine;
     private readonly IConfigurationService _configService;
+    private readonly IClipboardService _clipboardService;
+
+    private readonly StringBuilder _streamingBuffer = new();
+    private readonly object _streamLock = new();
+    private bool _flushPending;
 
     [ObservableProperty]
     private ObservableCollection<AiDecisionDetails> _decisions = new();
@@ -48,18 +57,245 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
     [ObservableProperty]
     private bool _hasVisualGesture;
 
+    // REAL-TIME STREAMING PROPERTIES
+    [ObservableProperty]
+    private LlmStreamState _streamState = LlmStreamState.Idle;
+
+    [ObservableProperty]
+    private string _streamingRawOutput = string.Empty;
+
+    [ObservableProperty]
+    private int _streamTokensCount;
+
+    [ObservableProperty]
+    private double _streamTokensPerSecond;
+
+    [ObservableProperty]
+    private long _streamElapsedMs;
+
+    [ObservableProperty]
+    private bool _autoScrollEnabled = true;
+
+    [ObservableProperty]
+    private string _activeStreamProviderBanner = "LLM Pipeline Attiva";
+
+    [ObservableProperty]
+    private string? _activeInferenceId;
+
+    [ObservableProperty]
+    private string? _streamErrorMessage;
+
+    [ObservableProperty]
+    private bool _isViewingHistoricalRaw;
+
+    public bool IsStreamingActive => StreamState is LlmStreamState.Preparing or LlmStreamState.Inferring or LlmStreamState.Streaming;
+
+    public string StreamStateBadge => StreamState switch
+    {
+        LlmStreamState.Idle => "IDLE",
+        LlmStreamState.Preparing => "PREPARAZIONE",
+        LlmStreamState.Inferring => "INFERENZA...",
+        LlmStreamState.Streaming => "STREAMING ATTIVO",
+        LlmStreamState.Completed => "COMPLETATO",
+        LlmStreamState.Cancelled => "ANNULLATO",
+        LlmStreamState.Failed => "ERRORE",
+        LlmStreamState.Unavailable => "NON DISPONIBILE",
+        _ => StreamState.ToString().ToUpperInvariant()
+    };
+
+    public string StreamStateColor => StreamState switch
+    {
+        LlmStreamState.Streaming => "#4EC9B0",
+        LlmStreamState.Completed => "#4EC9B0",
+        LlmStreamState.Inferring => "#CE9178",
+        LlmStreamState.Preparing => "#DCDCAA",
+        LlmStreamState.Cancelled => "#E5C07B",
+        LlmStreamState.Failed => "#F44747",
+        LlmStreamState.Unavailable => "#808080",
+        _ => "#858585"
+    };
+
+    /// <summary>
+    /// Gets the raw output text currently displayed:
+    /// Shows the historical cycle's raw output when examining past decisions,
+    /// or the real-time live streaming text when observing active execution.
+    /// </summary>
+    public string DisplayedRawOutput
+    {
+        get
+        {
+            if (IsViewingHistoricalRaw && SelectedDecision != null)
+            {
+                return !string.IsNullOrWhiteSpace(SelectedDecision.RawResponse)
+                    ? SelectedDecision.RawResponse
+                    : "(Nessun raw output registrato per questo ciclo storico)";
+            }
+
+            return !string.IsNullOrWhiteSpace(StreamingRawOutput)
+                ? StreamingRawOutput
+                : (IsStreamingActive ? "In attesa dei primi token dal modello..." : "Nessun output in streaming attivo.");
+        }
+    }
+
     partial void OnSelectedDecisionChanged(AiDecisionDetails? value)
     {
         UpdateGestureHud(value);
         UpdateScreenshotBitmap(value?.ScreenshotBase64, value);
+        IsViewingHistoricalRaw = value != null && !AutoFollowLatest;
+        OnPropertyChanged(nameof(DisplayedRawOutput));
     }
 
-    public AiDecisionDetailsViewModel(IAutomationEngine engine, IConfigurationService configService)
+    partial void OnAutoFollowLatestChanged(bool value)
+    {
+        if (value)
+        {
+            IsViewingHistoricalRaw = false;
+            if (Decisions.Count > 0)
+            {
+                SelectedDecision = Decisions[0];
+            }
+        }
+        else
+        {
+            IsViewingHistoricalRaw = SelectedDecision != null;
+        }
+        OnPropertyChanged(nameof(DisplayedRawOutput));
+    }
+
+    public AiDecisionDetailsViewModel(
+        IAutomationEngine engine,
+        IConfigurationService configService,
+        IClipboardService? clipboardService = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _clipboardService = clipboardService ?? new AvaloniaClipboardService();
 
         _engine.CycleCompleted += OnCycleCompleted;
+        _engine.LlmChunkReceived += OnLlmChunkReceived;
+    }
+
+    internal void OnLlmChunkReceived(object? sender, LlmOutputChunk chunk)
+    {
+        lock (_streamLock)
+        {
+            if (chunk.State == LlmStreamState.Preparing)
+            {
+                ActiveInferenceId = chunk.InferenceId;
+                _streamingBuffer.Clear();
+                StreamTokensCount = 0;
+                StreamTokensPerSecond = 0;
+                StreamElapsedMs = 0;
+                StreamErrorMessage = null;
+                StreamState = LlmStreamState.Preparing;
+
+                if (AutoFollowLatest)
+                {
+                    IsViewingHistoricalRaw = false;
+                }
+
+                TriggerImmediateUiFlush();
+                return;
+            }
+
+            // Correlation ID guard: ignore chunks from superseded/cancelled inferences
+            if (!string.IsNullOrEmpty(ActiveInferenceId) && chunk.InferenceId != ActiveInferenceId)
+            {
+                return;
+            }
+
+            StreamState = chunk.State;
+            StreamElapsedMs = chunk.ElapsedMs;
+
+            if (chunk.TotalTokensSoFar.HasValue)
+            {
+                StreamTokensCount = chunk.TotalTokensSoFar.Value;
+            }
+            if (chunk.TokensPerSecond.HasValue)
+            {
+                StreamTokensPerSecond = chunk.TokensPerSecond.Value;
+            }
+
+            if (!string.IsNullOrEmpty(chunk.DeltaText))
+            {
+                _streamingBuffer.Append(chunk.DeltaText);
+            }
+            else if (!string.IsNullOrEmpty(chunk.AccumulatedText) && _streamingBuffer.Length == 0)
+            {
+                _streamingBuffer.Append(chunk.AccumulatedText);
+            }
+
+            if (!string.IsNullOrEmpty(chunk.Error))
+            {
+                StreamErrorMessage = chunk.Error;
+            }
+
+            // Bound memory buffer size
+            int maxChars = _configService.Current.Ui.MaxVisibleRawOutputCharacters;
+            if (_streamingBuffer.Length > maxChars)
+            {
+                _streamingBuffer.Remove(0, _streamingBuffer.Length - maxChars);
+            }
+
+            if (chunk.State is LlmStreamState.Completed or LlmStreamState.Cancelled or LlmStreamState.Failed or LlmStreamState.Unavailable)
+            {
+                TriggerImmediateUiFlush();
+            }
+            else
+            {
+                ScheduleUiFlush();
+            }
+        }
+    }
+
+    private void ScheduleUiFlush()
+    {
+        if (_flushPending) return;
+        _flushPending = true;
+
+        int intervalMs = Math.Max(10, _configService.Current.Ui.StreamingUiUpdateIntervalMs);
+        try
+        {
+            DispatcherTimer.RunOnce(FlushBufferToUi, TimeSpan.FromMilliseconds(intervalMs));
+        }
+        catch
+        {
+            FlushBufferToUi();
+        }
+    }
+
+    private void TriggerImmediateUiFlush()
+    {
+        _flushPending = false;
+        try
+        {
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                FlushBufferToUi();
+            }
+            else
+            {
+                Dispatcher.UIThread.Post(FlushBufferToUi);
+            }
+        }
+        catch
+        {
+            FlushBufferToUi();
+        }
+    }
+
+    internal void FlushBufferToUi()
+    {
+        _flushPending = false;
+        lock (_streamLock)
+        {
+            StreamingRawOutput = _streamingBuffer.ToString();
+        }
+
+        OnPropertyChanged(nameof(DisplayedRawOutput));
+        OnPropertyChanged(nameof(IsStreamingActive));
+        OnPropertyChanged(nameof(StreamStateBadge));
+        OnPropertyChanged(nameof(StreamStateColor));
     }
 
     private void OnCycleCompleted(object? sender, CycleRecord cycle)
@@ -183,13 +419,21 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
             Distance = p?.Distance,
             Text = p?.Text,
             KeyCode = p?.KeyCode?.ToString() ?? (p?.KeyCodes != null ? string.Join(", ", p.KeyCodes) : null),
-            ScreenshotBase64 = base64Image
+            ScreenshotBase64 = base64Image,
+            RawResponse = cycle.RawResponse
         };
 
-        Dispatcher.UIThread.Post(() =>
+        try
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                AddDecision(detail);
+            });
+        }
+        catch
         {
             AddDecision(detail);
-        });
+        }
     }
 
     public void AddDecision(AiDecisionDetails detail)
@@ -228,6 +472,47 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
         HasVisualGesture = false;
         GestureHudTitle = null;
         GestureHudDetails = null;
+        IsViewingHistoricalRaw = false;
+        OnPropertyChanged(nameof(DisplayedRawOutput));
+    }
+
+    [RelayCommand]
+    public async Task CopyRawOutputAsync()
+    {
+        var text = DisplayedRawOutput;
+        if (!string.IsNullOrEmpty(text))
+        {
+            await _clipboardService.SetTextAsync(text).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    public void ClearRawOutput()
+    {
+        lock (_streamLock)
+        {
+            _streamingBuffer.Clear();
+            StreamingRawOutput = string.Empty;
+            StreamTokensCount = 0;
+            StreamTokensPerSecond = 0;
+            StreamElapsedMs = 0;
+            StreamErrorMessage = null;
+        }
+        OnPropertyChanged(nameof(DisplayedRawOutput));
+    }
+
+    [RelayCommand]
+    public void ToggleAutoScroll()
+    {
+        AutoScrollEnabled = !AutoScrollEnabled;
+    }
+
+    [RelayCommand]
+    public void ViewLiveStream()
+    {
+        IsViewingHistoricalRaw = false;
+        AutoFollowLatest = true;
+        OnPropertyChanged(nameof(DisplayedRawOutput));
     }
 
     private void UpdateGestureHud(AiDecisionDetails? d)

@@ -48,9 +48,78 @@ public class FakeLlmProvider : ILlmProvider
         });
     }
 
+    public async IAsyncEnumerable<LlmOutputChunk> StreamAnalyzeAsync(
+        LlmRequest request,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    {
+        var inferenceId = Guid.NewGuid().ToString("N");
+        yield return new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Preparing,
+            ChunkIndex = 0
+        };
+
+        yield return new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Inferring,
+            ChunkIndex = 1
+        };
+
+        var response = await AnalyzeAsync(request, ct).ConfigureAwait(false);
+        var raw = response.RawContent ?? string.Empty;
+
+        // Emit simulated chunks (e.g. 2 pieces) if content is present
+        if (raw.Length > 0)
+        {
+            int mid = raw.Length / 2;
+            var chunk1 = raw[..mid];
+            var chunk2 = raw[mid..];
+
+            yield return new LlmOutputChunk
+            {
+                InferenceId = inferenceId,
+                DeltaText = chunk1,
+                AccumulatedText = chunk1,
+                ChunkIndex = 2,
+                State = LlmStreamState.Streaming,
+                TotalTokensSoFar = 10,
+                TokensPerSecond = 20.0,
+                ElapsedMs = 25
+            };
+
+            yield return new LlmOutputChunk
+            {
+                InferenceId = inferenceId,
+                DeltaText = chunk2,
+                AccumulatedText = raw,
+                ChunkIndex = 3,
+                State = LlmStreamState.Streaming,
+                TotalTokensSoFar = 20,
+                TokensPerSecond = 25.0,
+                ElapsedMs = 50
+            };
+        }
+
+        yield return new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            DeltaText = string.Empty,
+            AccumulatedText = raw,
+            ChunkIndex = 4,
+            State = response.IsSuccess ? LlmStreamState.Completed : LlmStreamState.Failed,
+            Error = response.Error,
+            TotalTokensSoFar = 20,
+            TokensPerSecond = 25.0,
+            ElapsedMs = 50,
+            FinalResponse = response
+        };
+    }
+
     public Task<bool> IsAvailableAsync(CancellationToken ct = default) => Task.FromResult(true);
 
     public Task<ModelCapabilities> GetCapabilitiesAsync(CancellationToken ct = default) =>
-        Task.FromResult(new ModelCapabilities());
+        Task.FromResult(new ModelCapabilities { SupportsStreaming = true });
 }
 

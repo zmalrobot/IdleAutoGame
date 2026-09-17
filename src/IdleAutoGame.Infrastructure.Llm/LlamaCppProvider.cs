@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 
@@ -36,17 +38,31 @@ public sealed class LlamaCppProvider : ILlmProvider
     }
 
     /// <inheritdoc />
-    public async Task<LlmResponse> AnalyzeAsync(LlmRequest request, CancellationToken ct = default)
+    public async IAsyncEnumerable<LlmOutputChunk> StreamAnalyzeAsync(
+        LlmRequest request,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
 
+        var inferenceId = Guid.NewGuid().ToString("N");
         var stopwatch = Stopwatch.StartNew();
+        int tokenCount = 0;
+        int chunkIndex = 0;
+        var accumulated = new StringBuilder();
+
+        yield return new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Preparing,
+            ChunkIndex = 0
+        };
 
         var payload = new
         {
             model = _modelId,
             temperature = request.Temperature,
             max_tokens = request.MaxTokens,
+            stream = true,
             response_format = new { type = "json_object" },
             messages = new object[]
             {
@@ -67,69 +83,234 @@ public sealed class LlamaCppProvider : ILlmProvider
             }
         };
 
+        yield return new LlmOutputChunk
+        {
+            InferenceId = inferenceId,
+            State = LlmStreamState.Inferring,
+            ChunkIndex = ++chunkIndex,
+            ElapsedMs = stopwatch.ElapsedMilliseconds
+        };
+
+        HttpResponseMessage? httpResponse = null;
         try
         {
-            using var httpResponse = await _httpClient.PostAsJsonAsync("/v1/chat/completions", payload, ct).ConfigureAwait(false);
-            stopwatch.Stop();
+            var requestMsg = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
+            {
+                Content = JsonContent.Create(payload)
+            };
+
+            httpResponse = await _httpClient.SendAsync(requestMsg, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
 
             if (!httpResponse.IsSuccessStatusCode)
             {
                 var errorText = await httpResponse.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                return new LlmResponse
+                stopwatch.Stop();
+                yield return new LlmOutputChunk
                 {
-                    IsSuccess = false,
+                    InferenceId = inferenceId,
+                    State = LlmStreamState.Failed,
                     Error = $"HTTP {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase}: {errorText}",
-                    LatencyMs = stopwatch.ElapsedMilliseconds
+                    ElapsedMs = stopwatch.ElapsedMilliseconds,
+                    FinalResponse = new LlmResponse
+                    {
+                        IsSuccess = false,
+                        Error = $"HTTP {(int)httpResponse.StatusCode}: {errorText}",
+                        LatencyMs = stopwatch.ElapsedMilliseconds
+                    }
                 };
+                yield break;
             }
 
-            using var jsonDoc = await JsonDocument.ParseAsync(await httpResponse.Content.ReadAsStreamAsync(ct).ConfigureAwait(false), cancellationToken: ct).ConfigureAwait(false);
-            var root = jsonDoc.RootElement;
+            using var stream = await httpResponse.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var reader = new StreamReader(stream);
 
-            var content = root
-                .GetProperty("choices")[0]
-                .GetProperty("message")
-                .GetProperty("content")
-                .GetString() ?? string.Empty;
-
-            int? tokensUsed = null;
-            if (root.TryGetProperty("usage", out var usageProp) && usageProp.TryGetProperty("total_tokens", out var tokensProp))
+            string? firstLine = null;
+            while ((firstLine = await reader.ReadLineAsync(ct).ConfigureAwait(false)) != null)
             {
-                tokensUsed = tokensProp.GetInt32();
+                if (!string.IsNullOrWhiteSpace(firstLine)) break;
             }
 
-            var parsedOk = LlmResponseParser.TryParse(content, out var action, out var parseError);
+            if (firstLine != null && firstLine.TrimStart().StartsWith('{'))
+            {
+                // Non-streaming direct JSON response fallback
+                var restOfJson = await reader.ReadToEndAsync(ct).ConfigureAwait(false);
+                var fullJson = firstLine + restOfJson;
+                stopwatch.Stop();
+                long totalMs = stopwatch.ElapsedMilliseconds;
 
-            return new LlmResponse
+                using var jsonDoc = JsonDocument.Parse(fullJson);
+                var root = jsonDoc.RootElement;
+
+                if (!root.TryGetProperty("choices", out var choices) || choices.GetArrayLength() == 0 ||
+                    !choices[0].TryGetProperty("message", out var msg) ||
+                    !msg.TryGetProperty("content", out var contentProp))
+                {
+                    var schemaError = "Invalid llama.cpp API response structure: missing or empty choices[0].message.content";
+                    var failResponse = new LlmResponse
+                    {
+                        IsSuccess = false,
+                        Error = schemaError,
+                        LatencyMs = totalMs
+                    };
+                    yield return new LlmOutputChunk
+                    {
+                        InferenceId = inferenceId,
+                        State = LlmStreamState.Failed,
+                        Error = schemaError,
+                        ElapsedMs = totalMs,
+                        FinalResponse = failResponse
+                    };
+                    yield break;
+                }
+
+                var content = contentProp.GetString() ?? string.Empty;
+                int? tokensUsed = null;
+                if (root.TryGetProperty("usage", out var usageProp) && usageProp.TryGetProperty("total_tokens", out var tokensProp))
+                {
+                    tokensUsed = tokensProp.GetInt32();
+                }
+
+                var parsedOk = LlmResponseParser.TryParse(content, out var action, out var parseError);
+                var finalResponse = new LlmResponse
+                {
+                    IsSuccess = parsedOk,
+                    RawContent = content,
+                    ParsedAction = action,
+                    Error = parseError,
+                    LatencyMs = totalMs,
+                    TokensUsed = tokensUsed
+                };
+
+                yield return new LlmOutputChunk
+                {
+                    InferenceId = inferenceId,
+                    DeltaText = content,
+                    AccumulatedText = content,
+                    ChunkIndex = ++chunkIndex,
+                    State = LlmStreamState.Streaming,
+                    TotalTokensSoFar = tokensUsed ?? 1,
+                    ElapsedMs = totalMs
+                };
+
+                yield return new LlmOutputChunk
+                {
+                    InferenceId = inferenceId,
+                    DeltaText = string.Empty,
+                    AccumulatedText = content,
+                    ChunkIndex = ++chunkIndex,
+                    State = parsedOk ? LlmStreamState.Completed : LlmStreamState.Failed,
+                    Error = parseError,
+                    TotalTokensSoFar = tokensUsed ?? 1,
+                    ElapsedMs = totalMs,
+                    FinalResponse = finalResponse
+                };
+                yield break;
+            }
+
+            // SSE Streaming loop
+            string? currentLine = firstLine;
+            while (currentLine != null)
             {
-                IsSuccess = parsedOk,
-                RawContent = content,
-                ParsedAction = action,
-                Error = parseError,
-                LatencyMs = stopwatch.ElapsedMilliseconds,
-                TokensUsed = tokensUsed
-            };
-        }
-        catch (OperationCanceledException)
-        {
+                if (!string.IsNullOrWhiteSpace(currentLine) && currentLine.StartsWith("data: "))
+                {
+                    var data = currentLine.Substring(6).Trim();
+                    if (data == "[DONE]") break;
+
+                    string? deltaText = null;
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(data);
+                        if (doc.RootElement.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
+                        {
+                            var choice = choices[0];
+                            if (choice.TryGetProperty("delta", out var delta) && delta.TryGetProperty("content", out var contentProp))
+                            {
+                                deltaText = contentProp.GetString();
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore non-json SSE frames
+                    }
+
+                    if (!string.IsNullOrEmpty(deltaText))
+                    {
+                        tokenCount++;
+                        chunkIndex++;
+                        accumulated.Append(deltaText);
+                        long elapsed = stopwatch.ElapsedMilliseconds;
+                        double tps = elapsed > 0 ? (double)tokenCount / (elapsed / 1000.0) : 0.0;
+
+                        yield return new LlmOutputChunk
+                        {
+                            InferenceId = inferenceId,
+                            DeltaText = deltaText,
+                            AccumulatedText = accumulated.ToString(),
+                            ChunkIndex = chunkIndex,
+                            State = LlmStreamState.Streaming,
+                            TotalTokensSoFar = tokenCount,
+                            TokensPerSecond = tps,
+                            ElapsedMs = elapsed
+                        };
+                    }
+                }
+
+                currentLine = await reader.ReadLineAsync(ct).ConfigureAwait(false);
+            }
+
             stopwatch.Stop();
-            return new LlmResponse
+            long streamTotalMs = stopwatch.ElapsedMilliseconds;
+            var fullContent = accumulated.ToString().Trim();
+            var streamParsedOk = LlmResponseParser.TryParse(fullContent, out var streamAction, out var streamParseError);
+
+            var sseFinalResponse = new LlmResponse
             {
-                IsSuccess = false,
-                Error = "LLM request timed out or was cancelled by user.",
-                LatencyMs = stopwatch.ElapsedMilliseconds
+                IsSuccess = streamParsedOk,
+                RawContent = fullContent,
+                ParsedAction = streamAction,
+                Error = streamParseError,
+                LatencyMs = streamTotalMs,
+                TokensUsed = tokenCount
+            };
+
+            yield return new LlmOutputChunk
+            {
+                InferenceId = inferenceId,
+                DeltaText = string.Empty,
+                AccumulatedText = fullContent,
+                ChunkIndex = ++chunkIndex,
+                State = streamParsedOk ? LlmStreamState.Completed : LlmStreamState.Failed,
+                Error = streamParseError,
+                TotalTokensSoFar = tokenCount,
+                TokensPerSecond = streamTotalMs > 0 ? (double)tokenCount / (streamTotalMs / 1000.0) : null,
+                ElapsedMs = streamTotalMs,
+                FinalResponse = sseFinalResponse
             };
         }
-        catch (Exception ex)
+        finally
         {
-            stopwatch.Stop();
-            return new LlmResponse
-            {
-                IsSuccess = false,
-                Error = $"Inference error: {ex.Message}",
-                LatencyMs = stopwatch.ElapsedMilliseconds
-            };
+            httpResponse?.Dispose();
         }
+    }
+
+    /// <inheritdoc />
+    public async Task<LlmResponse> AnalyzeAsync(LlmRequest request, CancellationToken ct = default)
+    {
+        LlmResponse? response = null;
+        string? lastError = null;
+        await foreach (var chunk in StreamAnalyzeAsync(request, ct).ConfigureAwait(false))
+        {
+            if (chunk.FinalResponse != null)
+            {
+                response = chunk.FinalResponse;
+            }
+            else if (!string.IsNullOrEmpty(chunk.Error))
+            {
+                lastError = chunk.Error;
+            }
+        }
+        return response ?? new LlmResponse { IsSuccess = false, Error = lastError ?? "Inference produced no response." };
     }
 
     /// <inheritdoc />
@@ -156,6 +337,7 @@ public sealed class LlamaCppProvider : ILlmProvider
         {
             SupportsVision = true,
             SupportsJsonSchema = true,
+            SupportsStreaming = true,
             MaxContextTokens = 8192
         });
     }

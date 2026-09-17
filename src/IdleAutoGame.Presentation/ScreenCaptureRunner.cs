@@ -502,10 +502,25 @@ public static class ScreenCaptureRunner
                 LatencyMs = 142,
                 TargetX = 540,
                 TargetY = 1280,
-                ScreenshotBase64 = placeholderBase64
+                ScreenshotBase64 = placeholderBase64,
+                RawResponse = "{\n  \"action\": \"tap\",\n  \"parameters\": {\n    \"x\": 540.0,\n    \"y\": 1280.0,\n    \"count\": 10,\n    \"interval_ms\": 50\n  },\n  \"confidence\": 0.96,\n  \"game_state\": \"boss_fight\",\n  \"observation_summary\": \"Titan Core esposto con barra vita al 45%.\",\n  \"objective\": \"Attacco rapido sul Titan Core.\",\n  \"explanation\": \"Sequenza rapida di 10 colpi coordinati.\"\n}"
             });
 
             diagVm.SelectedDecision = diagVm.Decisions.First();
+
+            // Feed live streaming chunk for visual inspection of real-time terminal
+            diagVm.OnLlmChunkReceived(null, new LlmOutputChunk
+            {
+                InferenceId = "live-capture-inference",
+                State = LlmStreamState.Streaming,
+                DeltaText = "{\n  \"action\": \"tap\",\n  \"parameters\": { \"x\": 540.0, \"y\": 1280.0, \"count\": 10 },\n  \"explanation\": \"In streaming dal modello...\"",
+                AccumulatedText = "{\n  \"action\": \"tap\",\n  \"parameters\": { \"x\": 540.0, \"y\": 1280.0, \"count\": 10 },\n  \"explanation\": \"In streaming dal modello...\"",
+                ChunkIndex = 14,
+                TotalTokensSoFar = 86,
+                TokensPerSecond = 34.8,
+                ElapsedMs = 2470
+            });
+            diagVm.FlushBufferToUi();
 
             var diagWindow = new AiDecisionDetailsWindow
             {

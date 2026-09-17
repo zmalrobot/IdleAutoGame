@@ -40,6 +40,11 @@ public interface IAutomationEngine
     event EventHandler<ActionExecutedEvent>? ActionExecuted;
 
     /// <summary>
+    /// Event emitted when a raw streaming token chunk or lifecycle state update is received from the LLM during inference.
+    /// </summary>
+    event EventHandler<LlmOutputChunk>? LlmChunkReceived;
+
+    /// <summary>
     /// Starts the autonomous execution loop.
     /// </summary>
     Task StartAsync(string deviceSerial, string gameId, string modelId, CancellationToken ct = default);

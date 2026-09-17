@@ -108,6 +108,65 @@
                             </Grid>
                         </Border>
 
+                        <!-- Real-Time LLM Streaming Raw Output Terminal -->
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
+                            <StackPanel Spacing="10">
+                                <DockPanel>
+                                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <Button Content="🔴 Torna al Live" Command="{Binding ViewLiveStreamCommand}"
+                                                IsVisible="{Binding IsViewingHistoricalRaw}"
+                                                Background="{DynamicResource AccentBrush}" Foreground="#091015"
+                                                FontWeight="Bold" FontSize="11" Padding="8,4"/>
+                                        <CheckBox IsChecked="{Binding AutoScrollEnabled}" Content="Auto-scroll"
+                                                  Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"/>
+                                        <Button Content="📋 Copia" Command="{Binding CopyRawOutputCommand}"
+                                                Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="11" Padding="8,4"/>
+                                        <Button Content="🗑️ Pulisci" Command="{Binding ClearRawOutputCommand}"
+                                                Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="11" Padding="8,4"/>
+                                    </StackPanel>
+
+                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                        <TextBlock Text="📡 RAW OUTPUT MODELLO LLM" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                        <Border Background="{DynamicResource Surface1Brush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding StreamStateBadge}" FontWeight="Bold" FontSize="10" Foreground="{Binding StreamStateColor}"/>
+                                        </Border>
+                                    </StackPanel>
+                                </DockPanel>
+
+                                <!-- Live Telemetry / Provider Banner -->
+                                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}"
+                                        BorderThickness="1" CornerRadius="4" Padding="8,4">
+                                    <DockPanel>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12">
+                                            <TextBlock Text="{Binding StreamTokensCount, StringFormat='Tokens: {0}'}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding StreamTokensPerSecond, StringFormat='Velocità: {0:F1} t/s'}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource SuccessBrush}"/>
+                                            <TextBlock Text="{Binding StreamElapsedMs, StringFormat='Latenza: {0} ms'}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding ActiveStreamProviderBanner}" FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis"/>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Selectable Monospace Output Console -->
+                                <Border Background="#0D1117" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="4">
+                                    <TextBox x:Name="RawOutputTextBox"
+                                             Text="{Binding DisplayedRawOutput}"
+                                             FontFamily="Consolas, 'Cascadia Code', monospace"
+                                             FontSize="12"
+                                             Foreground="#58A6FF"
+                                             Background="Transparent"
+                                             BorderThickness="0"
+                                             IsReadOnly="True"
+                                             TextWrapping="Wrap"
+                                             AcceptsReturn="True"
+                                             MinHeight="140"
+                                             MaxHeight="260"
+                                             Padding="10,8"/>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Card 1: Visual Screen Interpretation -->
                         <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
                             <StackPanel Spacing="6">
