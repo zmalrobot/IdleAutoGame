@@ -7,6 +7,7 @@ using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
+using IdleAutoGame.Infrastructure.Llm;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
@@ -143,16 +144,36 @@ public partial class DashboardViewModel : ViewModelBase
     private ObservableCollection<CycleRecord> _recentCycles = new();
 
     private readonly AiDecisionDetailsViewModel _aiDecisionDetailsVm;
+    private readonly LocalLlamaProvider? _localProvider;
+    private readonly IModelManager? _modelManager;
     private Avalonia.Controls.Window? _decisionWindow;
 
     public AiDecisionDetailsViewModel AiDecisionDetails => _aiDecisionDetailsVm;
 
-    public bool CanStart => State is AutomationState.Idle or AutomationState.Stopped;
-    public bool CanPause => State is not (AutomationState.Idle or AutomationState.Stopped or AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Stopping);
+    [ObservableProperty]
+    private int _currentPipelineStep = 0; // 0=Idle, 1=Screenshot, 2=LLM, 3=Validation, 4=ADB, 5=Cooldown
+
+    public bool IsStep1Active => CurrentPipelineStep == 1;
+    public bool IsStep2Active => CurrentPipelineStep == 2;
+    public bool IsStep3Active => CurrentPipelineStep == 3;
+    public bool IsStep4Active => CurrentPipelineStep == 4;
+    public bool IsStep5Active => CurrentPipelineStep == 5;
+
+    [ObservableProperty]
+    private string _llmStatusDetail = "Pronto";
+
+    [ObservableProperty]
+    private string _llmPhaseText = "Pronto";
+
+    [ObservableProperty]
+    private bool _isLlmWarmingUp;
+
+    public bool CanStart => State is AutomationState.Idle or AutomationState.Stopped or AutomationState.Error;
+    public bool CanPause => State is not (AutomationState.Idle or AutomationState.Stopped or AutomationState.Error or AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Stopping);
     public bool CanResume => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
     public bool CanStop => State is not (AutomationState.Idle or AutomationState.Stopped);
     public bool CanEmergencyStop => State is not (AutomationState.Idle or AutomationState.Stopped);
-    public bool IsPausedOrAlert => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
+    public bool IsPausedOrAlert => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Error;
 
     public string PremiumCurrencyStatusText => AllowPremiumCurrency ? "ON" : "OFF";
     public string CreditPurchasesStatusText => AllowCreditPurchases ? "ON" : "OFF";
@@ -164,7 +185,9 @@ public partial class DashboardViewModel : ViewModelBase
         IActiveContextService activeContext,
         IGamePolicyService? policyService = null,
         DeviceService? deviceService = null,
-        AiDecisionDetailsViewModel? aiDecisionDetailsVm = null)
+        AiDecisionDetailsViewModel? aiDecisionDetailsVm = null,
+        LocalLlamaProvider? localProvider = null,
+        IModelManager? modelManager = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -173,11 +196,21 @@ public partial class DashboardViewModel : ViewModelBase
         _policyService = policyService ?? new GamePolicyService(configService);
         _deviceService = deviceService;
         _aiDecisionDetailsVm = aiDecisionDetailsVm ?? new AiDecisionDetailsViewModel(engine, configService);
+        _localProvider = localProvider;
+        _modelManager = modelManager;
 
         _engine.StateChanged += OnEngineStateChanged;
         _engine.CycleCompleted += OnEngineCycleCompleted;
         _engine.ActionExecuted += OnEngineActionExecuted;
         _activeContext.ContextChanged += OnActiveContextChanged;
+
+        if (_localProvider != null)
+        {
+            _localProvider.StatusChanged += OnLocalLlamaStatusChanged;
+            LlmStatusDetail = _localProvider.CurrentStatus;
+            LlmPhaseText = _localProvider.CurrentPhase.ToString();
+            IsLlmWarmingUp = _localProvider.CurrentPhase == LlmLifecyclePhase.WarmingUp;
+        }
 
         // Initialize policy from current default game
         var defaultId = _configService.Current.Games.DefaultGameId ?? "tap-titans-2";
@@ -188,6 +221,25 @@ public partial class DashboardViewModel : ViewModelBase
 
         UpdateCommandStates();
         SyncFromActiveContext();
+    }
+
+    private void OnLocalLlamaStatusChanged(object? sender, LlmStatusChangedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            LlmStatusDetail = e.Message;
+            LlmPhaseText = e.Phase switch
+            {
+                LlmLifecyclePhase.WarmingUp => "🔥 WARMUP",
+                LlmLifecyclePhase.LoadingWeights => "📦 CARICAMENTO PESI",
+                LlmLifecyclePhase.AllocatingContext => "⚙️ CONTEXT",
+                LlmLifecyclePhase.Inferring => "🧠 INFERENZA",
+                LlmLifecyclePhase.Ready => "✅ PRONTO/CALDO",
+                LlmLifecyclePhase.Error => "❌ ERRORE",
+                _ => e.Phase.ToString().ToUpperInvariant()
+            };
+            IsLlmWarmingUp = e.Phase == LlmLifecyclePhase.WarmingUp;
+        });
     }
 
     private void OnActiveContextChanged(object? sender, ActiveContextChangedEventArgs e)
@@ -291,6 +343,23 @@ public partial class DashboardViewModel : ViewModelBase
             State = e.CurrentState;
             PauseReason = e.Reason ?? _engine.PauseReason;
             _activeContext.UpdateAgentState(e.CurrentState, PauseReason);
+
+            CurrentPipelineStep = e.CurrentState switch
+            {
+                AutomationState.Observing => 1,
+                AutomationState.Analyzing or AutomationState.Deciding => 2,
+                AutomationState.Validating => 3,
+                AutomationState.Executing => 4,
+                AutomationState.Waiting => 5,
+                _ => 0
+            };
+
+            OnPropertyChanged(nameof(IsStep1Active));
+            OnPropertyChanged(nameof(IsStep2Active));
+            OnPropertyChanged(nameof(IsStep3Active));
+            OnPropertyChanged(nameof(IsStep4Active));
+            OnPropertyChanged(nameof(IsStep5Active));
+
             UpdateCommandStates();
             OnPropertyChanged(nameof(IsPausedOrAlert));
         });
@@ -387,6 +456,40 @@ public partial class DashboardViewModel : ViewModelBase
         ActiveGameName = game?.Name ?? gameId;
         ActiveModelId = modelId;
 
+        // Ensure local model is loaded and warmed up if using LLamaSharp
+        if (_localProvider != null && _modelManager != null &&
+            (settings.Llm.Provider.Equals("LLamaSharp", StringComparison.OrdinalIgnoreCase) ||
+             settings.Llm.Provider.Equals("local", StringComparison.OrdinalIgnoreCase)))
+        {
+            var filePath = _modelManager.GetModelFilePath(modelId);
+            if (File.Exists(filePath) && (!_localProvider.IsModelLoaded || !_localProvider.IsWarmedUp))
+            {
+                AgentStateText = "WARMUP LLM";
+                AgentDetailText = $"Caricamento e pre-riscaldamento del modello locale '{modelId}' in corso...";
+                IsLlmWarmingUp = true;
+                try
+                {
+                    if (!_localProvider.IsModelLoaded)
+                    {
+                        await _localProvider.LoadModelAsync(filePath, settings.Llm);
+                    }
+                    await _localProvider.WarmupAsync();
+                    _modelManager.MarkModelInUse(modelId, true);
+                }
+                catch (Exception ex)
+                {
+                    PauseReason = $"Caricamento/Warmup modello fallito: {ex.Message}";
+                    State = AutomationState.Error;
+                    UpdateAgentDisplayState();
+                    return;
+                }
+                finally
+                {
+                    IsLlmWarmingUp = false;
+                }
+            }
+        }
+
         // Apply policy
         var policy = _policyService.GetEffectivePolicy(gameId);
         AllowPremiumCurrency = policy.AllowPremiumCurrency;
@@ -399,7 +502,16 @@ public partial class DashboardViewModel : ViewModelBase
         ErrorsCount = 0;
 
         _activeContext.UpdateAgentState(AutomationState.Observing);
-        await _engine.StartAsync(deviceSerial, gameId, modelId);
+        try
+        {
+            await _engine.StartAsync(deviceSerial, gameId, modelId);
+        }
+        catch (Exception ex)
+        {
+            PauseReason = $"Impossibile avviare l'agente: {ex.Message}";
+            State = AutomationState.Error;
+            UpdateAgentDisplayState();
+        }
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
@@ -417,13 +529,49 @@ public partial class DashboardViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task StopAutomationAsync()
     {
-        await _engine.StopAsync();
+        try
+        {
+            await _engine.StopAsync();
+        }
+        catch (Exception ex)
+        {
+            PauseReason = $"Arresto completato: {ex.Message}";
+        }
+        finally
+        {
+            CurrentPipelineStep = 0;
+            OnPropertyChanged(nameof(IsStep1Active));
+            OnPropertyChanged(nameof(IsStep2Active));
+            OnPropertyChanged(nameof(IsStep3Active));
+            OnPropertyChanged(nameof(IsStep4Active));
+            OnPropertyChanged(nameof(IsStep5Active));
+            UpdateCommandStates();
+            UpdateAgentDisplayState();
+        }
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task EmergencyStopAutomationAsync()
     {
-        await _engine.EmergencyStopAsync();
+        try
+        {
+            await _engine.EmergencyStopAsync();
+        }
+        catch (Exception ex)
+        {
+            PauseReason = $"Emergenza completata: {ex.Message}";
+        }
+        finally
+        {
+            CurrentPipelineStep = 0;
+            OnPropertyChanged(nameof(IsStep1Active));
+            OnPropertyChanged(nameof(IsStep2Active));
+            OnPropertyChanged(nameof(IsStep3Active));
+            OnPropertyChanged(nameof(IsStep4Active));
+            OnPropertyChanged(nameof(IsStep5Active));
+            UpdateCommandStates();
+            UpdateAgentDisplayState();
+        }
     }
 
     [RelayCommand]

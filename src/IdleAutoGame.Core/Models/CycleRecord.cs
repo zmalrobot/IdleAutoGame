@@ -64,5 +64,23 @@ public sealed record CycleRecord
     /// Gets the time in milliseconds spent waiting for model inference.
     /// </summary>
     public long LlmLatencyMs { get; init; }
+
+    /// <summary>
+    /// Gets a user-facing status badge for this cycle in telemetry logs.
+    /// </summary>
+    public string StatusBadge => ActionExecuted
+        ? "✅ ESEGUITO"
+        : (ValidationPassed == false && Errors.Any(e => e.Contains("Policy", StringComparison.OrdinalIgnoreCase))
+            ? "🛡️ BLOCCO POLICY"
+            : (Errors.Count > 0 ? "❌ ERRORE" : "⚠️ INTERROTTO"));
+
+    /// <summary>
+    /// Gets the badge foreground color brush or hex string.
+    /// </summary>
+    public string StatusColor => ActionExecuted
+        ? "#4EC9B0"
+        : (ValidationPassed == false && Errors.Any(e => e.Contains("Policy", StringComparison.OrdinalIgnoreCase))
+            ? "#CE9178"
+            : (Errors.Count > 0 ? "#F44747" : "#DCDCAA"));
 }
 

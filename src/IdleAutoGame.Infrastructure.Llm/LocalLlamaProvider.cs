@@ -12,6 +12,41 @@ using LLama.Sampling;
 namespace IdleAutoGame.Infrastructure.Llm;
 
 /// <summary>
+/// Lifecycle phases of the local LLM inference engine.
+/// </summary>
+public enum LlmLifecyclePhase
+{
+    Unloaded,
+    CheckingWeights,
+    AllocatingContext,
+    LoadingWeights,
+    WarmingUp,
+    Ready,
+    Inferring,
+    Unloading,
+    Error
+}
+
+/// <summary>
+/// Event arguments for changes in local LLM status and progress.
+/// </summary>
+public sealed class LlmStatusChangedEventArgs : EventArgs
+{
+    public LlmLifecyclePhase Phase { get; }
+    public string Message { get; }
+    public long ElapsedMs { get; }
+    public double Progress { get; }
+
+    public LlmStatusChangedEventArgs(LlmLifecyclePhase phase, string message, long elapsedMs = 0, double progress = 0.0)
+    {
+        Phase = phase;
+        Message = message;
+        ElapsedMs = elapsedMs;
+        Progress = progress;
+    }
+}
+
+/// <summary>
 /// First-class LLM provider executing local GGUF models via llama.cpp and LLamaSharp.
 /// </summary>
 public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDisposable
@@ -22,6 +57,43 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     private ModelParams? _modelParams;
     private string? _currentModelPath;
     private bool _disposed;
+
+    /// <summary>
+    /// Event fired when the LLM status, loading phase, or warmup progress changes.
+    /// </summary>
+    public event EventHandler<LlmStatusChangedEventArgs>? StatusChanged;
+
+    /// <summary>
+    /// Gets the current lifecycle phase of the local LLM.
+    /// </summary>
+    public LlmLifecyclePhase CurrentPhase { get; private set; } = LlmLifecyclePhase.Unloaded;
+
+    /// <summary>
+    /// Gets a human-readable description of the current LLM status.
+    /// </summary>
+    public string CurrentStatus { get; private set; } = "Nessun modello caricato in memoria.";
+
+    /// <summary>
+    /// Gets a value indicating whether the model has completed context warmup.
+    /// </summary>
+    public bool IsWarmedUp { get; private set; }
+
+    /// <summary>
+    /// Gets the duration of the last warmup run in milliseconds.
+    /// </summary>
+    public long LastWarmupTimeMs { get; private set; }
+
+    /// <summary>
+    /// Gets the error message of the last failed warmup, if any.
+    /// </summary>
+    public string? LastWarmupError { get; private set; }
+
+    private void SetStatus(LlmLifecyclePhase phase, string message, long elapsedMs = 0, double progress = 0.0)
+    {
+        CurrentPhase = phase;
+        CurrentStatus = message;
+        StatusChanged?.Invoke(this, new LlmStatusChangedEventArgs(phase, message, elapsedMs, progress));
+    }
 
     /// <inheritdoc />
     public string ProviderId => "LLamaSharp";
@@ -246,13 +318,17 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         ArgumentException.ThrowIfNullOrWhiteSpace(modelPath);
         ArgumentNullException.ThrowIfNull(settings);
 
+        SetStatus(LlmLifecyclePhase.CheckingWeights, $"Verifica file modello GGUF: {Path.GetFileName(modelPath)}...");
+
         if (!File.Exists(modelPath))
         {
+            SetStatus(LlmLifecyclePhase.Error, $"File modello non trovato: {modelPath}");
             throw new FileNotFoundException($"Model file not found at path: {modelPath}", modelPath);
         }
 
         if (!IsHardwareSupported(out var hardwareReason))
         {
+            SetStatus(LlmLifecyclePhase.Error, $"Hardware non supportato per LLamaSharp: {hardwareReason}");
             throw new PlatformNotSupportedException(hardwareReason ?? "In-process LLamaSharp is unsupported on this hardware.");
         }
 
@@ -262,6 +338,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             // If the same model is already loaded, skip reloading
             if (string.Equals(_currentModelPath, modelPath, StringComparison.OrdinalIgnoreCase) && IsModelLoaded)
             {
+                SetStatus(LlmLifecyclePhase.Ready, $"Modello '{Path.GetFileName(modelPath)}' già presente in memoria e pronto.");
                 return;
             }
 
@@ -270,16 +347,20 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
             var stopwatch = Stopwatch.StartNew();
 
+            int threads = settings.ThreadCount > 0 ? settings.ThreadCount : Math.Max(1, Environment.ProcessorCount);
+            SetStatus(LlmLifecyclePhase.AllocatingContext, $"Allocazione parametri runtime (Threads: {threads}, GPU Layers: {settings.GpuLayerCount}, Context: {settings.ContextSize})...");
+
             var parameters = new ModelParams(modelPath)
             {
                 ContextSize = (uint)Math.Max(512, settings.ContextSize),
                 GpuLayerCount = settings.GpuLayerCount,
-                Threads = settings.ThreadCount > 0 ? settings.ThreadCount : Math.Max(1, Environment.ProcessorCount),
+                Threads = threads,
                 BatchSize = (uint)Math.Max(64, settings.BatchSize),
                 UseMemorymap = settings.UseMemoryMapping,
                 UseMemoryLock = settings.UseMemoryLock
             };
 
+            SetStatus(LlmLifecyclePhase.LoadingWeights, $"Caricamento pesi e tensori del modello '{Path.GetFileName(modelPath)}' in memoria...");
             var weights = await Task.Run(() => LLamaWeights.LoadFromFile(parameters), ct).ConfigureAwait(false);
             var executor = new StatelessExecutor(weights, parameters);
 
@@ -287,9 +368,21 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             _executor = executor;
             _modelParams = parameters;
             _currentModelPath = modelPath;
+            IsWarmedUp = false;
 
             stopwatch.Stop();
             LastLoadTimeMs = stopwatch.ElapsedMilliseconds;
+            SetStatus(LlmLifecyclePhase.Ready, $"Modello caricato in memoria con successo in {LastLoadTimeMs} ms (in attesa di warmup).", LastLoadTimeMs, 1.0);
+        }
+        catch (OperationCanceledException)
+        {
+            SetStatus(LlmLifecyclePhase.Unloaded, "Caricamento modello annullato su richiesta.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            SetStatus(LlmLifecyclePhase.Error, $"Errore durante il caricamento del modello: {ex.Message}");
+            throw;
         }
         finally
         {
@@ -302,6 +395,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     /// </summary>
     public async Task UnloadModelAsync()
     {
+        SetStatus(LlmLifecyclePhase.Unloading, "Rilascio memoria del modello locale...");
         await _inferenceLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -324,9 +418,12 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         _executor = null;
         _modelParams = null;
         _currentModelPath = null;
+        IsWarmedUp = false;
+        LastWarmupError = null;
 
         // Hint GC to collect unmanaged memory wrappers
         GC.Collect(2, GCCollectionMode.Optimized, false);
+        SetStatus(LlmLifecyclePhase.Unloaded, "Nessun modello caricato in memoria.");
     }
 
     /// <summary>
@@ -336,12 +433,19 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     {
         if (!IsModelLoaded || _executor == null)
         {
+            SetStatus(LlmLifecyclePhase.Error, "Impossibile eseguire warmup: nessun modello caricato in memoria.");
             return;
         }
+
+        SetStatus(LlmLifecyclePhase.WarmingUp, "Avvio warmup LLM: allocazione context e pre-caching tensori...");
+        var warmupSw = Stopwatch.StartNew();
 
         await _inferenceLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            ct.ThrowIfCancellationRequested();
+            SetStatus(LlmLifecyclePhase.WarmingUp, "Warmup in corso: invio prompt di prova ('Hello') per attivazione GPU/CPU pipeline...");
+
             var sampling = new DefaultSamplingPipeline
             {
                 Temperature = 0.1f,
@@ -358,10 +462,25 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             {
                 break;
             }
+
+            warmupSw.Stop();
+            LastWarmupTimeMs = warmupSw.ElapsedMilliseconds;
+            IsWarmedUp = true;
+            LastWarmupError = null;
+            SetStatus(LlmLifecyclePhase.Ready, $"Warmup completato con successo in {LastWarmupTimeMs} ms! Context inizializzato e pronto all'inferenza.", LastWarmupTimeMs, 1.0);
         }
-        catch
+        catch (OperationCanceledException)
         {
-            // Warmup failure should not crash initialization
+            warmupSw.Stop();
+            SetStatus(LlmLifecyclePhase.Ready, "Warmup interrotto su richiesta.");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            warmupSw.Stop();
+            IsWarmedUp = false;
+            LastWarmupError = ex.Message;
+            SetStatus(LlmLifecyclePhase.Error, $"Warmup non riuscito: {ex.Message}");
         }
         finally
         {
@@ -376,6 +495,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
         if (!IsModelLoaded || _executor == null)
         {
+            SetStatus(LlmLifecyclePhase.Error, "Inferenza non possibile: modello non caricato.");
             return new LlmResponse
             {
                 IsSuccess = false,
@@ -388,9 +508,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         bool isFirstToken = true;
         int tokenCount = 0;
 
+        SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: acquisizione lock ed elaborazione screenshot...");
         await _inferenceLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            ct.ThrowIfCancellationRequested();
             var promptBuilder = new StringBuilder();
             promptBuilder.AppendLine("<|im_start|>system");
             promptBuilder.AppendLine(request.SystemPrompt);
@@ -418,6 +540,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             };
 
             var outputBuilder = new StringBuilder();
+            SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: streaming token da modello locale...");
 
             await foreach (var text in _executor.InferAsync(prompt, inferenceParams, ct).ConfigureAwait(false))
             {
@@ -443,6 +566,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             var rawContent = outputBuilder.ToString().Trim();
             var parsedAction = LlmResponseParser.Parse(rawContent);
 
+            SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);
+
             return new LlmResponse
             {
                 RawContent = rawContent,
@@ -455,14 +580,12 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
         catch (OperationCanceledException)
         {
-            return new LlmResponse
-            {
-                IsSuccess = false,
-                Error = "Local inference was cancelled."
-            };
+            SetStatus(LlmLifecyclePhase.Ready, "Inferenza locale interrotta su richiesta.");
+            throw;
         }
         catch (Exception ex)
         {
+            SetStatus(LlmLifecyclePhase.Error, $"Errore inferenza locale: {ex.Message}");
             return new LlmResponse
             {
                 IsSuccess = false,

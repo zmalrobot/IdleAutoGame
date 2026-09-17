@@ -274,4 +274,32 @@ public class AutomationEngineTests
         var tapCommands = _deviceController.ExecutedCommands.FindAll(c => c.StartsWith("Tap("));
         tapCommands.Count.Should().BeGreaterThanOrEqualTo(3);
     }
+
+    [Fact]
+    public async Task StopAsync_TransitionsToStopped_WithoutErrorState()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(50);
+
+        await engine.StopAsync();
+
+        engine.State.Should().Be(AutomationState.Stopped);
+        engine.PauseReason.Should().Contain("arrestata dall'utente");
+    }
+
+    [Fact]
+    public async Task EmergencyStopAsync_SetsStoppedAndCleansErrors()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(50);
+
+        await engine.EmergencyStopAsync();
+
+        engine.State.Should().Be(AutomationState.Stopped);
+        engine.PauseReason.Should().Contain("emergenza");
+    }
 }

@@ -4,7 +4,7 @@
              x:Class="IdleAutoGame.Presentation.Views.DashboardView"
              x:DataType="vm:DashboardViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
         <!-- Row 0: Top Controls Bar -->
         <Border Grid.Row="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
             <DockPanel>
@@ -27,6 +27,9 @@
                         <TextBlock Text="STATO AGENTE:" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                         <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="10,4">
                             <TextBlock Text="{Binding AgentStateText}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                        </Border>
+                        <Border Background="#332B00" BorderBrush="{DynamicResource WarningBrush}" BorderThickness="1" CornerRadius="6" Padding="8,4" IsVisible="{Binding IsLlmWarmingUp}">
+                            <TextBlock Text="🔥 WARMUP IN CORSO" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                         </Border>
                     </StackPanel>
 
@@ -67,11 +70,14 @@
                             <DockPanel>
                                 <TextBlock Text="🧠 MODELLO LLM" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="3" Padding="6,1">
-                                    <TextBlock Text="{Binding ActiveModelStatus}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
+                                    <TextBlock Text="{Binding LlmPhaseText}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
                                 </Border>
                             </DockPanel>
                             <TextBlock Text="{Binding ActiveModelName}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Text="{Binding ActiveModelProvider, StringFormat='Provider: {0}'}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                            <DockPanel>
+                                <TextBlock Text="{Binding ActiveModelProvider, StringFormat='Provider: {0}'}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding LlmStatusDetail}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis" MaxWidth="120" HorizontalAlignment="Right"/>
+                            </DockPanel>
                         </StackPanel>
                     </Border>
 
@@ -124,8 +130,77 @@
             </Grid>
         </Border>
 
-        <!-- Row 2: Alert / Pause Reason Banner -->
-        <Border Grid.Row="2" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
+        <!-- Row 2: Pipeline Step Tracker (Active Cycle Progress) -->
+        <Border Grid.Row="2" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14,10" Margin="0,0,0,16">
+            <Border.Styles>
+                <Style Selector="Border.step-card">
+                    <Setter Property="Background" Value="{DynamicResource Surface2Brush}"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource BorderDarkBrush}"/>
+                    <Setter Property="BorderThickness" Value="1"/>
+                    <Setter Property="CornerRadius" Value="6"/>
+                    <Setter Property="Padding" Value="10,6"/>
+                </Style>
+                <Style Selector="Border.step-card.active">
+                    <Setter Property="Background" Value="#1A3333"/>
+                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+                    <Setter Property="BorderThickness" Value="2"/>
+                </Style>
+            </Border.Styles>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,16,0">
+                    <TextBlock Text="PIPELINE ATTIVA" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource AccentBrush}"/>
+                    <TextBlock Text="{Binding LlmStatusDetail}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" MaxWidth="160" TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,Auto,*,Auto,*,Auto,*,Auto,*">
+                    <!-- Step 1: Screenshot -->
+                    <Border Grid.Column="0" Classes="step-card" Classes.active="{Binding IsStep1Active}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="📸 1. Screenshot" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Cattura frame ADB" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Grid.Column="1" Text="➔" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center" Margin="6,0"/>
+
+                    <!-- Step 2: LLM Inference / Warmup -->
+                    <Border Grid.Column="2" Classes="step-card" Classes.active="{Binding IsStep2Active}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="🧠 2. Analisi LLM" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding LlmPhaseText}" FontSize="9" Foreground="{DynamicResource SecondaryLightBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Grid.Column="3" Text="➔" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center" Margin="6,0"/>
+
+                    <!-- Step 3: Validazione Policy -->
+                    <Border Grid.Column="4" Classes="step-card" Classes.active="{Binding IsStep3Active}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="🛡️ 3. Validazione" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Security &amp; Bounds" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Grid.Column="5" Text="➔" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center" Margin="6,0"/>
+
+                    <!-- Step 4: Esecuzione ADB -->
+                    <Border Grid.Column="6" Classes="step-card" Classes.active="{Binding IsStep4Active}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="👆 4. Esecuzione" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Gesture Touch ADB" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Grid.Column="7" Text="➔" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center" Margin="6,0"/>
+
+                    <!-- Step 5: Cooldown -->
+                    <Border Grid.Column="8" Classes="step-card" Classes.active="{Binding IsStep5Active}">
+                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="2">
+                            <TextBlock Text="⏱️ 5. Cooldown" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Pausa intervallo" FontSize="9" Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <!-- Row 3: Alert / Pause Reason Banner -->
+        <Border Grid.Row="3" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
                 CornerRadius="8" Padding="14" Margin="0,0,0,16" IsVisible="{Binding IsPausedOrAlert}">
             <Grid ColumnDefinitions="Auto,*">
                 <TextBlock Grid.Column="0" Text="⚠️" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center"/>
@@ -136,8 +211,8 @@
             </Grid>
         </Border>
 
-        <!-- Row 3: Main Dashboard Split -->
-        <Grid Grid.Row="3" ColumnDefinitions="420,*">
+        <!-- Row 4: Main Dashboard Split -->
+        <Grid Grid.Row="4" ColumnDefinitions="420,*">
             <!-- Left: Decisions & Overrides -->
             <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,16,0">
                 <!-- Current Decision Card -->
@@ -265,12 +340,15 @@
                             <ListBox.ItemTemplate>
                                 <DataTemplate>
                                     <Border Padding="8" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource BorderDarkBrush}">
-                                        <Grid ColumnDefinitions="60,80,120,*,80">
-                                            <TextBlock Grid.Column="0" Text="{Binding CycleNumber, StringFormat='#{0}'}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding Action.Action}" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock Grid.Column="2" Text="{Binding Action.GameState}" Foreground="{DynamicResource WarningBrush}"/>
-                                            <TextBlock Grid.Column="3" Text="{Binding Action.Explanation}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Grid.Column="4" Text="{Binding LlmLatencyMs, StringFormat='{}{0} ms'}" Foreground="{DynamicResource TextDisabledBrush}" HorizontalAlignment="Right"/>
+                                        <Grid ColumnDefinitions="45,110,80,100,*,75">
+                                            <TextBlock Grid.Column="0" Text="{Binding CycleNumber, StringFormat='#{0}'}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}" VerticalAlignment="Center"/>
+                                            <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderThickness="1" BorderBrush="{DynamicResource BorderLightBrush}" CornerRadius="4" Padding="5,2" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding StatusBadge}" FontSize="9" FontWeight="Bold" Foreground="{Binding StatusColor}"/>
+                                            </Border>
+                                            <TextBlock Grid.Column="2" Text="{Binding Action.Action}" Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding Action.GameState}" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding Action.Explanation}" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding LlmLatencyMs, StringFormat='{}{0} ms'}" Foreground="{DynamicResource TextDisabledBrush}" HorizontalAlignment="Right" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>
                                 </DataTemplate>

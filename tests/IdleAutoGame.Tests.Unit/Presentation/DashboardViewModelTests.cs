@@ -133,6 +133,49 @@ public class DashboardViewModelTests
         await _viewModel.StopAutomationAsync();
     }
 
+    [Fact]
+    public void CanStart_IsTrue_WhenStateIsError_AllowingRecovery()
+    {
+        _viewModel.State = AutomationState.Error;
+        _viewModel.CanStart.Should().BeTrue("user should be able to recover and restart after an error");
+        _viewModel.CanStop.Should().BeTrue("user should be able to stop and reset after an error");
+        _viewModel.IsPausedOrAlert.Should().BeTrue("alert banner should be visible on Error");
+    }
+
+    [Fact]
+    public void PipelineSteps_TrackStateAccurately()
+    {
+        _viewModel.CurrentPipelineStep = 0;
+        _viewModel.IsStep1Active.Should().BeFalse();
+
+        _viewModel.CurrentPipelineStep = 1;
+        _viewModel.IsStep1Active.Should().BeTrue();
+        _viewModel.IsStep2Active.Should().BeFalse();
+
+        _viewModel.CurrentPipelineStep = 2;
+        _viewModel.IsStep2Active.Should().BeTrue();
+
+        _viewModel.CurrentPipelineStep = 3;
+        _viewModel.IsStep3Active.Should().BeTrue();
+
+        _viewModel.CurrentPipelineStep = 4;
+        _viewModel.IsStep4Active.Should().BeTrue();
+
+        _viewModel.CurrentPipelineStep = 5;
+        _viewModel.IsStep5Active.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task StopAutomationAsync_ResetsPipelineStepsToZero()
+    {
+        _viewModel.CurrentPipelineStep = 2;
+        await _viewModel.StopAutomationAsync();
+
+        _viewModel.CurrentPipelineStep.Should().Be(0);
+        _viewModel.IsStep1Active.Should().BeFalse();
+        _viewModel.IsStep2Active.Should().BeFalse();
+    }
+
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
     {
         private AppSettings _s = new();

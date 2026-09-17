@@ -161,7 +161,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
         lock (_stateLock)
         {
-            if (_state != AutomationState.Idle && _state != AutomationState.Stopped)
+            if (_state != AutomationState.Idle && _state != AutomationState.Stopped && _state != AutomationState.Error)
             {
                 throw new InvalidOperationException($"Cannot start automation while in state: {_state}");
             }
@@ -265,10 +265,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         {
             if (_state is AutomationState.Idle or AutomationState.Stopped) return;
             State = AutomationState.Stopping;
+            _pauseReason = null;
         }
 
         // 1. Immediate cancellation signal
-        _loopCts?.Cancel();
+        try { _loopCts?.Cancel(); } catch (ObjectDisposedException) { }
         try { _currentCycleCts?.Cancel(); } catch (ObjectDisposedException) { }
         _resumeTcs?.TrySetCanceled();
 
@@ -286,7 +287,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             }
             catch (OperationCanceledException)
             {
-                // Fallback: Emergency Termination (Hard Kill) if cancellation fails to terminate
+                // Fallback: graceful drain timeout before decoupling
                 if (!_loopTask.IsCompleted)
                 {
                     var emergencyTimeoutMs = _settings.Automation.EmergencyStopTimeoutMs > 0
@@ -300,9 +301,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                     }
                     catch
                     {
-                        // Hard kill emergency fallback: mark error state
-                        State = AutomationState.Error;
-                        _pauseReason = "Emergency termination: Automation loop failed to respond to cancellation.";
+                        // Decouple - loop didn't yield unmanaged execution in time, but user requested stop
                     }
                 }
             }
@@ -313,9 +312,18 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         }
 
         // 3. Finalize session
-        await _sessionRecorder.EndSessionAsync().ConfigureAwait(false);
-        if (State != AutomationState.Error)
+        try
         {
+            await _sessionRecorder.EndSessionAsync().ConfigureAwait(false);
+        }
+        catch
+        {
+            // Suppress cleanup exceptions during shutdown
+        }
+
+        lock (_stateLock)
+        {
+            _pauseReason = "Automazione arrestata dall'utente.";
             State = AutomationState.Stopped;
         }
     }
@@ -335,7 +343,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         try { _currentCycleCts?.Cancel(); } catch { }
         try { _resumeTcs?.TrySetCanceled(); } catch { }
 
-        // 2. Fast timeout termination
+        // 2. Fast timeout termination (non-blocking decouple)
         if (_loopTask != null && !_loopTask.IsCompleted)
         {
             try
@@ -359,7 +367,13 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             // Suppress cleanup exceptions during emergency shutdown
         }
 
-        State = AutomationState.Stopped;
+        lock (_stateLock)
+        {
+            _consecutiveErrors = 0;
+            _consecutiveUnknownStates = 0;
+            _pauseReason = "Arresto di emergenza completato. Sistema in sicurezza.";
+            State = AutomationState.Stopped;
+        }
     }
 
     /// <inheritdoc />
@@ -600,20 +614,30 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
                     _consecutiveErrors = 0;
                 }
-                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                catch (OperationCanceledException) when (ct.IsCancellationRequested || State is AutomationState.Stopping or AutomationState.Stopped)
                 {
                     break;
                 }
                 catch (OperationCanceledException)
                 {
-                    // In-flight cycle cancelled due to pause, dynamic policy update, or stop
+                    // In-flight cycle cancelled due to pause or dynamic policy update
+                    if (State is AutomationState.Stopping or AutomationState.Stopped)
+                    {
+                        break;
+                    }
+
                     string cancelMsg = State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked
                         ? $"Cycle paused by user ({PauseReason ?? "Paused"})."
-                        : "Cycle cancelled due to dynamic policy update or stop.";
+                        : "Cycle cancelled due to dynamic policy update.";
                     errors.Add(cancelMsg);
                 }
                 catch (Exception ex)
                 {
+                    if (ct.IsCancellationRequested || State is AutomationState.Stopping or AutomationState.Stopped)
+                    {
+                        break;
+                    }
+
                     errors.Add($"Unhandled cycle error: {ex.Message}");
                     await HandleErrorPolicyAsync(ex.Message, ct).ConfigureAwait(false);
                 }
@@ -622,24 +646,37 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                     _currentCycleCts = null;
                     cycleStopwatch.Stop();
 
-                    var record = new CycleRecord
-                    {
-                        CycleNumber = cycleNumber,
-                        StartedAt = DateTimeOffset.UtcNow - cycleStopwatch.Elapsed,
-                        Screenshot = screenshot,
-                        PromptSent = $"Cycle #{cycleNumber}",
-                        RawResponse = rawResponse,
-                        Action = parsedAction,
-                        ValidationPassed = validationPassed,
-                        ActionExecuted = actionExecuted,
-                        ExecutionResult = executionResult,
-                        Duration = cycleStopwatch.Elapsed,
-                        Errors = errors,
-                        LlmLatencyMs = llmLatencyMs
-                    };
+                    bool isStoppingOrStopped = ct.IsCancellationRequested || State is AutomationState.Stopping or AutomationState.Stopped;
 
-                    await _sessionRecorder.RecordCycleAsync(record, CancellationToken.None).ConfigureAwait(false);
-                    CycleCompleted?.Invoke(this, record);
+                    // Only record and emit cycle if it executed an action or was a real completed/paused cycle, not an aborted stop
+                    if (!isStoppingOrStopped || actionExecuted)
+                    {
+                        var record = new CycleRecord
+                        {
+                            CycleNumber = cycleNumber,
+                            StartedAt = DateTimeOffset.UtcNow - cycleStopwatch.Elapsed,
+                            Screenshot = screenshot,
+                            PromptSent = $"Cycle #{cycleNumber}",
+                            RawResponse = rawResponse,
+                            Action = parsedAction,
+                            ValidationPassed = validationPassed,
+                            ActionExecuted = actionExecuted,
+                            ExecutionResult = executionResult ?? (isStoppingOrStopped ? "Completato prima dell'arresto" : null),
+                            Duration = cycleStopwatch.Elapsed,
+                            Errors = isStoppingOrStopped ? new List<string>() : errors,
+                            LlmLatencyMs = llmLatencyMs
+                        };
+
+                        try
+                        {
+                            await _sessionRecorder.RecordCycleAsync(record, CancellationToken.None).ConfigureAwait(false);
+                            CycleCompleted?.Invoke(this, record);
+                        }
+                        catch
+                        {
+                            // Suppress recording errors during teardown
+                        }
+                    }
                 }
 
                 // 6. Waiting: Cooldown / Interval delay
