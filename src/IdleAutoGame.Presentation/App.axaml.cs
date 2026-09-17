@@ -132,6 +132,14 @@ public partial class App : Avalonia.Application
                 config.Llm.Provider.Equals("local", StringComparison.OrdinalIgnoreCase) ||
                 config.Llm.Provider.Equals("local-llama", StringComparison.OrdinalIgnoreCase))
             {
+                if (!LocalLlamaProvider.IsHardwareSupported(out _))
+                {
+                    return new LlamaCppProvider(
+                        httpClient: client,
+                        endpoint: config.Llm.Endpoint,
+                        modelId: config.Llm.SelectedModelId);
+                }
+
                 var localProvider = sp.GetRequiredService<LocalLlamaProvider>();
                 var modelManager = sp.GetRequiredService<IModelManager>();
 

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics.X86;
 using System.Text;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
@@ -49,6 +51,28 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     public double LastTokensPerSecond { get; private set; }
 
     /// <summary>
+    /// Checks whether the host system architecture and CPU instruction extensions support running the precompiled in-process LLamaSharp binaries.
+    /// </summary>
+    /// <param name="unsupportedReason">The diagnostic message explaining why in-process execution is unsupported, if any.</param>
+    /// <returns><c>true</c> if supported; otherwise, <c>false</c>.</returns>
+    public static bool IsHardwareSupported(out string? unsupportedReason)
+    {
+        if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+        {
+            // The bundled LLamaSharp native libraries contain FMA3 (vfmadd213ss) and BMI2 (shlx) instructions.
+            // On x64 CPUs lacking these extensions, executing them causes an OS SIGILL (illegal instruction) terminating the process.
+            if (!Fma.IsSupported || !Bmi2.IsSupported)
+            {
+                unsupportedReason = "Precompiled in-process LLamaSharp native backend requires AVX2/FMA3/BMI2 instructions, which are not supported by this CPU.";
+                return false;
+            }
+        }
+
+        unsupportedReason = null;
+        return true;
+    }
+
+    /// <summary>
     /// Loads and initializes a GGUF model using LLamaSharp.
     /// </summary>
     public async Task LoadModelAsync(string modelPath, LlmSettings settings, CancellationToken ct = default)
@@ -59,6 +83,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         if (!File.Exists(modelPath))
         {
             throw new FileNotFoundException($"Model file not found at path: {modelPath}", modelPath);
+        }
+
+        if (!IsHardwareSupported(out var hardwareReason))
+        {
+            throw new PlatformNotSupportedException(hardwareReason ?? "In-process LLamaSharp is unsupported on this hardware.");
         }
 
         await _inferenceLock.WaitAsync(ct).ConfigureAwait(false);

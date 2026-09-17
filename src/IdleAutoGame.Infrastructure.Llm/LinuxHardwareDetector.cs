@@ -167,6 +167,18 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
             gpuName ??= "Windows Display Adapter / D3D12";
         }
 
+        bool supportsInProcessLlm = true;
+        string? inProcessLlmUnsupportedReason = null;
+
+        if (System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture == System.Runtime.InteropServices.Architecture.X64)
+        {
+            if (!System.Runtime.Intrinsics.X86.Fma.IsSupported || !System.Runtime.Intrinsics.X86.Bmi2.IsSupported)
+            {
+                supportsInProcessLlm = false;
+                inProcessLlmUnsupportedReason = "CPU lacks AVX2/FMA3/BMI2 instructions required for in-process LLamaSharp inference.";
+            }
+        }
+
         return new HardwareInfo
         {
             TotalRamMb = totalRamMb,
@@ -174,7 +186,9 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
             CpuName = cpuName,
             CpuCores = cpuCores,
             GpuName = gpuName,
-            VramMb = vramMb
+            VramMb = vramMb,
+            SupportsInProcessLlm = supportsInProcessLlm,
+            InProcessLlmUnsupportedReason = inProcessLlmUnsupportedReason
         };
     }
 

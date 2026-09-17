@@ -36,6 +36,16 @@ public sealed record HardwareInfo
     public long? VramMb { get; init; }
 
     /// <summary>
+    /// Gets a value indicating whether the host CPU supports running in-process LLamaSharp inference.
+    /// </summary>
+    public bool SupportsInProcessLlm { get; init; } = true;
+
+    /// <summary>
+    /// Gets the reason why in-process LLM execution is unsupported on this host hardware, if any.
+    /// </summary>
+    public string? InProcessLlmUnsupportedReason { get; init; }
+
+    /// <summary>
     /// Gets an empty hardware profile with zeroed values.
     /// </summary>
     public static HardwareInfo Empty => new();

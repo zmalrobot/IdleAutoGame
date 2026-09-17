@@ -108,6 +108,44 @@ public class SettingsViewModelTests
         _viewModel.LlmEndpoint.Should().Be("http://localhost:8080");
     }
 
+    [Fact]
+    public async Task SelectActiveModelAsync_WhenHardwareNotSupported_FallsBackToLlamaCppMode()
+    {
+        if (LocalLlamaProvider.IsHardwareSupported(out _))
+        {
+            return;
+        }
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var model = new LocalModel
+            {
+                Id = "test-model",
+                Name = "Test Model",
+                DisplayName = "Test Model Display",
+                RamRequirementMb = 2048,
+                FileSize = 1000
+            };
+
+            _modelManager.IsModelInstalledAsync("test-model").Returns(true);
+            _modelManager.GetModelFilePath("test-model").Returns(tempFile);
+
+            await _viewModel.SelectActiveModelAsync(model);
+
+            _viewModel.LlmProvider.Should().Be("llama.cpp");
+            _viewModel.StatusMessage.Should().Contain("llama.cpp");
+            _configService.Current.Llm.Provider.Should().Be("llama.cpp");
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
+
     private class InMemorySettingsRepo : ISettingsRepository
     {
         private AppSettings _s = new();

@@ -343,6 +343,19 @@ public partial class SettingsViewModel : ViewModelBase
             StatusMessage = $"Model '{model.DisplayName}' is now active and loaded.";
             await RefreshLocalModelsAsync();
         }
+        catch (PlatformNotSupportedException ex)
+        {
+            current.Llm.Provider = "llama.cpp";
+            if (string.IsNullOrWhiteSpace(current.Llm.Endpoint) || current.Llm.Endpoint.Contains("localhost") || current.Llm.Endpoint.Contains("127.0.0.1"))
+            {
+                current.Llm.Endpoint = "http://127.0.0.1:8080";
+            }
+            _modelManager.MarkModelInUse(model.Id, true);
+            await _configService.UpdateSettingsAsync(current);
+            LlmProvider = "llama.cpp";
+            StatusMessage = $"Model saved! In-process LLamaSharp unsupported on this CPU ({ex.Message}). Configured llama.cpp server mode ({current.Llm.Endpoint}).";
+            await RefreshLocalModelsAsync();
+        }
         catch (Exception ex)
         {
             StatusMessage = $"Failed to load model: {ex.Message}";

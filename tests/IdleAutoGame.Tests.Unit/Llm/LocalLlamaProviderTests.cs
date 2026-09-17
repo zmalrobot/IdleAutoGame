@@ -74,5 +74,45 @@ public class LocalLlamaProviderTests
 
         provider.IsModelLoaded.Should().BeFalse();
     }
+
+    [Fact]
+    public void IsHardwareSupported_ReturnsConsistentStatus()
+    {
+        bool supported = LocalLlamaProvider.IsHardwareSupported(out var reason);
+        if (!supported)
+        {
+            reason.Should().NotBeNullOrWhiteSpace();
+        }
+        else
+        {
+            reason.Should().BeNull();
+        }
+    }
+
+    [Fact]
+    public async Task LoadModelAsync_WhenHardwareNotSupported_ThrowsPlatformNotSupportedException()
+    {
+        if (LocalLlamaProvider.IsHardwareSupported(out _))
+        {
+            // On machines with AVX2/FMA/BMI2 instructions, skip this test
+            return;
+        }
+
+        using var provider = new LocalLlamaProvider();
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            var settings = new LlmSettings();
+            var act = async () => await provider.LoadModelAsync(tempFile, settings);
+            await act.Should().ThrowAsync<PlatformNotSupportedException>();
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
 }
 

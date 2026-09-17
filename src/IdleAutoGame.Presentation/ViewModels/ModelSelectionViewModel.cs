@@ -261,10 +261,21 @@ public partial class ModelSelectionViewModel : ViewModelBase
                 await _localProvider.WarmupAsync();
                 _modelManager.MarkModelInUse(SelectedLocalModel.Model.Id, true);
             }
+            catch (PlatformNotSupportedException ex)
+            {
+                current.Llm.Provider = "llama.cpp";
+                if (string.IsNullOrWhiteSpace(current.Llm.Endpoint) || current.Llm.Endpoint.Contains("localhost") || current.Llm.Endpoint.Contains("127.0.0.1"))
+                {
+                    current.Llm.Endpoint = "http://127.0.0.1:8080";
+                }
+                _modelManager.MarkModelInUse(SelectedLocalModel.Model.Id, true);
+                await _configService.UpdateSettingsAsync(current);
+                StatusMessage = $"Model saved! In-process LLamaSharp unsupported on this CPU ({ex.Message}). Configured llama.cpp local server mode ({current.Llm.Endpoint}).";
+                return;
+            }
             catch (Exception ex)
             {
                 StatusMessage = $"Failed to load local model: {ex.Message}";
-                IsBusy = false;
                 return;
             }
             finally

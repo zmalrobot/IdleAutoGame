@@ -111,5 +111,40 @@ public class ModelSelectionViewModelTests
             s.Llm.Endpoint == "https://api.openai.com/v1" &&
             s.Llm.ApiKey == "sk-secret-test"));
     }
+
+    [Fact]
+    public async Task SaveSelectionAsync_WhenHardwareNotSupported_FallsBackToLlamaCppMode()
+    {
+        if (LocalLlamaProvider.IsHardwareSupported(out _))
+        {
+            return;
+        }
+
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            _hardwareDetector.DetectAsync().Returns(new HardwareInfo { TotalRamMb = 16384, AvailableRamMb = 12000 });
+            _modelManager.IsModelInstalledAsync(Arg.Any<string>()).Returns(true);
+            _modelManager.GetModelFilePath(Arg.Any<string>()).Returns(tempFile);
+
+            var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _localProvider);
+            await vm.LoadModelsAsync();
+
+            vm.IsLocalMode = true;
+            vm.SelectedLocalModel = vm.RecommendedLocalModels.First(m => m.IsCompatible);
+
+            await vm.SaveSelectionAsync();
+
+            vm.StatusMessage.Should().Contain("llama.cpp");
+            await _configService.Received().UpdateSettingsAsync(Arg.Is<AppSettings>(s => s.Llm.Provider == "llama.cpp"));
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+            {
+                File.Delete(tempFile);
+            }
+        }
+    }
 }
 
