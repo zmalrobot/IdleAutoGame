@@ -37,4 +37,11 @@
     <ProjectReference Include="..\IdleAutoGame.Infrastructure.Persistence\IdleAutoGame.Infrastructure.Persistence.csproj" />
     <ProjectReference Include="..\IdleAutoGame.Games.TapTitans2\IdleAutoGame.Games.TapTitans2.csproj" />
   </ItemGroup>
+
+  <ItemGroup Condition="Exists('$(MSBuildProjectDirectory)\..\..\native\runtimes')">
+    <Content Include="$(MSBuildProjectDirectory)\..\..\native\runtimes\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>runtimes\%(RecursiveDir)%(Filename)%(Extension)</Link>
+    </Content>
+  </ItemGroup>
 </Project>

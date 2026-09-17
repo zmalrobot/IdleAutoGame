@@ -95,6 +95,14 @@ if [ -f "${ROOT_DIR}/scripts/idle-auto-game.png" ]; then
     cp "${ROOT_DIR}/scripts/idle-auto-game.png" "${OUTPUT_DIR}/"
 fi
 
+# Deploy fallback llama.cpp runtime if targeting linux-x64
+if [[ "${TARGET_RID}" == "linux-x64"* ]]; then
+    log_info "Deploying fallback native llama.cpp runtime for ${TARGET_RID}..."
+    if [ -x "${SCRIPT_DIR}/build-native-fallback.sh" ]; then
+        "${SCRIPT_DIR}/build-native-fallback.sh" "${OUTPUT_DIR}/runtimes/linux-x64-fallback/native" || log_warn "Fallback native build skipped or failed; continuing publish."
+    fi
+fi
+
 # Ensure executable bit on produced binary
 TARGET_BIN="${OUTPUT_DIR}/IdleAutoGame.Presentation"
 if [ -f "${TARGET_BIN}" ]; then

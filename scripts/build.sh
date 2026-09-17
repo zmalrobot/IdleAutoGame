@@ -64,17 +64,23 @@ fi
 
 # 4. Build Release
 log_info "Building solution in Release configuration..."
-if dotnet build "${SOLUTION_FILE}" -c Release --no-restore; then
-    echo ""
-    echo -e "${COLOR_GREEN}================================${COLOR_RESET}"
-    echo -e "${COLOR_GREEN} BUILD SUCCESS${COLOR_RESET}"
-    echo -e "${COLOR_GREEN}================================${COLOR_RESET}"
-    exit 0
-else
+if ! dotnet build "${SOLUTION_FILE}" -c Release --no-restore; then
     echo ""
     echo -e "${COLOR_RED}================================${COLOR_RESET}"
     echo -e "${COLOR_RED} BUILD FAILED${COLOR_RESET}"
     echo -e "${COLOR_RED}================================${COLOR_RESET}"
     exit 1
 fi
+
+# 5. Native Fallback llama.cpp Runtime
+if [ -x "${SCRIPT_DIR}/build-native-fallback.sh" ]; then
+    log_info "Ensuring native fallback llama.cpp runtime is deployed..."
+    "${SCRIPT_DIR}/build-native-fallback.sh" "${ROOT_DIR}/src/IdleAutoGame.Presentation/bin/Release/net10.0/runtimes/linux-x64-fallback/native" || log_warn "Native fallback build skipped or failed; continuing."
+fi
+
+echo ""
+echo -e "${COLOR_GREEN}================================${COLOR_RESET}"
+echo -e "${COLOR_GREEN} BUILD SUCCESS${COLOR_RESET}"
+echo -e "${COLOR_GREEN}================================${COLOR_RESET}"
+exit 0
 

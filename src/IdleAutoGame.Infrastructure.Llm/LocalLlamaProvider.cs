@@ -6,6 +6,7 @@ using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using LLama;
 using LLama.Common;
+using LLama.Native;
 using LLama.Sampling;
 
 namespace IdleAutoGame.Infrastructure.Llm;
@@ -50,26 +51,191 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     /// </summary>
     public double LastTokensPerSecond { get; private set; }
 
+    private static readonly object _initLock = new();
+    private static bool _initialized;
+    private static bool _isSupported;
+    private static string _activeBackend = "Uninitialized";
+    private static bool _isFallback;
+
     /// <summary>
-    /// Checks whether the host system architecture and CPU instruction extensions support running the precompiled in-process LLamaSharp binaries.
+    /// Gets a human-readable description of the active native llama.cpp backend ("Classica", "Fallback", or diagnostic reason).
+    /// </summary>
+    public static string ActiveBackend
+    {
+        get
+        {
+            EnsureBackendConfigured();
+            return _activeBackend;
+        }
+    }
+
+    /// <summary>
+    /// Gets a value indicating whether the fallback runtime (AVX 1.0 / x86-64-v2 without FMA/BMI2) is currently active.
+    /// </summary>
+    public static bool IsFallbackActive
+    {
+        get
+        {
+            EnsureBackendConfigured();
+            return _isFallback;
+        }
+    }
+
+    /// <summary>
+    /// Ensures that the native LLamaSharp backend is properly detected, configured, and bound for the current CPU architecture.
+    /// </summary>
+    public static bool EnsureBackendConfigured()
+    {
+        if (_initialized)
+        {
+            return _isSupported;
+        }
+
+        lock (_initLock)
+        {
+            if (_initialized)
+            {
+                return _isSupported;
+            }
+
+            if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+            {
+                if (Fma.IsSupported && Bmi2.IsSupported)
+                {
+                    _activeBackend = "Classica (AVX2/FMA/BMI2)";
+                    _isFallback = false;
+                    _isSupported = true;
+                    _initialized = true;
+                    return true;
+                }
+
+                // The host CPU lacks AVX2/FMA3/BMI2 instructions (e.g. Ivy Bridge, Sandy Bridge).
+                // Search for custom-built fallback native runtime.
+                var subDir = OperatingSystem.IsWindows() ? "win-x64-fallback" : "linux-x64-fallback";
+                var fallbackDir = FindFallbackDirectory(subDir);
+
+                if (!string.IsNullOrEmpty(fallbackDir))
+                {
+                    var libExt = OperatingSystem.IsWindows() ? ".dll" : (OperatingSystem.IsMacOS() ? ".dylib" : ".so");
+                    var libLlama = OperatingSystem.IsWindows() ? "llama.dll" : $"libllama{libExt}";
+                    var libMtmd = OperatingSystem.IsWindows() ? "mtmd.dll" : $"libmtmd{libExt}";
+
+                    var fallbackLlama = Path.Combine(fallbackDir, libLlama);
+                    var fallbackMtmd = Path.Combine(fallbackDir, libMtmd);
+
+                    if (File.Exists(fallbackLlama))
+                    {
+                        try
+                        {
+                            NativeLibraryConfig.All.WithAutoFallback(false);
+                            if (File.Exists(fallbackMtmd))
+                            {
+                                NativeLibraryConfig.All.WithLibrary(fallbackLlama, fallbackMtmd);
+                            }
+                            else
+                            {
+                                NativeLibraryConfig.All.WithLibrary(fallbackLlama, null);
+                            }
+                            NativeLibraryConfig.All.WithSearchDirectory(fallbackDir);
+                            NativeLibraryConfig.All.SkipCheck(true);
+
+                            _activeBackend = "Fallback (x86-64-v2 / AVX1)";
+                            _isFallback = true;
+                            _isSupported = true;
+                            _initialized = true;
+                            return true;
+                        }
+                        catch (Exception ex)
+                        {
+                            _activeBackend = $"Fallback Error: {ex.Message}";
+                            _isFallback = false;
+                            _isSupported = false;
+                            _initialized = true;
+                            return false;
+                        }
+                    }
+                }
+
+                _activeBackend = "Unsupported (CPU lacks AVX2/FMA3/BMI2 instructions and fallback native runtime was not found)";
+                _isFallback = false;
+                _isSupported = false;
+                _initialized = true;
+                return false;
+            }
+
+            // Non-x64 architecture (e.g. ARM64)
+            _activeBackend = "Classica (Native Architecture)";
+            _isFallback = false;
+            _isSupported = true;
+            _initialized = true;
+            return true;
+        }
+    }
+
+    private static string? FindFallbackDirectory(string subDir)
+    {
+        var libName = OperatingSystem.IsWindows() ? "llama.dll" : (OperatingSystem.IsMacOS() ? "libllama.dylib" : "libllama.so");
+
+        var candidates = new List<string>
+        {
+            Path.Combine(AppContext.BaseDirectory, "runtimes", subDir, "native"),
+            Path.Combine(Directory.GetCurrentDirectory(), "runtimes", subDir, "native"),
+            Path.Combine(AppContext.BaseDirectory, "..", "IdleAutoGame.Presentation", "bin", "Release", "net10.0", "runtimes", subDir, "native"),
+            Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "src", "IdleAutoGame.Presentation", "bin", "Release", "net10.0", "runtimes", subDir, "native"),
+            Path.Combine(Directory.GetCurrentDirectory(), "src", "IdleAutoGame.Presentation", "bin", "Release", "net10.0", "runtimes", subDir, "native"),
+            Path.Combine(AppContext.BaseDirectory, "native", "runtimes", subDir, "native"),
+            Path.Combine(Directory.GetCurrentDirectory(), "native", "runtimes", subDir, "native")
+        };
+
+        try
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            for (int i = 0; i < 5 && dir != null; i++)
+            {
+                candidates.Add(Path.Combine(dir.FullName, "src", "IdleAutoGame.Presentation", "bin", "Release", "net10.0", "runtimes", subDir, "native"));
+                candidates.Add(Path.Combine(dir.FullName, "native", "runtimes", subDir, "native"));
+                dir = dir.Parent;
+            }
+        }
+        catch
+        {
+            // Ignore path navigation errors
+        }
+
+        foreach (var path in candidates)
+        {
+            try
+            {
+                var fullPath = Path.GetFullPath(path);
+                if (File.Exists(Path.Combine(fullPath, libName)))
+                {
+                    return fullPath;
+                }
+            }
+            catch
+            {
+                // Continue to next candidate
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Checks whether the host system architecture and CPU instruction extensions support running local in-process LLamaSharp inference.
     /// </summary>
     /// <param name="unsupportedReason">The diagnostic message explaining why in-process execution is unsupported, if any.</param>
     /// <returns><c>true</c> if supported; otherwise, <c>false</c>.</returns>
     public static bool IsHardwareSupported(out string? unsupportedReason)
     {
-        if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
+        if (EnsureBackendConfigured())
         {
-            // The bundled LLamaSharp native libraries contain FMA3 (vfmadd213ss) and BMI2 (shlx) instructions.
-            // On x64 CPUs lacking these extensions, executing them causes an OS SIGILL (illegal instruction) terminating the process.
-            if (!Fma.IsSupported || !Bmi2.IsSupported)
-            {
-                unsupportedReason = "Precompiled in-process LLamaSharp native backend requires AVX2/FMA3/BMI2 instructions, which are not supported by this CPU.";
-                return false;
-            }
+            unsupportedReason = null;
+            return true;
         }
 
-        unsupportedReason = null;
-        return true;
+        unsupportedReason = _activeBackend;
+        return false;
     }
 
     /// <summary>

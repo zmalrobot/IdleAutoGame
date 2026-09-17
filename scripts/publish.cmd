@@ -87,6 +87,12 @@ if exist "%ROOT_DIR%\scripts\idle-auto-game.png" (
     copy /y "%ROOT_DIR%\scripts\idle-auto-game.png" "%OUTPUT_DIR%\" >nul
 )
 
+rem Deploy fallback llama.cpp runtime for win-x64
+if exist "%SCRIPT_DIR%build-native-fallback.cmd" (
+    call "%SCRIPT_DIR%common.cmd" log_info "Checking native fallback runtime for %TARGET_RID%..."
+    call "%SCRIPT_DIR%build-native-fallback.cmd" "%OUTPUT_DIR%\runtimes\win-x64-fallback\native"
+)
+
 set "TARGET_EXE=%OUTPUT_DIR%\IdleAutoGame.Presentation.exe"
 if exist "%TARGET_EXE%" (
     echo.

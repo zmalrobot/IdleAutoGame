@@ -60,6 +60,12 @@ if !ERRORLEVEL! neq 0 (
     exit /b 1
 )
 
+rem 5. Native Fallback Runtime
+if exist "%SCRIPT_DIR%build-native-fallback.cmd" (
+    call "%SCRIPT_DIR%common.cmd" log_info "Checking native fallback runtime..."
+    call "%SCRIPT_DIR%build-native-fallback.cmd" "%ROOT_DIR%\src\IdleAutoGame.Presentation\bin\Release\net10.0\runtimes\win-x64-fallback\native"
+)
+
 echo.
 echo ================================
 echo  BUILD SUCCESS

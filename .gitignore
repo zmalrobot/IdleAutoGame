@@ -30,6 +30,10 @@ data.db-wal
 data.db-journal
 *.log
 
+## Native builds and local models
+native/
+models/
+
 ## OS Generated
 .DS_Store
 Thumbs.db

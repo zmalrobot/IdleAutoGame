@@ -114,5 +114,21 @@ public class LocalLlamaProviderTests
             }
         }
     }
+
+    [Fact]
+    public void ActiveBackend_ReturnsValidDescriptor()
+    {
+        var backend = LocalLlamaProvider.ActiveBackend;
+        backend.Should().NotBeNullOrWhiteSpace();
+        (backend.Contains("Classica") || backend.Contains("Fallback") || backend.Contains("Unsupported")).Should().BeTrue();
+    }
+
+    [Fact]
+    public void EnsureBackendConfigured_IsDeterministic()
+    {
+        bool first = LocalLlamaProvider.EnsureBackendConfigured();
+        bool second = LocalLlamaProvider.EnsureBackendConfigured();
+        first.Should().Be(second);
+    }
 }
 
