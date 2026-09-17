@@ -6,16 +6,55 @@ using IdleAutoGame.Core.Interfaces;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
+/// <summary>
+/// Display model wrapping a game definition with live active indicator.
+/// </summary>
+public sealed partial class GameDisplayItem : ObservableObject
+{
+    public IGameDefinition Game { get; }
+
+    [ObservableProperty]
+    private bool _isActive;
+
+    public string Id => Game.Id;
+    public string Name => Game.Name;
+    public string Description => Game.Description;
+    public string Version => Game.Version;
+    public string? ExpectedPackageName => Game.ExpectedPackageName;
+
+    public GameDisplayItem(IGameDefinition game, bool isActive)
+    {
+        Game = game ?? throw new ArgumentNullException(nameof(game));
+        _isActive = isActive;
+    }
+}
+
 public partial class GameSelectionViewModel : ViewModelBase
 {
     private readonly IGameRegistry _gameRegistry;
     private readonly IConfigurationService _configService;
+    private readonly IActiveContextService _activeContext;
 
     [ObservableProperty]
-    private ObservableCollection<IGameDefinition> _games = new();
+    private ObservableCollection<GameDisplayItem> _games = new();
 
     [ObservableProperty]
-    private IGameDefinition? _selectedGame;
+    private GameDisplayItem? _selectedGame;
+
+    [ObservableProperty]
+    private string _activeGameName = "Nessuno";
+
+    [ObservableProperty]
+    private string _activeGamePackage = "None";
+
+    [ObservableProperty]
+    private string _activeGameDetectionStatus = "Non monitorato";
+
+    [ObservableProperty]
+    private string _activeGameId = "None";
+
+    [ObservableProperty]
+    private bool _hasActiveGame;
 
     [ObservableProperty]
     private bool _allowPremiumCurrency;
@@ -24,15 +63,42 @@ public partial class GameSelectionViewModel : ViewModelBase
     private bool _allowCreditPurchases;
 
     [ObservableProperty]
-    private string _statusMessage = "Select a game to automate.";
+    private string _statusMessage = "Seleziona un gioco da impostare come attivo.";
 
-    public GameSelectionViewModel(IGameRegistry gameRegistry, IConfigurationService configService)
+    public GameSelectionViewModel(
+        IGameRegistry gameRegistry,
+        IConfigurationService configService,
+        IActiveContextService activeContext)
     {
         _gameRegistry = gameRegistry ?? throw new ArgumentNullException(nameof(gameRegistry));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
+
+        _activeContext.ContextChanged += OnActiveContextChanged;
+        SyncFromActiveContext();
     }
 
-    partial void OnSelectedGameChanged(IGameDefinition? value)
+    private void OnActiveContextChanged(object? sender, ActiveContextChangedEventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(SyncFromActiveContext);
+    }
+
+    private void SyncFromActiveContext()
+    {
+        var active = _activeContext.ActiveGame;
+        ActiveGameName = active.Name;
+        ActiveGamePackage = active.ExpectedPackageName ?? "Qualsiasi";
+        ActiveGameDetectionStatus = active.DetectionStatus;
+        ActiveGameId = active.GameId;
+        HasActiveGame = !string.IsNullOrWhiteSpace(active.GameId) && active.GameId != "None";
+
+        foreach (var item in Games)
+        {
+            item.IsActive = string.Equals(item.Id, active.GameId, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    partial void OnSelectedGameChanged(GameDisplayItem? value)
     {
         if (value == null)
         {
@@ -49,7 +115,6 @@ public partial class GameSelectionViewModel : ViewModelBase
         }
         else
         {
-            // Deny by default
             AllowPremiumCurrency = false;
             AllowCreditPurchases = false;
         }
@@ -60,14 +125,24 @@ public partial class GameSelectionViewModel : ViewModelBase
     {
         var all = _gameRegistry.GetAll();
         Games.Clear();
+
+        var currentActiveId = _activeContext.ActiveGame.GameId;
         foreach (var g in all)
         {
-            Games.Add(g);
+            var isActive = string.Equals(g.Id, currentActiveId, StringComparison.OrdinalIgnoreCase);
+            Games.Add(new GameDisplayItem(g, isActive));
         }
 
-        var defaultId = _configService.Current.Games.DefaultGameId;
-        SelectedGame = Games.FirstOrDefault(g => g.Id == defaultId) ?? Games.FirstOrDefault();
-        StatusMessage = $"{Games.Count} game module(s) available.";
+        SelectedGame = Games.FirstOrDefault(g => g.Id == currentActiveId) ?? Games.FirstOrDefault();
+        StatusMessage = $"{Games.Count} modulo/i di gioco disponibile/i.";
+    }
+
+    [RelayCommand]
+    public async Task SetActiveGameItemAsync(GameDisplayItem? item)
+    {
+        if (item == null) return;
+        SelectedGame = item;
+        await SaveSelectionAsync();
     }
 
     [RelayCommand]
@@ -75,7 +150,7 @@ public partial class GameSelectionViewModel : ViewModelBase
     {
         if (SelectedGame == null)
         {
-            StatusMessage = "Please select a game.";
+            StatusMessage = "Seleziona un gioco.";
             return;
         }
 
@@ -92,6 +167,8 @@ public partial class GameSelectionViewModel : ViewModelBase
         perGameSettings.AllowCreditPurchases = AllowCreditPurchases;
 
         await _configService.UpdateSettingsAsync(current);
-        StatusMessage = $"Selected game '{SelectedGame.Name}' and security policies saved.";
+        await _activeContext.SetActiveGameAsync(SelectedGame.Id);
+
+        StatusMessage = $"Gioco '{SelectedGame.Name}' impostato come ATTIVO.";
     }
 }

@@ -57,6 +57,23 @@ public interface IGameDefinition
     /// Gets the expected Android foreground activity name for this game, if known.
     /// </summary>
     string? ExpectedActivity { get; }
+
+    /// <summary>
+    /// Gets the list of valid foreground activity names or suffixes for this game.
+    /// </summary>
+    IReadOnlyList<string> ValidActivities => string.IsNullOrWhiteSpace(ExpectedActivity)
+        ? Array.Empty<string>()
+        : [ExpectedActivity];
+
+    /// <summary>
+    /// Gets the list of acceptable transient activities (e.g. login dialogs, splash screens, permission prompts).
+    /// </summary>
+    IReadOnlyList<string> TransientActivities => Array.Empty<string>();
+
+    /// <summary>
+    /// Gets a value indicating whether any foreground activity belonging to <see cref="ExpectedPackageName"/> is accepted.
+    /// </summary>
+    bool AllowAnyActivityInPackage => false;
 }
 
 /// <summary>

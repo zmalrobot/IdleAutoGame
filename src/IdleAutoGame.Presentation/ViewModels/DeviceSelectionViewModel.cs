@@ -8,18 +8,63 @@ using IdleAutoGame.Core.Models;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
+/// <summary>
+/// Display model wrapping a detected device with live active indicator.
+/// </summary>
+public sealed partial class DeviceDisplayItem : ObservableObject
+{
+    public DeviceInfo Device { get; }
+
+    [ObservableProperty]
+    private bool _isActive;
+
+    [ObservableProperty]
+    private DeviceState _state;
+
+    [ObservableProperty]
+    private string? _screenResolution;
+
+    public string Serial => Device.Serial;
+    public string DisplayName => Device.DisplayName;
+    public ConnectionType ConnectionType => Device.ConnectionType;
+
+    public DeviceDisplayItem(DeviceInfo device, bool isActive)
+    {
+        Device = device ?? throw new ArgumentNullException(nameof(device));
+        _isActive = isActive;
+        _state = device.State;
+        _screenResolution = device.ScreenResolution.ToString();
+    }
+}
+
 public partial class DeviceSelectionViewModel : ViewModelBase
 {
     private readonly IDeviceDiscovery _discovery;
     private readonly IDeviceConnectionManager _connectionManager;
     private readonly IConfigurationService _configService;
+    private readonly IActiveContextService _activeContext;
     private readonly DeviceService? _deviceService;
 
     [ObservableProperty]
-    private ObservableCollection<DeviceInfo> _devices = new();
+    private ObservableCollection<DeviceDisplayItem> _devices = new();
 
     [ObservableProperty]
-    private DeviceInfo? _selectedDevice;
+    private DeviceDisplayItem? _selectedDevice;
+
+    [ObservableProperty]
+    private string _activeDeviceName = "Nessuno";
+
+    [ObservableProperty]
+    private string _activeSerial = "None";
+
+    [ObservableProperty]
+    private string _activeConnectionType = "N/A";
+
+    [ObservableProperty]
+    private string _activeDeviceStatus = "Non connesso";
+
+    [ObservableProperty]
+    private bool _hasActiveDevice;
 
     [ObservableProperty]
     private string _wirelessHost = "192.168.1.";
@@ -31,7 +76,7 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     private string _pairingCode = string.Empty;
 
     [ObservableProperty]
-    private string _statusMessage = "Select a device to automate.";
+    private string _statusMessage = "Seleziona un dispositivo da impostare come attivo.";
 
     [ObservableProperty]
     private bool _isBusy;
@@ -40,36 +85,75 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         IDeviceDiscovery discovery,
         IDeviceConnectionManager connectionManager,
         IConfigurationService configService,
+        IActiveContextService activeContext,
         DeviceService? deviceService = null)
     {
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         _deviceService = deviceService;
+
+        _activeContext.ContextChanged += OnActiveContextChanged;
+        SyncFromActiveContext();
+    }
+
+    private void OnActiveContextChanged(object? sender, ActiveContextChangedEventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(SyncFromActiveContext);
+    }
+
+    private void SyncFromActiveContext()
+    {
+        var active = _activeContext.ActiveDevice;
+        ActiveDeviceName = active.DisplayName;
+        ActiveSerial = active.Serial;
+        ActiveConnectionType = active.ConnectionType.ToString();
+        ActiveDeviceStatus = active.State.ToString();
+        HasActiveDevice = !string.IsNullOrWhiteSpace(active.Serial) && active.Serial != "None";
+
+        foreach (var item in Devices)
+        {
+            item.IsActive = string.Equals(item.Serial, active.Serial, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task RefreshDevicesAsync()
     {
         IsBusy = true;
-        StatusMessage = "Scanning for ADB devices (USB and Wireless)...";
+        StatusMessage = "Scansione dispositivi ADB (USB e Wireless)...";
 
         try
         {
             var list = await _discovery.GetDevicesAsync();
             Devices.Clear();
+
+            var currentActiveSerial = _activeContext.ActiveDevice.Serial;
             foreach (var d in list)
             {
-                Devices.Add(d);
+                var isActive = string.Equals(d.Serial, currentActiveSerial, StringComparison.OrdinalIgnoreCase);
+                Devices.Add(new DeviceDisplayItem(d, isActive));
             }
 
-            var defaultSerial = _configService.Current.Device.DefaultDeviceSerial;
-            SelectedDevice = Devices.FirstOrDefault(d => d.Serial == defaultSerial) ?? Devices.FirstOrDefault();
-            StatusMessage = Devices.Count > 0 ? $"Found {Devices.Count} connected device(s)." : "No devices found. Ensure USB debugging is enabled.";
+            // Restore selection by Serial
+            SelectedDevice = Devices.FirstOrDefault(d => d.Serial == currentActiveSerial)
+                             ?? Devices.FirstOrDefault(d => d.Device.State == DeviceState.Ready)
+                             ?? Devices.FirstOrDefault();
+
+            // If no active device was set yet, activate the selected one
+            if (!HasActiveDevice && SelectedDevice != null && SelectedDevice.Device.State == DeviceState.Ready)
+            {
+                await _activeContext.SetActiveDeviceAsync(SelectedDevice.Device);
+            }
+
+            StatusMessage = Devices.Count > 0
+                ? $"Trovati {Devices.Count} dispositivo/i connesso/i."
+                : "Nessun dispositivo rilevato. Verifica che il debug USB sia attivo sul telefono.";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Discovery error: {ex.Message}";
+            StatusMessage = $"Errore rilevamento dispositivi: {ex.Message}";
         }
         finally
         {
@@ -78,120 +162,11 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
-    public async Task ConnectWirelessAsync()
+    public async Task SetActiveDeviceItemAsync(DeviceDisplayItem? item)
     {
-        if (string.IsNullOrWhiteSpace(WirelessHost))
-        {
-            StatusMessage = "Please enter a valid IP address or host.";
-            return;
-        }
-
-        IsBusy = true;
-        StatusMessage = $"Connecting to {WirelessHost}:{WirelessPort}...";
-
-        try
-        {
-            var success = await _connectionManager.ConnectWirelessAsync(WirelessHost, WirelessPort);
-            if (success)
-            {
-                StatusMessage = $"Connected to {WirelessHost}:{WirelessPort} successfully.";
-                await RefreshDevicesAsync();
-            }
-            else
-            {
-                StatusMessage = $"Failed to connect to {WirelessHost}:{WirelessPort}. Check device IP and port.";
-            }
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Connection error: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    public async Task PairWirelessAsync()
-    {
-        if (string.IsNullOrWhiteSpace(WirelessHost) || string.IsNullOrWhiteSpace(PairingCode))
-        {
-            StatusMessage = "Host and pairing code are required for wireless pairing.";
-            return;
-        }
-
-        IsBusy = true;
-        StatusMessage = $"Pairing with {WirelessHost}:{WirelessPort}...";
-
-        try
-        {
-            var success = await _connectionManager.PairWirelessAsync(WirelessHost, WirelessPort, PairingCode);
-            StatusMessage = success ? "Pairing successful! You can now connect." : "Pairing failed. Verify pairing code.";
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Pairing error: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
-    }
-
-    [RelayCommand(AllowConcurrentExecutions = false)]
-    public async Task VerifyDeviceAsync()
-    {
-        if (SelectedDevice == null)
-        {
-            StatusMessage = "Please select a device to verify.";
-            return;
-        }
-
-        IsBusy = true;
-        StatusMessage = $"Verifying device '{SelectedDevice.DisplayName}'...";
-
-        try
-        {
-            if (_deviceService != null)
-            {
-                var result = await _deviceService.VerifyDeviceAsync(SelectedDevice.Serial);
-                if (result.IsSuccess)
-                {
-                    var updated = SelectedDevice with
-                    {
-                        State = DeviceState.Ready,
-                        ScreenResolution = result.ScreenResolution ?? SelectedDevice.ScreenResolution
-                    };
-                    var index = Devices.IndexOf(SelectedDevice);
-                    if (index >= 0)
-                    {
-                        Devices[index] = updated;
-                    }
-                    SelectedDevice = updated;
-                    StatusMessage = $"Verification passed: {updated.DisplayName} is responsive (Screen: {updated.ScreenResolution}).";
-                }
-                else
-                {
-                    StatusMessage = $"Verification failed: {result.Message}";
-                }
-            }
-            else
-            {
-                var responsive = await _connectionManager.IsDeviceResponsiveAsync(SelectedDevice.Serial);
-                StatusMessage = responsive
-                    ? $"Device '{SelectedDevice.DisplayName}' is responsive."
-                    : $"Device '{SelectedDevice.DisplayName}' is not responding to ADB ping.";
-            }
-        }
-        catch (Exception ex)
-        {
-            StatusMessage = $"Verification error: {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
-        }
+        if (item == null) return;
+        SelectedDevice = item;
+        await SaveSelectionAsync();
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
@@ -199,19 +174,19 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     {
         if (SelectedDevice == null)
         {
-            StatusMessage = "Please select a device.";
+            StatusMessage = "Seleziona un dispositivo.";
             return;
         }
 
-        if (SelectedDevice.State == DeviceState.Unauthorized)
+        if (SelectedDevice.Device.State == DeviceState.Unauthorized)
         {
-            StatusMessage = $"Cannot select '{SelectedDevice.DisplayName}': device is Unauthorized. Please accept the RSA debugging prompt on the device screen.";
+            StatusMessage = $"Impossibile attivare '{SelectedDevice.DisplayName}': dispositivo non autorizzato. Accetta il popup di debug RSA sullo schermo del telefono.";
             return;
         }
 
-        if (SelectedDevice.State is DeviceState.Offline or DeviceState.Unreachable)
+        if (SelectedDevice.Device.State is DeviceState.Offline or DeviceState.Unreachable)
         {
-            StatusMessage = $"Cannot select '{SelectedDevice.DisplayName}': device is {SelectedDevice.State}. Please reconnect the device.";
+            StatusMessage = $"Impossibile attivare '{SelectedDevice.DisplayName}': stato {SelectedDevice.Device.State}. Riconnetti il cavo USB o la rete wireless.";
             return;
         }
 
@@ -231,6 +206,118 @@ public partial class DeviceSelectionViewModel : ViewModelBase
             }
         }
 
-        StatusMessage = $"Selected device {SelectedDevice.DisplayName} set as active.";
+        await _activeContext.SetActiveDeviceAsync(SelectedDevice.Device);
+        StatusMessage = $"Dispositivo '{SelectedDevice.DisplayName}' impostato come ATTIVO.";
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task VerifyDeviceAsync()
+    {
+        if (SelectedDevice == null)
+        {
+            StatusMessage = "Seleziona un dispositivo da verificare.";
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Verifica dispositivo '{SelectedDevice.DisplayName}' in corso...";
+
+        try
+        {
+            if (_deviceService != null)
+            {
+                var result = await _deviceService.VerifyDeviceAsync(SelectedDevice.Serial);
+                if (result.IsSuccess)
+                {
+                    SelectedDevice.State = DeviceState.Ready;
+                    if (result.ScreenResolution != null)
+                    {
+                        SelectedDevice.ScreenResolution = result.ScreenResolution.ToString();
+                    }
+                    StatusMessage = $"Verifica completata: {SelectedDevice.DisplayName} risponde correttamente (Risoluzione: {SelectedDevice.ScreenResolution}).";
+                }
+                else
+                {
+                    StatusMessage = $"Verifica fallita: {result.Message}";
+                }
+            }
+            else
+            {
+                var responsive = await _connectionManager.IsDeviceResponsiveAsync(SelectedDevice.Serial);
+                StatusMessage = responsive
+                    ? $"Dispositivo '{SelectedDevice.DisplayName}' risponde ai comandi ADB."
+                    : $"Dispositivo '{SelectedDevice.DisplayName}' non risponde al ping ADB.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Errore durante la verifica: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task ConnectWirelessAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WirelessHost))
+        {
+            StatusMessage = "Inserisci un indirizzo IP o hostname valido.";
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Connessione a {WirelessHost}:{WirelessPort}...";
+
+        try
+        {
+            var success = await _connectionManager.ConnectWirelessAsync(WirelessHost, WirelessPort);
+            if (success)
+            {
+                StatusMessage = $"Connesso a {WirelessHost}:{WirelessPort} con successo.";
+                await RefreshDevicesAsync();
+            }
+            else
+            {
+                StatusMessage = $"Connessione a {WirelessHost}:{WirelessPort} fallita. Controlla IP e porta.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Errore di connessione: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task PairWirelessAsync()
+    {
+        if (string.IsNullOrWhiteSpace(WirelessHost) || string.IsNullOrWhiteSpace(PairingCode))
+        {
+            StatusMessage = "Host e codice di accoppiamento sono richiesti per il pairing wireless.";
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Accoppiamento con {WirelessHost}:{WirelessPort}...";
+
+        try
+        {
+            var success = await _connectionManager.PairWirelessAsync(WirelessHost, WirelessPort, PairingCode);
+            StatusMessage = success ? "Pairing completato con successo! Ora puoi connetterti." : "Pairing fallito. Verifica il codice a 6 cifre.";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Errore durante il pairing: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 }

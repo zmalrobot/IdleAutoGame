@@ -14,6 +14,11 @@ public enum ActivityCheckStatus
     Valid,
 
     /// <summary>
+    /// Foreground activity is an acceptable transient state (e.g. login dialog, splash screen, permitted overlay).
+    /// </summary>
+    TransientAcceptable,
+
+    /// <summary>
     /// Foreground package matches, but activity is different from expected (e.g. settings dialog or external activity).
     /// </summary>
     ActivityMismatch,
@@ -47,7 +52,12 @@ public sealed record ActivityCheckResult(
     /// <summary>
     /// Gets a value indicating whether the foreground app is deemed safe and valid for gameplay.
     /// </summary>
-    public bool IsValid => Status == ActivityCheckStatus.Valid;
+    public bool IsValid => Status is ActivityCheckStatus.Valid or ActivityCheckStatus.TransientAcceptable;
+
+    /// <summary>
+    /// Gets a value indicating whether the current state is an acceptable transient state.
+    /// </summary>
+    public bool IsTransient => Status == ActivityCheckStatus.TransientAcceptable;
 }
 
 /// <summary>

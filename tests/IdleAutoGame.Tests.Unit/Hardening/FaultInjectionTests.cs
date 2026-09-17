@@ -11,6 +11,7 @@ using IdleAutoGame.Infrastructure.Adb;
 using IdleAutoGame.Infrastructure.Llm;
 using IdleAutoGame.Infrastructure.Persistence;
 using IdleAutoGame.Presentation.ViewModels;
+using IdleAutoGame.Tests.Unit.Fakes;
 using NSubstitute;
 using Xunit;
 
@@ -95,7 +96,8 @@ public class FaultInjectionTests
         var deviceService = new DeviceService(discovery, controller, connManager, configService);
         await deviceService.SelectDeviceAsync("unauth-device");
 
-        var dashboardVm = new DashboardViewModel(engine, configService, gameRegistry, deviceService: deviceService);
+        var activeContext = new FakeActiveContextService();
+        var dashboardVm = new DashboardViewModel(engine, configService, gameRegistry, activeContext, deviceService: deviceService);
 
         await dashboardVm.StartAutomationAsync();
 

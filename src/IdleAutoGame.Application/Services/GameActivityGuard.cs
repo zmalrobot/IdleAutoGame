@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 
@@ -66,8 +67,21 @@ public sealed class GameActivityGuard : IGameActivityGuard
         }
 
         // 1. Verify Package Match
-        if (!string.Equals(currentApp.PackageName, game.ExpectedPackageName, StringComparison.OrdinalIgnoreCase))
+        bool packageMatches = string.Equals(currentApp.PackageName, game.ExpectedPackageName, StringComparison.OrdinalIgnoreCase);
+
+        if (!packageMatches)
         {
+            // Check if foreground is an acceptable external transient activity (e.g. Google Sign-In, System Permission prompt)
+            if (IsTransientActivity(currentApp, game))
+            {
+                return new ActivityCheckResult(
+                    ActivityCheckStatus.TransientAcceptable,
+                    currentApp,
+                    game.ExpectedPackageName,
+                    game.ExpectedActivity,
+                    $"Foreground activity '{currentApp.ActivityName}' ({currentApp.PackageName}) is an acceptable transient state.");
+            }
+
             return new ActivityCheckResult(
                 ActivityCheckStatus.PackageMismatch,
                 currentApp,
@@ -76,30 +90,46 @@ public sealed class GameActivityGuard : IGameActivityGuard
                 $"Foreground package '{currentApp.PackageName}' does not match expected '{game.ExpectedPackageName}'.");
         }
 
-        // 2. Verify Activity Match (if declared by game profile)
-        if (!string.IsNullOrWhiteSpace(game.ExpectedActivity))
+        // 2. Package matches! Check Activity:
+        // First check if it's transient
+        if (IsTransientActivity(currentApp, game))
         {
-            bool activityMatches = string.Equals(currentApp.ActivityName, game.ExpectedActivity, StringComparison.OrdinalIgnoreCase) ||
-                                  (!string.IsNullOrWhiteSpace(currentApp.ActivityName) &&
-                                   currentApp.ActivityName.EndsWith("." + game.ExpectedActivity, StringComparison.OrdinalIgnoreCase));
+            return new ActivityCheckResult(
+                ActivityCheckStatus.TransientAcceptable,
+                currentApp,
+                game.ExpectedPackageName,
+                game.ExpectedActivity,
+                $"Foreground activity '{currentApp.ActivityName}' is an acceptable transient state within game package.");
+        }
 
-            if (!activityMatches)
-            {
-                return new ActivityCheckResult(
-                    ActivityCheckStatus.ActivityMismatch,
-                    currentApp,
-                    game.ExpectedPackageName,
-                    game.ExpectedActivity,
-                    $"Foreground activity '{currentApp.ActivityName}' does not match expected '{game.ExpectedActivity}'.");
-            }
+        // Next check if game allows any activity within package (e.g. Unity games)
+        if (game.AllowAnyActivityInPackage)
+        {
+            return new ActivityCheckResult(
+                ActivityCheckStatus.Valid,
+                currentApp,
+                game.ExpectedPackageName,
+                game.ExpectedActivity,
+                $"Foreground package '{currentApp.PackageName}' is active (game permits all internal activities).");
+        }
+
+        // Check if activity matches expected list
+        if (IsValidActivity(currentApp, game))
+        {
+            return new ActivityCheckResult(
+                ActivityCheckStatus.Valid,
+                currentApp,
+                game.ExpectedPackageName,
+                game.ExpectedActivity,
+                "Foreground package and activity match expected game context.");
         }
 
         return new ActivityCheckResult(
-            ActivityCheckStatus.Valid,
+            ActivityCheckStatus.ActivityMismatch,
             currentApp,
             game.ExpectedPackageName,
             game.ExpectedActivity,
-            "Foreground package and activity match expected game context.");
+            $"Foreground activity '{currentApp.ActivityName}' does not match expected activity list.");
     }
 
     /// <inheritdoc />
@@ -111,19 +141,89 @@ public sealed class GameActivityGuard : IGameActivityGuard
         if (currentApp.IsEmpty) return false;
         if (string.IsNullOrWhiteSpace(game.ExpectedPackageName)) return true;
 
-        if (!string.Equals(currentApp.PackageName, game.ExpectedPackageName, StringComparison.OrdinalIgnoreCase))
+        bool packageMatches = string.Equals(currentApp.PackageName, game.ExpectedPackageName, StringComparison.OrdinalIgnoreCase);
+
+        if (!packageMatches)
         {
+            return IsTransientActivity(currentApp, game);
+        }
+
+        if (game.AllowAnyActivityInPackage) return true;
+        if (IsTransientActivity(currentApp, game)) return true;
+
+        return IsValidActivity(currentApp, game);
+    }
+
+    private static bool IsValidActivity(ForegroundAppInfo currentApp, IGameDefinition game)
+    {
+        if (string.IsNullOrWhiteSpace(currentApp.ActivityName)) return false;
+
+        var validActivities = game.ValidActivities;
+        if (validActivities == null || validActivities.Count == 0)
+        {
+            if (string.IsNullOrWhiteSpace(game.ExpectedActivity)) return true;
+            return MatchesActivityPattern(currentApp.ActivityName, game.ExpectedActivity);
+        }
+
+        foreach (var candidate in validActivities)
+        {
+            if (MatchesActivityPattern(currentApp.ActivityName, candidate))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool IsTransientActivity(ForegroundAppInfo currentApp, IGameDefinition game)
+    {
+        var transient = game.TransientActivities;
+        if (transient == null || transient.Count == 0) return false;
+
+        var actName = currentApp.ActivityName ?? string.Empty;
+        var fullQualified = !string.IsNullOrWhiteSpace(currentApp.PackageName)
+            ? $"{currentApp.PackageName}/{actName}"
+            : actName;
+
+        foreach (var pattern in transient)
+        {
+            if (MatchesActivityPattern(actName, pattern) ||
+                MatchesActivityPattern(fullQualified, pattern))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool MatchesActivityPattern(string actual, string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(actual) || string.IsNullOrWhiteSpace(pattern))
             return false;
-        }
 
-        if (!string.IsNullOrWhiteSpace(game.ExpectedActivity))
+        if (string.Equals(actual, pattern, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        var cleanActual = actual.TrimStart('.');
+        var cleanPattern = pattern.TrimStart('.');
+        if (string.Equals(cleanActual, cleanPattern, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (cleanActual.EndsWith("." + cleanPattern, StringComparison.OrdinalIgnoreCase) ||
+            cleanPattern.EndsWith("." + cleanActual, StringComparison.OrdinalIgnoreCase))
         {
-            return string.Equals(currentApp.ActivityName, game.ExpectedActivity, StringComparison.OrdinalIgnoreCase) ||
-                   (!string.IsNullOrWhiteSpace(currentApp.ActivityName) &&
-                    currentApp.ActivityName.EndsWith("." + game.ExpectedActivity, StringComparison.OrdinalIgnoreCase));
+            return true;
         }
 
-        return true;
+        if (pattern.Contains('*'))
+        {
+            var regexPattern = "^" + Regex.Escape(pattern).Replace("\\*", ".*") + "$";
+            if (Regex.IsMatch(actual, regexPattern, RegexOptions.IgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }
-

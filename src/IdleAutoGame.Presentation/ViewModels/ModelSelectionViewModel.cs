@@ -14,6 +14,9 @@ public sealed partial class LocalModelDisplayItem : ObservableObject
     public LocalModel Model { get; }
 
     [ObservableProperty]
+    private bool _isActive;
+
+    [ObservableProperty]
     private bool _isCompatible;
 
     [ObservableProperty]
@@ -40,20 +43,34 @@ public sealed partial class LocalModelDisplayItem : ObservableObject
     [ObservableProperty]
     private ModelStatus _status;
 
-    public LocalModelDisplayItem(LocalModel model, bool isCompatible, string compatibilityReason, bool isInstalled)
+    public LocalModelDisplayItem(LocalModel model, bool isCompatible, string compatibilityReason, bool isInstalled, bool isActive = false)
     {
         Model = model ?? throw new ArgumentNullException(nameof(model));
         _isCompatible = isCompatible;
         _compatibilityReason = compatibilityReason;
         _isInstalled = isInstalled;
         _status = model.Status;
+        _isActive = isActive;
     }
 }
 
-public sealed record ModelDisplayItem(
-    ModelProfile Profile,
-    bool IsCompatible,
-    string CompatibilityReason);
+public sealed partial class RemoteModelDisplayItem : ObservableObject
+{
+    public ModelProfile Profile { get; }
+    public bool IsCompatible { get; }
+    public string CompatibilityReason { get; }
+
+    [ObservableProperty]
+    private bool _isActive;
+
+    public RemoteModelDisplayItem(ModelProfile profile, bool isCompatible, string compatibilityReason, bool isActive = false)
+    {
+        Profile = profile ?? throw new ArgumentNullException(nameof(profile));
+        IsCompatible = isCompatible;
+        CompatibilityReason = compatibilityReason;
+        _isActive = isActive;
+    }
+}
 
 public partial class ModelSelectionViewModel : ViewModelBase
 {
@@ -61,16 +78,32 @@ public partial class ModelSelectionViewModel : ViewModelBase
     private readonly IModelManager _modelManager;
     private readonly IHardwareDetector _hardwareDetector;
     private readonly IConfigurationService _configService;
+    private readonly IActiveContextService _activeContext;
     private readonly LocalLlamaProvider _localProvider;
 
     [ObservableProperty]
     private bool _isLocalMode = true;
 
     [ObservableProperty]
-    private string _detectedRamText = "Detecting...";
+    private string _activeModelDisplayName = "Nessuno";
 
     [ObservableProperty]
-    private string _detectedRamTierText = "Tier: Balanced (16 GB)";
+    private string _activeModelProvider = "None";
+
+    [ObservableProperty]
+    private string _activeModelStatus = "Non pronto";
+
+    [ObservableProperty]
+    private string _activeModelId = "None";
+
+    [ObservableProperty]
+    private bool _hasActiveModel;
+
+    [ObservableProperty]
+    private string _detectedRamText = "Rilevamento in corso...";
+
+    [ObservableProperty]
+    private string _detectedRamTierText = "RAM Tier: Balanced (16 GB)";
 
     [ObservableProperty]
     private ObservableCollection<LocalModelDisplayItem> _recommendedLocalModels = new();
@@ -79,10 +112,10 @@ public partial class ModelSelectionViewModel : ViewModelBase
     private LocalModelDisplayItem? _selectedLocalModel;
 
     [ObservableProperty]
-    private ObservableCollection<ModelDisplayItem> _availableRemoteModels = new();
+    private ObservableCollection<RemoteModelDisplayItem> _availableRemoteModels = new();
 
     [ObservableProperty]
-    private ModelDisplayItem? _selectedRemoteItem;
+    private RemoteModelDisplayItem? _selectedRemoteItem;
 
     [ObservableProperty]
     private string _endpoint = "http://localhost:8080";
@@ -91,7 +124,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
     private string? _apiKey;
 
     [ObservableProperty]
-    private string _statusMessage = "Select an AI model profile.";
+    private string _statusMessage = "Seleziona un modello AI da attivare.";
 
     [ObservableProperty]
     private bool _isBusy;
@@ -101,28 +134,58 @@ public partial class ModelSelectionViewModel : ViewModelBase
         IModelManager modelManager,
         IHardwareDetector hardwareDetector,
         IConfigurationService configService,
+        IActiveContextService activeContext,
         LocalLlamaProvider localProvider)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
         _hardwareDetector = hardwareDetector ?? throw new ArgumentNullException(nameof(hardwareDetector));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
+        _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         _localProvider = localProvider ?? throw new ArgumentNullException(nameof(localProvider));
 
         _modelManager.DownloadProgressChanged += OnDownloadProgressChanged;
         _modelManager.ModelStatusChanged += OnModelStatusChanged;
+        _activeContext.ContextChanged += OnActiveContextChanged;
+
+        SyncFromActiveContext();
+    }
+
+    private void OnActiveContextChanged(object? sender, ActiveContextChangedEventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(SyncFromActiveContext);
+    }
+
+    private void SyncFromActiveContext()
+    {
+        var active = _activeContext.ActiveModel;
+        ActiveModelDisplayName = active.DisplayName;
+        ActiveModelProvider = active.Provider;
+        ActiveModelStatus = active.Status;
+        ActiveModelId = active.ModelId;
+        HasActiveModel = !string.IsNullOrWhiteSpace(active.ModelId) && active.ModelId != "None";
+
+        foreach (var item in RecommendedLocalModels)
+        {
+            item.IsActive = string.Equals(item.Model.Id, active.ModelId, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var item in AvailableRemoteModels)
+        {
+            item.IsActive = string.Equals(item.Profile.Id, active.ModelId, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task LoadModelsAsync()
     {
         IsBusy = true;
-        StatusMessage = "Evaluating hardware specifications and loading model catalog...";
+        StatusMessage = "Valutazione specifiche hardware e caricamento catalogo modelli...";
 
         try
         {
             var hardware = await _hardwareDetector.DetectAsync();
-            DetectedRamText = $"{hardware.TotalRamMb / 1024.0:F1} GB RAM (Available: {hardware.AvailableRamMb / 1024.0:F1} GB)";
+            DetectedRamText = $"{hardware.TotalRamMb / 1024.0:F1} GB RAM (Disponibile: {hardware.AvailableRamMb / 1024.0:F1} GB)";
 
             var tier = _catalog.DetermineRamTier(hardware);
             DetectedRamTierText = tier switch
@@ -132,7 +195,9 @@ public partial class ModelSelectionViewModel : ViewModelBase
                 _ => "RAM Tier: Performance (16–32+ GB)"
             };
 
-            // 1. Load 3 Recommended Local Models for Tier
+            var activeId = _activeContext.ActiveModel.ModelId;
+
+            // 1. Load Recommended Local Models
             var recommended = _catalog.GetRecommendedModelsForTier(tier);
             RecommendedLocalModels.Clear();
 
@@ -140,7 +205,8 @@ public partial class ModelSelectionViewModel : ViewModelBase
             {
                 var compatible = lm.IsCompatibleWith(hardware, out var reason);
                 var installed = await _modelManager.IsModelInstalledAsync(lm.Id);
-                var item = new LocalModelDisplayItem(lm, compatible, reason, installed);
+                var isActive = string.Equals(lm.Id, activeId, StringComparison.OrdinalIgnoreCase);
+                var item = new LocalModelDisplayItem(lm, compatible, reason, installed, isActive);
                 RecommendedLocalModels.Add(item);
             }
 
@@ -150,7 +216,8 @@ public partial class ModelSelectionViewModel : ViewModelBase
             foreach (var p in allProfiles.Where(p => !p.IsLocal || p.Provider != "LLamaSharp"))
             {
                 var compatible = p.IsCompatibleWith(hardware, out var reason);
-                AvailableRemoteModels.Add(new ModelDisplayItem(p, compatible, reason));
+                var isActive = string.Equals(p.Id, activeId, StringComparison.OrdinalIgnoreCase);
+                AvailableRemoteModels.Add(new RemoteModelDisplayItem(p, compatible, reason, isActive));
             }
 
             var currentSettings = _configService.Current.Llm;
@@ -160,7 +227,6 @@ public partial class ModelSelectionViewModel : ViewModelBase
             IsLocalMode = currentSettings.Provider.Equals("LLamaSharp", StringComparison.OrdinalIgnoreCase) ||
                           currentSettings.Provider.Equals("local", StringComparison.OrdinalIgnoreCase);
 
-            var activeId = currentSettings.SelectedModelId;
             SelectedLocalModel = RecommendedLocalModels.FirstOrDefault(i => i.Model.Id == activeId)
                                  ?? RecommendedLocalModels.FirstOrDefault(i => i.IsCompatible && i.IsInstalled)
                                  ?? RecommendedLocalModels.FirstOrDefault(i => i.IsCompatible)
@@ -169,11 +235,11 @@ public partial class ModelSelectionViewModel : ViewModelBase
             SelectedRemoteItem = AvailableRemoteModels.FirstOrDefault(i => i.Profile.Id == activeId)
                                  ?? AvailableRemoteModels.FirstOrDefault();
 
-            StatusMessage = "Models and hardware tiers evaluated successfully.";
+            StatusMessage = "Modelli e specifiche hardware caricati correttamente.";
         }
         catch (Exception ex)
         {
-            StatusMessage = $"Failed to load models: {ex.Message}";
+            StatusMessage = $"Errore caricamento modelli: {ex.Message}";
         }
         finally
         {
@@ -188,29 +254,29 @@ public partial class ModelSelectionViewModel : ViewModelBase
 
         if (!item.IsCompatible)
         {
-            StatusMessage = $"Cannot download: Model requires more RAM than available ({item.CompatibilityReason}).";
+            StatusMessage = $"Download bloccato: memoria RAM insufficiente ({item.CompatibilityReason}).";
             return;
         }
 
         item.IsDownloading = true;
-        StatusMessage = $"Starting download for '{item.Model.DisplayName}'...";
+        StatusMessage = $"Download avviato per '{item.Model.DisplayName}'...";
 
         try
         {
             await _modelManager.DownloadAndInstallModelAsync(item.Model.Id);
             item.IsInstalled = true;
             item.IsDownloading = false;
-            StatusMessage = $"Model '{item.Model.DisplayName}' downloaded and verified successfully!";
+            StatusMessage = $"Modello '{item.Model.DisplayName}' scaricato e verificato!";
         }
         catch (OperationCanceledException)
         {
             item.IsDownloading = false;
-            StatusMessage = $"Download of '{item.Model.DisplayName}' was cancelled.";
+            StatusMessage = $"Download di '{item.Model.DisplayName}' annullato.";
         }
         catch (Exception ex)
         {
             item.IsDownloading = false;
-            StatusMessage = $"Download failed: {ex.Message}";
+            StatusMessage = $"Download fallito: {ex.Message}";
         }
     }
 
@@ -220,7 +286,23 @@ public partial class ModelSelectionViewModel : ViewModelBase
         if (item == null) return;
         await _modelManager.CancelDownloadAsync(item.Model.Id);
         item.IsDownloading = false;
-        StatusMessage = $"Download cancellation requested for '{item.Model.DisplayName}'.";
+        StatusMessage = $"Richiesto annullamento download per '{item.Model.DisplayName}'.";
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task SetActiveLocalModelItemAsync(LocalModelDisplayItem? item)
+    {
+        if (item == null) return;
+        SelectedLocalModel = item;
+        await SaveSelectionAsync();
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task SetActiveRemoteModelItemAsync(RemoteModelDisplayItem? item)
+    {
+        if (item == null) return;
+        SelectedRemoteItem = item;
+        await SaveSelectionAsync();
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
@@ -232,19 +314,19 @@ public partial class ModelSelectionViewModel : ViewModelBase
         {
             if (SelectedLocalModel == null)
             {
-                StatusMessage = "Please select a local model.";
+                StatusMessage = "Seleziona un modello locale.";
                 return;
             }
 
             if (!SelectedLocalModel.IsCompatible)
             {
-                StatusMessage = $"Selection blocked: Incompatible with this PC ({SelectedLocalModel.CompatibilityReason}).";
+                StatusMessage = $"Attivazione bloccata: modello incompatibile con questo PC (Selection blocked: Incompatible - {SelectedLocalModel.CompatibilityReason}).";
                 return;
             }
 
             if (!SelectedLocalModel.IsInstalled)
             {
-                StatusMessage = $"Model '{SelectedLocalModel.Model.DisplayName}' is not installed. Please download it first.";
+                StatusMessage = $"Il modello '{SelectedLocalModel.Model.DisplayName}' non è ancora installato (is not installed). Scaricalo prima di attivarlo.";
                 return;
             }
 
@@ -253,7 +335,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
 
             // Pre-load local model into memory
             IsBusy = true;
-            StatusMessage = $"Loading model '{SelectedLocalModel.Model.DisplayName}' into memory...";
+            StatusMessage = $"Caricamento in memoria di '{SelectedLocalModel.Model.DisplayName}'...";
             try
             {
                 var filePath = _modelManager.GetModelFilePath(SelectedLocalModel.Model.Id);
@@ -270,24 +352,29 @@ public partial class ModelSelectionViewModel : ViewModelBase
                 }
                 _modelManager.MarkModelInUse(SelectedLocalModel.Model.Id, true);
                 await _configService.UpdateSettingsAsync(current);
-                StatusMessage = $"Model saved! In-process LLamaSharp unsupported on this CPU ({ex.Message}). Configured llama.cpp local server mode ({current.Llm.Endpoint}).";
+                await _activeContext.SetActiveModelAsync(SelectedLocalModel.Model.Id, "llama.cpp", current.Llm.Endpoint);
+                StatusMessage = $"Modello attivato! Modalità server locale llama.cpp configurata ({current.Llm.Endpoint}) - {ex.Message}. (activated)";
                 return;
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Failed to load local model: {ex.Message}";
+                StatusMessage = $"Impossibile caricare il modello locale: {ex.Message}";
                 return;
             }
             finally
             {
                 IsBusy = false;
             }
+
+            await _configService.UpdateSettingsAsync(current);
+            await _activeContext.SetActiveModelAsync(SelectedLocalModel.Model.Id, "LLamaSharp");
+            StatusMessage = $"Modello locale '{SelectedLocalModel.Model.DisplayName}' attivato con successo! (activated)";
         }
         else
         {
             if (SelectedRemoteItem == null)
             {
-                StatusMessage = "Please select a remote model profile.";
+                StatusMessage = "Seleziona un profilo remoto.";
                 return;
             }
 
@@ -295,12 +382,16 @@ public partial class ModelSelectionViewModel : ViewModelBase
             current.Llm.Provider = SelectedRemoteItem.Profile.Provider;
             current.Llm.Endpoint = Endpoint;
             current.Llm.ApiKey = ApiKey;
-        }
+            await _configService.UpdateSettingsAsync(current);
 
-        var validation = await _configService.UpdateSettingsAsync(current);
-        StatusMessage = validation.IsValid
-            ? (IsLocalMode ? $"Local model '{SelectedLocalModel?.Model.DisplayName}' activated." : $"Remote provider '{SelectedRemoteItem?.Profile.Name}' activated.")
-            : $"Validation error: {validation}";
+            await _activeContext.SetActiveModelAsync(
+                SelectedRemoteItem.Profile.Id,
+                SelectedRemoteItem.Profile.Provider,
+                Endpoint,
+                ApiKey);
+
+            StatusMessage = $"Provider remoto '{SelectedRemoteItem.Profile.Name}' attivato! (activated)";
+        }
     }
 
     private void OnDownloadProgressChanged(object? sender, ModelDownloadProgress p)

@@ -203,7 +203,7 @@ public sealed class AdbDeviceController : IDeviceController
     {
         if (string.IsNullOrWhiteSpace(output)) return new ForegroundAppInfo(null, null);
 
-        var match = Regex.Match(output, @"([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/(\.?[a-zA-Z0-9_.]+)");
+        var match = Regex.Match(output, @"([a-zA-Z0-9_]+(?:\.[a-zA-Z0-9_]+)+)/(\.?[a-zA-Z0-9_.$]+)");
         if (match.Success)
         {
             var pkg = match.Groups[1].Value;

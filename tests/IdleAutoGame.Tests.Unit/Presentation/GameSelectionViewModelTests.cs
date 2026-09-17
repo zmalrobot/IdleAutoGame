@@ -6,6 +6,7 @@ using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Games.TapTitans2;
 using IdleAutoGame.Presentation.ViewModels;
+using IdleAutoGame.Tests.Unit.Fakes;
 using Xunit;
 
 namespace IdleAutoGame.Tests.Unit.Presentation;
@@ -14,6 +15,7 @@ public class GameSelectionViewModelTests
 {
     private readonly GameRegistry _gameRegistry;
     private readonly ConfigurationService _configService;
+    private readonly FakeActiveContextService _activeContext;
     private readonly GameSelectionViewModel _viewModel;
 
     public GameSelectionViewModelTests()
@@ -21,8 +23,9 @@ public class GameSelectionViewModelTests
         _gameRegistry = new GameRegistry([new TapTitans2Definition()]);
         _configService = new ConfigurationService(new InMemorySettingsRepo(), new SettingsValidator());
         _configService.InitializeAsync().GetAwaiter().GetResult();
+        _activeContext = new FakeActiveContextService();
 
-        _viewModel = new GameSelectionViewModel(_gameRegistry, _configService);
+        _viewModel = new GameSelectionViewModel(_gameRegistry, _configService, _activeContext);
     }
 
     [Fact]

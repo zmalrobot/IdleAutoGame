@@ -8,6 +8,7 @@ using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Games.TapTitans2;
 using IdleAutoGame.Tests.Unit.Fakes;
+using NSubstitute;
 using Xunit;
 
 namespace IdleAutoGame.Tests.Unit.Security;
@@ -162,6 +163,81 @@ public class ActivityGuardTests
         policyService.CurrentPolicy.AllowCreditPurchases.Should().BeFalse();
 
         await engine.StopAsync();
+    }
+
+    [Fact]
+    public async Task VerifyActivity_UnityPlayerActivity_ReturnsValid()
+    {
+        var fakeDevice = new FakeDeviceController
+        {
+            ForegroundApp = new ForegroundAppInfo("com.gamehivecorp.taptitans2", "com.unity3d.player.UnityPlayerActivity")
+        };
+
+        var guard = new GameActivityGuard(fakeDevice);
+        var game = new TapTitans2Definition();
+
+        var result = await guard.VerifyActivityAsync("serial-1", game);
+
+        result.IsValid.Should().BeTrue();
+        result.Status.Should().Be(ActivityCheckStatus.Valid);
+        guard.IsMatch(fakeDevice.ForegroundApp, game).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task VerifyActivity_TransientCustomTabActivity_ReturnsTransientAcceptable()
+    {
+        var fakeDevice = new FakeDeviceController
+        {
+            ForegroundApp = new ForegroundAppInfo("com.gamehivecorp.taptitans2", "com.facebook.CustomTabActivity")
+        };
+
+        var guard = new GameActivityGuard(fakeDevice);
+        var game = new TapTitans2Definition();
+
+        var result = await guard.VerifyActivityAsync("serial-1", game);
+
+        result.IsValid.Should().BeTrue();
+        result.Status.Should().Be(ActivityCheckStatus.TransientAcceptable);
+        guard.IsMatch(fakeDevice.ForegroundApp, game).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task VerifyActivity_ShortActivityName_MatchesConfiguredValidActivity()
+    {
+        var fakeDevice = new FakeDeviceController
+        {
+            ForegroundApp = new ForegroundAppInfo("com.gamehivecorp.taptitans2", "UnityPlayerActivity")
+        };
+
+        var guard = new GameActivityGuard(fakeDevice);
+        var game = new TapTitans2Definition();
+
+        var result = await guard.VerifyActivityAsync("serial-1", game);
+
+        result.IsValid.Should().BeTrue();
+        result.Status.Should().Be(ActivityCheckStatus.Valid);
+    }
+
+    [Fact]
+    public async Task VerifyActivity_AllowAnyActivityInPackage_AcceptsArbitraryInternalActivity()
+    {
+        var fakeDevice = new FakeDeviceController
+        {
+            ForegroundApp = new ForegroundAppInfo("com.example.openpkg", "com.example.openpkg.ArbitraryActivity")
+        };
+
+        var mockGame = Substitute.For<IGameDefinition>();
+        mockGame.ExpectedPackageName.Returns("com.example.openpkg");
+        mockGame.ExpectedActivity.Returns("com.example.openpkg.MainActivity");
+        mockGame.ValidActivities.Returns(["com.example.openpkg.MainActivity"]);
+        mockGame.TransientActivities.Returns([]);
+        mockGame.AllowAnyActivityInPackage.Returns(true);
+
+        var guard = new GameActivityGuard(fakeDevice);
+        var result = await guard.VerifyActivityAsync("serial-1", mockGame);
+
+        result.IsValid.Should().BeTrue();
+        result.Status.Should().Be(ActivityCheckStatus.Valid);
     }
 
     private sealed class FakeSettingsRepository : ISettingsRepository

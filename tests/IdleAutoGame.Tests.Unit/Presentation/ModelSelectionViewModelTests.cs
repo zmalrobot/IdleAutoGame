@@ -4,6 +4,7 @@ using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Infrastructure.Llm;
 using IdleAutoGame.Presentation.ViewModels;
+using IdleAutoGame.Tests.Unit.Fakes;
 using NSubstitute;
 using Xunit;
 
@@ -15,6 +16,7 @@ public class ModelSelectionViewModelTests
     private readonly IModelManager _modelManager;
     private readonly IHardwareDetector _hardwareDetector;
     private readonly IConfigurationService _configService;
+    private readonly FakeActiveContextService _activeContext;
     private readonly LocalLlamaProvider _localProvider;
 
     public ModelSelectionViewModelTests()
@@ -23,6 +25,7 @@ public class ModelSelectionViewModelTests
         _modelManager = Substitute.For<IModelManager>();
         _hardwareDetector = Substitute.For<IHardwareDetector>();
         _configService = Substitute.For<IConfigurationService>();
+        _activeContext = new FakeActiveContextService();
         _localProvider = new LocalLlamaProvider();
 
         var settings = new AppSettings();
@@ -41,7 +44,7 @@ public class ModelSelectionViewModelTests
             CpuCores = 8
         });
 
-        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _localProvider);
+        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _activeContext, _localProvider);
 
         await vm.LoadModelsAsync();
 
@@ -56,7 +59,7 @@ public class ModelSelectionViewModelTests
         _hardwareDetector.DetectAsync().Returns(new HardwareInfo { TotalRamMb = 16384, AvailableRamMb = 12000 });
         _modelManager.IsModelInstalledAsync(Arg.Any<string>()).Returns(false);
 
-        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _localProvider);
+        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _activeContext, _localProvider);
         await vm.LoadModelsAsync();
 
         vm.IsLocalMode = true;
@@ -75,7 +78,7 @@ public class ModelSelectionViewModelTests
         _hardwareDetector.DetectAsync().Returns(new HardwareInfo { TotalRamMb = 4096, AvailableRamMb = 2000 });
         _modelManager.IsModelInstalledAsync(Arg.Any<string>()).Returns(true);
 
-        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _localProvider);
+        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _activeContext, _localProvider);
         await vm.LoadModelsAsync();
 
         vm.IsLocalMode = true;
@@ -96,7 +99,7 @@ public class ModelSelectionViewModelTests
     {
         _hardwareDetector.DetectAsync().Returns(new HardwareInfo { TotalRamMb = 16384 });
 
-        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _localProvider);
+        var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _activeContext, _localProvider);
         await vm.LoadModelsAsync();
 
         vm.IsLocalMode = false;
@@ -127,7 +130,7 @@ public class ModelSelectionViewModelTests
             _modelManager.IsModelInstalledAsync(Arg.Any<string>()).Returns(true);
             _modelManager.GetModelFilePath(Arg.Any<string>()).Returns(tempFile);
 
-            var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _localProvider);
+            var vm = new ModelSelectionViewModel(_catalog, _modelManager, _hardwareDetector, _configService, _activeContext, _localProvider);
             await vm.LoadModelsAsync();
 
             vm.IsLocalMode = true;

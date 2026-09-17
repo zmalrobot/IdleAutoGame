@@ -69,7 +69,26 @@ public sealed class TapTitans2Definition : IGameDefinition
     public string? ExpectedPackageName => "com.gamehivecorp.taptitans2";
 
     /// <inheritdoc />
-    public string? ExpectedActivity => "com.gamehivecorp.taptitans2.MainActivity";
+    public string? ExpectedActivity => "com.unity3d.player.UnityPlayerActivity";
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> ValidActivities { get; } =
+    [
+        "com.unity3d.player.UnityPlayerActivity",
+        "UnityPlayerActivity",
+        "com.gamehivecorp.taptitans2.MainActivity"
+    ];
+
+    /// <inheritdoc />
+    public IReadOnlyList<string> TransientActivities { get; } =
+    [
+        "com.facebook.CustomTabActivity",
+        "*CustomTabActivity*",
+        "com.google.android.gms.auth*"
+    ];
+
+    /// <inheritdoc />
+    public bool AllowAnyActivityInPackage => false;
 
     private static GameSpecificSettings CreateDefaultSettings()
     {

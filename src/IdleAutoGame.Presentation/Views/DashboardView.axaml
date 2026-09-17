@@ -4,92 +4,160 @@
              x:Class="IdleAutoGame.Presentation.Views.DashboardView"
              x:DataType="vm:DashboardViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
-        <!-- Top Controls Bar -->
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Margin="24" Background="{DynamicResource AppBackgroundBrush}">
+        <!-- Row 0: Top Controls Bar -->
         <Border Grid.Row="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
-            <Grid RowDefinitions="Auto,Auto">
-                <!-- Row 0: Status Badge & Action Buttons -->
-                <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
-                        <Button Content="▶ Start" Command="{Binding StartAutomationCommand}" IsEnabled="{Binding CanStart}"
-                                Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,6"/>
-                        <Button Content="⏸ Pause" Command="{Binding PauseAutomationCommand}" IsEnabled="{Binding CanPause}"
-                                Background="{DynamicResource WarningBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
-                        <Button Content="⏯ Resume" Command="{Binding ResumeAutomationCommand}" IsEnabled="{Binding CanResume}"
-                                Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
-                        <Button Content="⏹ STOP" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
-                                Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,6"/>
-                    </StackPanel>
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+                    <Button Content="▶ Avvia" Command="{Binding StartAutomationCommand}" IsEnabled="{Binding CanStart}"
+                            Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="16,8"/>
+                    <Button Content="⏸ Pausa" Command="{Binding PauseAutomationCommand}" IsEnabled="{Binding CanPause}"
+                            Background="{DynamicResource WarningBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,8"/>
+                    <Button Content="⏯ Riprendi" Command="{Binding ResumeAutomationCommand}" IsEnabled="{Binding CanResume}"
+                            Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="14,8"/>
+                    <Button Content="⏹ ARRESTA" Command="{Binding StopAutomationCommand}" IsEnabled="{Binding CanStop}"
+                            Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="16,8"/>
+                </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                        <TextBlock Text="STATUS:" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal" Spacing="16" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="STATO AGENTE:" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                         <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="10,4">
-                            <TextBlock Text="{Binding State}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                            <TextBlock Text="{Binding AgentStateText}" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                         </Border>
                     </StackPanel>
-                </DockPanel>
 
-                <!-- Row 1: Active Context & Policy Summary -->
-                <Border Grid.Row="1" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,6">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,12,0">
-                            <TextBlock Text="{Binding ActiveGameName, StringFormat='🎮 Game: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
-                            <TextBlock Text="•" Foreground="{DynamicResource TextDisabledBrush}"/>
-                            <TextBlock Text="{Binding ActiveDeviceSerial, StringFormat='📱 Device: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
-                            <TextBlock Text="•" Foreground="{DynamicResource TextDisabledBrush}"/>
-                            <TextBlock Text="{Binding ActiveModelId, StringFormat='🧠 Model: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="140"/>
-                        </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock Text="Policy:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                    <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10,4">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="Policy Spesa:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" VerticalAlignment="Center"/>
                             <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
                                 <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Currency: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                             </Border>
                             <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
-                                <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
+                                <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Crediti: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
                             </Border>
                         </StackPanel>
-                    </Grid>
-                </Border>
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <!-- Row 1: ACTIVE CONTEXT HUB (Authoritative Central Information) -->
+        <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+            <Grid RowDefinitions="Auto,Auto">
+                <!-- Title Strip with Refresh -->
+                <DockPanel Grid.Row="0" Margin="0,0,0,10">
+                    <Button DockPanel.Dock="Right" Content="🔄 Verifica Foreground Device" Command="{Binding RefreshForegroundCommand}"
+                            Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="11"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock Text="⚡ STATO ATTIVO &amp; CONTESTO OPERATIVO" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource AccentBrush}"/>
+                        <TextBlock Text="(Autoritativo e sincronizzato in tempo reale)" FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </DockPanel>
+
+                <!-- 4 Core Context Cards -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,*,*">
+                    <!-- 1. Modello LLM -->
+                    <Border Grid.Column="0" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,8,0">
+                        <StackPanel Spacing="6">
+                            <DockPanel>
+                                <TextBlock Text="🧠 MODELLO LLM" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="3" Padding="6,1">
+                                    <TextBlock Text="{Binding ActiveModelStatus}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
+                                </Border>
+                            </DockPanel>
+                            <TextBlock Text="{Binding ActiveModelName}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="{Binding ActiveModelProvider, StringFormat='Provider: {0}'}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 2. Telefono Android -->
+                    <Border Grid.Column="1" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,8,0">
+                        <StackPanel Spacing="6">
+                            <DockPanel>
+                                <TextBlock Text="📱 TELEFONO ANDROID" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="3" Padding="6,1">
+                                    <TextBlock Text="{Binding ActiveDeviceStatus}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
+                                </Border>
+                            </DockPanel>
+                            <TextBlock Text="{Binding ActiveDeviceDisplayName}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding ActiveDeviceSerial, StringFormat='Seriale: {0}'}" FontSize="11" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                <TextBlock Text="•" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                <TextBlock Text="{Binding ActiveDeviceConnectionType}" FontSize="11" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 3. Gioco Attivo -->
+                    <Border Grid.Column="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10" Margin="0,0,8,0">
+                        <StackPanel Spacing="6">
+                            <DockPanel>
+                                <TextBlock Text="🎮 GIOCO ATTIVO" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="3" Padding="6,1">
+                                    <TextBlock Text="{Binding ActiveGamePackage}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis" MaxWidth="110"/>
+                                </Border>
+                            </DockPanel>
+                            <TextBlock Text="{Binding ActiveGameName}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="{Binding ActiveGameDetectionStatus}" FontSize="11" Foreground="{DynamicResource AccentBrush}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 4. Activity Guard -->
+                    <Border Grid.Column="3" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,10">
+                        <StackPanel Spacing="6">
+                            <DockPanel>
+                                <TextBlock Text="🛡️ ACTIVITY GUARD" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="3" Padding="6,1">
+                                    <TextBlock Text="{Binding GuardStatusText}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                </Border>
+                            </DockPanel>
+                            <TextBlock Text="{Binding GuardDetailText}" FontSize="10" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Text="Fail-safe attivo: gesti bloccati se fuori gioco" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
             </Grid>
         </Border>
 
-        <!-- Alert / Pause Reason Banner -->
-        <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
+        <!-- Row 2: Alert / Pause Reason Banner -->
+        <Border Grid.Row="2" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource ErrorBrush}" BorderThickness="1"
                 CornerRadius="8" Padding="14" Margin="0,0,0,16" IsVisible="{Binding IsPausedOrAlert}">
             <Grid ColumnDefinitions="Auto,*">
                 <TextBlock Grid.Column="0" Text="⚠️" FontSize="18" Margin="0,0,10,0" VerticalAlignment="Center"/>
                 <StackPanel Grid.Column="1" Spacing="2">
-                    <TextBlock Text="AUTOMATION PAUSED / BOUNDARY TRIGGERED" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}" FontSize="13"/>
-                    <TextBlock Text="{Binding PauseReason, StringFormat='Reason: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
+                    <TextBlock Text="AUTOMAZIONE IN PAUSA / SEGNALAZIONE AGENTE" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}" FontSize="13"/>
+                    <TextBlock Text="{Binding AgentDetailText, StringFormat='Dettaglio: {0}'}" Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12"/>
                 </StackPanel>
             </Grid>
         </Border>
 
-        <!-- Main Dashboard Split -->
-        <Grid Grid.Row="2" ColumnDefinitions="420,*">
+        <!-- Row 3: Main Dashboard Split -->
+        <Grid Grid.Row="3" ColumnDefinitions="420,*">
             <!-- Left: Decisions & Overrides -->
             <StackPanel Grid.Column="0" Spacing="16" Margin="0,0,16,0">
                 <!-- Current Decision Card -->
                 <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="12">
                         <DockPanel>
-                            <TextBlock Text="Latest AI Decision" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Ultima Decisione AI" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <Border DockPanel.Dock="Right" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
-                                <TextBlock Text="{Binding LastActionConfidence, StringFormat='Confidence: {0:P0}'}" FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
+                                <TextBlock Text="{Binding LastActionConfidence, StringFormat='Confidenza: {0:P0}'}" FontSize="11" Foreground="{DynamicResource SuccessBrush}"/>
                             </Border>
                         </DockPanel>
 
                         <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" Text="Action:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="0" Text="Azione:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0"/>
                             <TextBlock Grid.Column="1" Text="{Binding LastActionType}" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
                         </Grid>
 
                         <Grid ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Column="0" Text="Game State:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0"/>
+                            <TextBlock Grid.Column="0" Text="Stato Gioco:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,8,0"/>
                             <TextBlock Grid.Column="1" Text="{Binding LastGameState}" Foreground="{DynamicResource WarningBrush}"/>
                         </Grid>
 
-                        <TextBlock Text="Explanation:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="Spiegazione LLM:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10">
                             <TextBlock Text="{Binding LastActionExplanation}" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                         </Border>
@@ -100,13 +168,13 @@
                 <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="10">
                         <DockPanel>
-                            <TextBlock Text="Runtime Security Policy" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                            <TextBlock Text="Politica di Sicurezza Runtime" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
                                 <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
                                     <TextBlock Text="{Binding PremiumCurrencyStatusText, StringFormat='Premium: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                                 </Border>
                                 <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
-                                    <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Credits: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
+                                    <TextBlock Text="{Binding CreditPurchasesStatusText, StringFormat='Crediti: {0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
                                 </Border>
                             </StackPanel>
                         </DockPanel>
@@ -121,24 +189,24 @@
                 <!-- User Overrides Panel -->
                 <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="Runtime User Instructions (Overrides)" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                        <TextBlock Text="Istruzioni Utente Runtime (Overrides)" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
 
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBox Grid.Column="0" Text="{Binding NewOverrideText}" Watermark="e.g. Do not spend diamonds"
+                            <TextBox Grid.Column="0" Text="{Binding NewOverrideText}" Watermark="es. Non toccare la fata"
                                      Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                                      BorderBrush="{DynamicResource BorderLightBrush}" Margin="0,0,8,0"/>
-                            <Button Grid.Column="1" Content="Send" Command="{Binding AddOverrideCommand}"
+                            <Button Grid.Column="1" Content="Invia" Command="{Binding AddOverrideCommand}"
                                     Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="12,6"/>
                         </Grid>
 
-                        <TextBlock Text="Active Overrides:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                        <TextBlock Text="Overrides Attivi:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
                         <ItemsControl ItemsSource="{Binding ActiveOverrides}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="4" Padding="8" Margin="0,0,0,6">
                                         <Grid ColumnDefinitions="*,Auto">
                                             <TextBlock Grid.Column="0" Text="{Binding Text}" FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                            <Button Grid.Column="1" Content="✕ Revoke" Command="{Binding $parent[UserControl].((vm:DashboardViewModel)DataContext).RemoveOverrideCommand}"
+                                            <Button Grid.Column="1" Content="✕ Revoca" Command="{Binding $parent[UserControl].((vm:DashboardViewModel)DataContext).RemoveOverrideCommand}"
                                                     CommandParameter="{Binding}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource ErrorBrush}"
                                                     BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="6,2" FontSize="10"/>
                                         </Grid>
@@ -156,25 +224,25 @@
                 <Grid Grid.Row="0" ColumnDefinitions="*,*,*,*" Margin="0,0,0,16">
                     <Border Grid.Column="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="CYCLES" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="CICLI" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBlock Text="{Binding CyclesCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="ACTIONS" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="AZIONI" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBlock Text="{Binding ActionsCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="2" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,8,0">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="ERRORS" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="ERRORI" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBlock Text="{Binding ErrorsCount}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource ErrorBrush}"/>
                         </StackPanel>
                     </Border>
                     <Border Grid.Column="3" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                         <StackPanel Spacing="4">
-                            <TextBlock Text="LATENCY" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            <TextBlock Text="LATENZA" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                             <TextBlock Text="{Binding LastLatencyMs, StringFormat='{}{0} ms'}" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
                         </StackPanel>
                     </Border>
@@ -183,7 +251,7 @@
                 <!-- Cycle History Table -->
                 <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
                     <Grid RowDefinitions="Auto,*">
-                        <TextBlock Grid.Row="0" Text="Telemetry &amp; Cycle Log" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
+                        <TextBlock Grid.Row="0" Text="Registro Telemetria &amp; Cicli di Gioco" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" Margin="0,0,0,12"/>
                         <ListBox Grid.Row="1" ItemsSource="{Binding RecentCycles}" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6">
                             <ListBox.ItemTemplate>
                                 <DataTemplate>

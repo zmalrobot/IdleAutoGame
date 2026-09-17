@@ -18,6 +18,7 @@ public class DashboardViewModelTests
     private readonly GameRegistry _gameRegistry;
     private readonly SessionRecorder _sessionRecorder = new();
     private readonly ConfigurationService _configService;
+    private readonly FakeActiveContextService _activeContext = new();
     private readonly AutomationEngine _engine;
     private readonly DashboardViewModel _viewModel;
 
@@ -33,7 +34,7 @@ public class DashboardViewModelTests
             _sessionRecorder,
             _configService.Current);
 
-        _viewModel = new DashboardViewModel(_engine, _configService, _gameRegistry);
+        _viewModel = new DashboardViewModel(_engine, _configService, _gameRegistry, _activeContext);
     }
 
     [Fact]

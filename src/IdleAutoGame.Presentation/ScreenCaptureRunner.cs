@@ -109,6 +109,14 @@ public static class ScreenCaptureRunner
             // 2a: Local Mode
             mainVm.Models.IsLocalMode = true;
             mainVm.Models.SelectedLocalModel = mainVm.Models.RecommendedLocalModels.FirstOrDefault();
+            if (mainVm.Models.SelectedLocalModel != null)
+            {
+                mainVm.Models.SelectedLocalModel.IsActive = true;
+                mainVm.Models.ActiveModelDisplayName = mainVm.Models.SelectedLocalModel.Model.DisplayName;
+                mainVm.Models.ActiveModelProvider = "LLamaSharp (Local GGUF)";
+                mainVm.Models.ActiveModelStatus = "Pronto";
+                mainVm.Models.HasActiveModel = true;
+            }
             await Capture("screen2a_model_selection_local.png");
 
             // 2b: Remote Mode
@@ -166,9 +174,11 @@ public static class ScreenCaptureRunner
                 NetworkEndpoint = "192.168.1.145:5555"
             };
 
-            mainVm.Devices.Devices.Add(usbDev);
-            mainVm.Devices.Devices.Add(wifiDev);
-            mainVm.Devices.SelectedDevice = usbDev;
+            var item1 = new DeviceDisplayItem(usbDev, true);
+            var item2 = new DeviceDisplayItem(wifiDev, false);
+            mainVm.Devices.Devices.Add(item1);
+            mainVm.Devices.Devices.Add(item2);
+            mainVm.Devices.SelectedDevice = item1;
             mainVm.Devices.WirelessHost = "192.168.1.145";
             mainVm.Devices.WirelessPort = 5555;
             mainVm.Devices.PairingCode = "642198";
@@ -192,8 +202,9 @@ public static class ScreenCaptureRunner
                 ScreenResolution = new Resolution(1080, 1920),
                 Density = 420
             };
-            mainVm.Devices.Devices.Add(unauthDev);
-            mainVm.Devices.SelectedDevice = unauthDev;
+            var unauthItem = new DeviceDisplayItem(unauthDev, false);
+            mainVm.Devices.Devices.Add(unauthItem);
+            mainVm.Devices.SelectedDevice = unauthItem;
             mainVm.Devices.StatusMessage = "Cannot select 'Android Emulator (Unauthorized)': device is Unauthorized. Please accept the RSA debugging prompt on the device screen.";
             await Capture("screen3c_device_selection_error.png");
 
@@ -203,6 +214,16 @@ public static class ScreenCaptureRunner
             Console.WriteLine("Capturing Screen 4: Game Selection...");
             mainVm.CurrentView = mainVm.Games;
             mainVm.Games.LoadGames();
+            var tt2 = mainVm.Games.Games.FirstOrDefault(g => g.Game.Id == "tap-titans-2") ?? mainVm.Games.Games.FirstOrDefault();
+            if (tt2 != null)
+            {
+                tt2.IsActive = true;
+                mainVm.Games.SelectedGame = tt2;
+                mainVm.Games.ActiveGameName = tt2.Game.Name;
+                mainVm.Games.ActiveGamePackage = tt2.Game.ExpectedPackageName ?? "com.gamehivecorp.taptitans2";
+                mainVm.Games.ActiveGameDetectionStatus = "In primo piano (com.unity3d.player.UnityPlayerActivity)";
+                mainVm.Games.HasActiveGame = true;
+            }
 
             // 4a: Default (Deny by default)
             mainVm.Games.AllowPremiumCurrency = false;
@@ -225,8 +246,24 @@ public static class ScreenCaptureRunner
             // 5a: Idle state
             mainVm.Dashboard.State = AutomationState.Idle;
             mainVm.Dashboard.ActiveGameName = "Tap Titans 2";
-            mainVm.Dashboard.ActiveDeviceSerial = "28211FDH20063Q (Pixel 8 Pro)";
-            mainVm.Dashboard.ActiveModelId = "Qwen2.5-VL-7B-Instruct (GGUF Q4_K_M)";
+            mainVm.Dashboard.ActiveGamePackage = "com.gamehivecorp.taptitans2";
+            mainVm.Dashboard.ActiveGameDetectionStatus = "In primo piano (com.unity3d.player.UnityPlayerActivity)";
+            mainVm.Dashboard.ActiveGameIsForeground = true;
+            mainVm.Dashboard.ActiveDeviceSerial = "ce5b878";
+            mainVm.Dashboard.ActiveDeviceDisplayName = "Xiaomi 12T Pro (22081212UG)";
+            mainVm.Dashboard.ActiveDeviceConnectionType = "USB";
+            mainVm.Dashboard.ActiveDeviceStatus = "Ready";
+            mainVm.Dashboard.ActiveDeviceIsConnected = true;
+            mainVm.Dashboard.ActiveModelId = "gemma-2-2b-it-q4";
+            mainVm.Dashboard.ActiveModelName = "Gemma 2 2B Instruct (Q4_K_M)";
+            mainVm.Dashboard.ActiveModelProvider = "LLamaSharp (Local GGUF)";
+            mainVm.Dashboard.ActiveModelStatus = "Pronto";
+            mainVm.Dashboard.ActiveModelIsReady = true;
+            mainVm.Dashboard.GuardIsValid = true;
+            mainVm.Dashboard.GuardStatusText = "OK (Valido)";
+            mainVm.Dashboard.GuardDetailText = "Rilevato: com.gamehivecorp.taptitans2/com.unity3d.player.UnityPlayerActivity | Atteso: com.gamehivecorp.taptitans2";
+            mainVm.Dashboard.AgentStateText = "IDLE";
+            mainVm.Dashboard.AgentDetailText = "In attesa di avvio automazione";
             mainVm.Dashboard.CyclesCount = 0;
             mainVm.Dashboard.ActionsCount = 0;
             mainVm.Dashboard.ErrorsCount = 0;
@@ -321,6 +358,14 @@ public static class ScreenCaptureRunner
             // 5c: Paused / Alert State
             mainVm.Dashboard.State = AutomationState.ActivityLost;
             mainVm.Dashboard.PauseReason = "Android Activity Guard triggered: Foreground package changed from 'com.gamehivecorp.taptitans2' to 'com.android.vending'. Automation suspended immediately to prevent unauthorized purchases.";
+            mainVm.Dashboard.GuardIsValid = false;
+            mainVm.Dashboard.GuardIsMismatch = true;
+            mainVm.Dashboard.GuardStatusText = "PACKAGE NON CORRISPONDENTE";
+            mainVm.Dashboard.GuardDetailText = "Rilevato: com.android.vending/AssetBrowserActivity | Atteso: com.gamehivecorp.taptitans2";
+            mainVm.Dashboard.ActiveGameIsForeground = false;
+            mainVm.Dashboard.ActiveGameDetectionStatus = "Non attivo (com.android.vending)";
+            mainVm.Dashboard.AgentStateText = "ATTIVITÀ PERSA";
+            mainVm.Dashboard.AgentDetailText = mainVm.Dashboard.PauseReason;
             await Capture("screen5c_dashboard_paused_alert.png");
 
             // -------------------------------------------------------------

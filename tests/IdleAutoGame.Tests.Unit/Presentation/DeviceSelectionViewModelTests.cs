@@ -16,14 +16,16 @@ public class DeviceSelectionViewModelTests
     private readonly FakeDeviceController _controller = new();
     private readonly FakeDeviceConnectionManager _connectionManager = new();
     private readonly ConfigurationService _configService;
+    private readonly FakeActiveContextService _activeContext;
     private readonly DeviceService _deviceService;
     private readonly DeviceSelectionViewModel _viewModel;
 
     public DeviceSelectionViewModelTests()
     {
         _configService = new ConfigurationService(new InMemorySettingsRepo(), new SettingsValidator());
+        _activeContext = new FakeActiveContextService();
         _deviceService = new DeviceService(_discovery, _controller, _connectionManager, _configService);
-        _viewModel = new DeviceSelectionViewModel(_discovery, _connectionManager, _configService, _deviceService);
+        _viewModel = new DeviceSelectionViewModel(_discovery, _connectionManager, _configService, _activeContext, _deviceService);
     }
 
     [Fact]
@@ -43,7 +45,7 @@ public class DeviceSelectionViewModelTests
         _viewModel.Devices.Should().ContainSingle();
         _viewModel.SelectedDevice.Should().NotBeNull();
         _viewModel.SelectedDevice!.Serial.Should().Be("device-123");
-        _viewModel.StatusMessage.Should().Contain("Found 1 connected device");
+        _viewModel.StatusMessage.Should().Contain("1 dispositivo");
     }
 
     [Fact]
@@ -56,12 +58,13 @@ public class DeviceSelectionViewModelTests
             State = DeviceState.Unauthorized,
             ConnectionType = ConnectionType.USB
         };
-        _viewModel.Devices.Add(device);
-        _viewModel.SelectedDevice = device;
+        var item = new DeviceDisplayItem(device, false);
+        _viewModel.Devices.Add(item);
+        _viewModel.SelectedDevice = item;
 
         await _viewModel.SaveSelectionAsync();
 
-        _viewModel.StatusMessage.Should().Contain("Unauthorized");
+        _viewModel.StatusMessage.Should().Contain("non autorizzato");
         _configService.Current.Device.DefaultDeviceSerial.Should().BeNull();
     }
 
@@ -75,8 +78,9 @@ public class DeviceSelectionViewModelTests
             State = DeviceState.Offline,
             ConnectionType = ConnectionType.USB
         };
-        _viewModel.Devices.Add(device);
-        _viewModel.SelectedDevice = device;
+        var item = new DeviceDisplayItem(device, false);
+        _viewModel.Devices.Add(item);
+        _viewModel.SelectedDevice = item;
 
         await _viewModel.SaveSelectionAsync();
 
@@ -95,15 +99,15 @@ public class DeviceSelectionViewModelTests
             ConnectionType = ConnectionType.USB
         };
         _discovery.Devices.Add(device);
-        _viewModel.Devices.Add(device);
-        _viewModel.SelectedDevice = device;
+        var item = new DeviceDisplayItem(device, false);
+        _viewModel.Devices.Add(item);
+        _viewModel.SelectedDevice = item;
 
         await _viewModel.SaveSelectionAsync();
 
-        _viewModel.StatusMessage.Should().Contain("set as active");
+        _viewModel.StatusMessage.Should().Contain("ATTIVO");
         _configService.Current.Device.DefaultDeviceSerial.Should().Be("online-device");
-        _deviceService.SelectedDevice.Should().NotBeNull();
-        _deviceService.SelectedDevice!.Serial.Should().Be("online-device");
+        _activeContext.ActiveDevice.Serial.Should().Be("online-device");
     }
 
     [Fact]
@@ -116,12 +120,13 @@ public class DeviceSelectionViewModelTests
             State = DeviceState.Connected,
             ConnectionType = ConnectionType.USB
         };
-        _viewModel.Devices.Add(device);
-        _viewModel.SelectedDevice = device;
+        var item = new DeviceDisplayItem(device, false);
+        _viewModel.Devices.Add(item);
+        _viewModel.SelectedDevice = item;
 
         await _viewModel.VerifyDeviceAsync();
 
-        _viewModel.StatusMessage.Should().Contain("Verification passed");
+        _viewModel.StatusMessage.Should().Contain("Verifica completata");
         _viewModel.SelectedDevice.Should().NotBeNull();
         _viewModel.SelectedDevice!.State.Should().Be(DeviceState.Ready);
     }
@@ -139,4 +144,3 @@ public class DeviceSelectionViewModelTests
         }
     }
 }
-

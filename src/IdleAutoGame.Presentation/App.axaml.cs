@@ -40,6 +40,10 @@ public partial class App : Avalonia.Application
             var configService = _serviceProvider.GetRequiredService<IConfigurationService>();
             configService.InitializeAsync().GetAwaiter().GetResult();
 
+            // Initialize active context (authoritative persistent state)
+            var activeContext = _serviceProvider.GetRequiredService<IActiveContextService>();
+            activeContext.InitializeAsync().GetAwaiter().GetResult();
+
             var mainVm = _serviceProvider.GetRequiredService<MainWindowViewModel>();
             var mainWindow = new MainWindow
             {
@@ -105,6 +109,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<SessionRecorder>();
         services.AddSingleton<DeviceService>();
+        services.AddSingleton<IActiveContextService, ActiveContextService>();
 
         // Hardware & Models
         services.AddSingleton<IHardwareDetector, LinuxHardwareDetector>();

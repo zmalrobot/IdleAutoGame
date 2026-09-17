@@ -17,6 +17,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public GameSelectionViewModel Games { get; }
     public SettingsViewModel Settings { get; }
     public SplashViewModel Splash { get; }
+    private readonly IdleAutoGame.Application.Services.IActiveContextService _activeContext;
 
     public MainWindowViewModel(
         DashboardViewModel dashboard,
@@ -24,7 +25,8 @@ public partial class MainWindowViewModel : ViewModelBase
         ModelSelectionViewModel models,
         GameSelectionViewModel games,
         SettingsViewModel settings,
-        SplashViewModel splash)
+        SplashViewModel splash,
+        IdleAutoGame.Application.Services.IActiveContextService activeContext)
     {
         Dashboard = dashboard ?? throw new ArgumentNullException(nameof(dashboard));
         Devices = devices ?? throw new ArgumentNullException(nameof(devices));
@@ -32,13 +34,18 @@ public partial class MainWindowViewModel : ViewModelBase
         Games = games ?? throw new ArgumentNullException(nameof(games));
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
         Splash = splash ?? throw new ArgumentNullException(nameof(splash));
+        _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         Splash.Ready += (_, _) => CurrentView = Dashboard;
 
         _currentView = Splash;
     }
 
     [RelayCommand]
-    public void NavigateToDashboard() => CurrentView = Dashboard;
+    public void NavigateToDashboard()
+    {
+        CurrentView = Dashboard;
+        _ = _activeContext.RefreshForegroundStatusAsync();
+    }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task NavigateToDevicesAsync()
