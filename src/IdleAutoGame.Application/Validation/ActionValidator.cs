@@ -40,12 +40,60 @@ public static class ActionValidator
                 }
                 break;
 
+            case ActionType.MultiTap:
+                ValidatePoint(p.X, p.Y, "MultiTap", result);
+                if (p.Count < 1)
+                {
+                    result.AddError($"MultiTap count ({p.Count}) must be at least 1.");
+                }
+                else if (p.Count > 50)
+                {
+                    result.AddError($"MultiTap count ({p.Count}) exceeds maximum allowed limit (50).");
+                }
+                if (p.IntervalMs.HasValue && (p.IntervalMs.Value < 10 || p.IntervalMs.Value > 5000))
+                {
+                    result.AddError($"MultiTap interval ({p.IntervalMs.Value} ms) must be between 10 ms and 5000 ms.");
+                }
+                break;
+
+            case ActionType.DoubleTap:
+                ValidatePoint(p.X, p.Y, "DoubleTap", result);
+                if (p.IntervalMs.HasValue && (p.IntervalMs.Value < 40 || p.IntervalMs.Value > 500))
+                {
+                    result.AddError($"DoubleTap interval ({p.IntervalMs.Value} ms) must be between 40 ms and 500 ms.");
+                }
+                break;
+
             case ActionType.Swipe:
                 ValidatePoint(p.X, p.Y, "Swipe start", result);
                 ValidatePoint(p.EndX, p.EndY, "Swipe end", result);
                 if (p.DurationMs.HasValue && (p.DurationMs.Value < 0 || p.DurationMs.Value > 10000))
                 {
                     result.AddError($"Swipe duration ({p.DurationMs.Value} ms) must be between 0 and 10000 ms.");
+                }
+                break;
+
+            case ActionType.Drag:
+                ValidatePoint(p.X, p.Y, "Drag start", result);
+                ValidatePoint(p.EndX, p.EndY, "Drag end", result);
+                if (p.DurationMs.HasValue && (p.DurationMs.Value < 100 || p.DurationMs.Value > 15000))
+                {
+                    result.AddError($"Drag duration ({p.DurationMs.Value} ms) must be between 100 and 15000 ms.");
+                }
+                break;
+
+            case ActionType.Scroll:
+                if (p.Direction.HasValue && !Enum.IsDefined(typeof(ScrollDirection), p.Direction.Value))
+                {
+                    result.AddError($"Invalid Scroll direction: {p.Direction}.");
+                }
+                if (p.Distance.HasValue && (p.Distance.Value < 0.05 || p.Distance.Value > 0.95))
+                {
+                    result.AddError($"Scroll distance ({p.Distance.Value}) must be between 0.05 and 0.95.");
+                }
+                if (p.DurationMs.HasValue && (p.DurationMs.Value < 50 || p.DurationMs.Value > 5000))
+                {
+                    result.AddError($"Scroll duration ({p.DurationMs.Value} ms) must be between 50 and 5000 ms.");
                 }
                 break;
 
@@ -61,7 +109,58 @@ public static class ActionValidator
                 }
                 break;
 
+            case ActionType.TextInput:
+                if (string.IsNullOrEmpty(p.Text))
+                {
+                    result.AddError("TextInput requires a non-empty Text payload.");
+                }
+                else
+                {
+                    if (p.Text.Length > 100)
+                    {
+                        result.AddError($"TextInput length ({p.Text.Length}) exceeds 100 characters limit.");
+                    }
+                    char[] forbidden = ['$', ';', '&', '|', '`', '<', '>', '"', '\\', '\r', '\n'];
+                    if (p.Text.IndexOfAny(forbidden) >= 0)
+                    {
+                        result.AddError("TextInput contains forbidden shell injection characters.");
+                    }
+                }
+                break;
+
+            case ActionType.KeyPress:
+                if (!p.KeyCode.HasValue || !Enum.IsDefined(typeof(AndroidKeyCode), p.KeyCode.Value))
+                {
+                    result.AddError($"KeyPress requires a valid whitelisted AndroidKeyCode. Received: {p.KeyCode}.");
+                }
+                break;
+
+            case ActionType.KeySequence:
+                if (p.KeyCodes == null || p.KeyCodes.Count == 0)
+                {
+                    result.AddError("KeySequence requires at least one keycode in KeyCodes.");
+                }
+                else
+                {
+                    if (p.KeyCodes.Count > 10)
+                    {
+                        result.AddError($"KeySequence length ({p.KeyCodes.Count}) exceeds maximum of 10 keys.");
+                    }
+                    foreach (var key in p.KeyCodes)
+                    {
+                        if (!Enum.IsDefined(typeof(AndroidKeyCode), key))
+                        {
+                            result.AddError($"KeySequence contains invalid or non-whitelisted key: {key}.");
+                        }
+                    }
+                }
+                break;
+
             case ActionType.Back:
+            case ActionType.Home:
+            case ActionType.Recents:
+            case ActionType.VolumeUp:
+            case ActionType.VolumeDown:
             case ActionType.Wait:
             case ActionType.DoNothing:
                 // No coordinate parameters required
@@ -88,6 +187,9 @@ public static class ActionValidator
         int clampedCount = Math.Clamp(p.Count, 1, 50);
         if (clampedCount != p.Count) wasClamped = true;
 
+        double? distance = p.Distance.HasValue ? Math.Clamp(p.Distance.Value, 0.05, 0.95) : null;
+        if (distance.HasValue && distance != p.Distance) wasClamped = true;
+
         if (!wasClamped) return p;
 
         return new ActionParameters
@@ -99,7 +201,12 @@ public static class ActionValidator
             DurationMs = p.DurationMs,
             Target = p.Target,
             Count = clampedCount,
-            IntervalMs = p.IntervalMs
+            IntervalMs = p.IntervalMs,
+            Direction = p.Direction,
+            Distance = distance,
+            Text = p.Text,
+            KeyCode = p.KeyCode,
+            KeyCodes = p.KeyCodes
         };
     }
 

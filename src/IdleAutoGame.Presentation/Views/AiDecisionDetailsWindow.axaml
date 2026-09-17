@@ -186,13 +186,30 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Card 6: Screenshot Frame Preview -->
+                        <!-- Card 6: Screenshot Frame Preview & Visual Gesture Overlay -->
                         <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14"
                                 IsVisible="{Binding SelectedScreenshotBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="📸 ANTEPRIMA FRAME ANALIZZATO" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <DockPanel>
+                                    <TextBlock Text="📸 ANTEPRIMA FRAME &amp; OVERLAY GESTO" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="Marker visivo evidenziato su screenshot" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                </DockPanel>
+
+                                <!-- Gesture HUD Indicator Banner -->
+                                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource PrimaryLightBrush}"
+                                        BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,4"
+                                        IsVisible="{Binding HasVisualGesture}">
+                                    <Grid ColumnDefinitions="Auto,*">
+                                        <Border Grid.Column="0" Background="{DynamicResource PrimaryLightBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,10,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding GestureHudTitle}" FontWeight="Bold" FontSize="11" Foreground="#FFFFFF"/>
+                                        </Border>
+                                        <TextBlock Grid.Column="1" Text="{Binding GestureHudDetails}" FontSize="12" FontFamily="Consolas, monospace" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    </Grid>
+                                </Border>
+
                                 <Border BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-                                    <Image Source="{Binding SelectedScreenshotBitmap}" MaxHeight="300" Stretch="Uniform"/>
+                                    <Image Source="{Binding SelectedScreenshotBitmap}" MaxHeight="320" Stretch="Uniform"/>
                                 </Border>
                             </StackPanel>
                         </Border>

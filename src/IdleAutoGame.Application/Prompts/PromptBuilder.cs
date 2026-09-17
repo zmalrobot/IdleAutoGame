@@ -64,7 +64,20 @@ public static class PromptBuilder
     MANDATORY SYSTEM RULES:
     1. You MUST respond with a single, valid JSON object matching the GameAction schema. Do NOT include markdown text outside the JSON.
     2. Coordinates (x, y, end_x, end_y) MUST be normalized floats between 0.0 and 1.0 (0.0 = top/left, 1.0 = bottom/right).
-    3. Multi-tap support: For 'tap' actions, you can specify "count" (1-30, default 1) and "interval_ms" (10-2000, default 50) inside "parameters".
+    3. Supported action types and parameters:
+       - "tap": single touch at "x", "y". Optional "parameters": {"count": 1, "interval_ms": 50}.
+       - "multi_tap": multiple rapid taps at "x", "y". "parameters": {"count": 2-30, "interval_ms": 10-2000}.
+       - "double_tap": two quick taps at "x", "y". Optional "parameters": {"interval_ms": 40-400}.
+       - "long_press": sustained hold at "x", "y". "parameters": {"duration_ms": 500-5000}.
+       - "swipe": quick flick from "x", "y" to "end_x", "end_y". "parameters": {"duration_ms": 100-3000}.
+       - "drag": sustained drag from "x", "y" to "end_x", "end_y". "parameters": {"duration_ms": 300-10000}.
+       - "scroll": directional scroll. "parameters": {"direction": "up"|"down"|"left"|"right", "distance": 0.05-0.95}.
+       - "text_input": safe text input. "parameters": {"text": "<string>"}. No shell characters.
+       - "key_press": hardware key event. "parameters": {"key_code": "back"|"enter"|"space"|"tab"|"escape"|"dpad_up"|...}.
+       - "key_sequence": key series. "parameters": {"key_codes": ["<key1>", "<key2>"], "interval_ms": 50-1000}.
+       - "back": Android Back button.
+       - "wait": pause before next observation. "parameters": {"duration_ms": 100-10000}.
+       - "do_nothing": no action necessary at this moment.
     4. Diagnostic reasoning breakdown:
        - "observation_summary": what you identify on screen (e.g. boss active, stage 45, upgrade buttons, fairy).
        - "objective": current strategic or tactical goal (e.g. tap titan to deal damage, upgrade active hero).

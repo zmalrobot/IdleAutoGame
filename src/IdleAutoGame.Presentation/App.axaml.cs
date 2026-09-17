@@ -2,6 +2,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
+using IdleAutoGame.Application.Actions;
+using IdleAutoGame.Application.Actions.Handlers;
 using IdleAutoGame.Application.Engine;
 using IdleAutoGame.Application.Registry;
 using IdleAutoGame.Application.Services;
@@ -187,6 +189,26 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IGamePolicyService, GamePolicyService>();
         services.AddSingleton<IGameActivityGuard, GameActivityGuard>();
 
+        // Action System Handlers & Executor
+        services.AddSingleton<IActionHandler, TapActionHandler>();
+        services.AddSingleton<IActionHandler, MultiTapActionHandler>();
+        services.AddSingleton<IActionHandler, DoubleTapActionHandler>();
+        services.AddSingleton<IActionHandler, LongPressActionHandler>();
+        services.AddSingleton<IActionHandler, SwipeActionHandler>();
+        services.AddSingleton<IActionHandler, DragActionHandler>();
+        services.AddSingleton<IActionHandler, ScrollActionHandler>();
+        services.AddSingleton<IActionHandler, TextInputActionHandler>();
+        services.AddSingleton<IActionHandler, KeyPressActionHandler>();
+        services.AddSingleton<IActionHandler, KeySequenceActionHandler>();
+        services.AddSingleton<IActionHandler, BackActionHandler>();
+        services.AddSingleton<IActionHandler, HomeActionHandler>();
+        services.AddSingleton<IActionHandler, RecentsActionHandler>();
+        services.AddSingleton<IActionHandler, VolumeUpActionHandler>();
+        services.AddSingleton<IActionHandler, VolumeDownActionHandler>();
+        services.AddSingleton<IActionHandler, WaitActionHandler>();
+        services.AddSingleton<IActionHandler, DoNothingActionHandler>();
+        services.AddSingleton<IActionExecutor, ActionExecutor>();
+
         // Automation Engine
         services.AddSingleton<IAutomationEngine>(sp =>
         {
@@ -196,6 +218,7 @@ public partial class App : Avalonia.Application
             var configService = sp.GetRequiredService<IConfigurationService>();
             var policyService = sp.GetRequiredService<IGamePolicyService>();
             var activityGuard = sp.GetRequiredService<IGameActivityGuard>();
+            var actionExecutor = sp.GetRequiredService<IActionExecutor>();
 
             return new AutomationEngine(
                 deviceController,
@@ -204,7 +227,8 @@ public partial class App : Avalonia.Application
                 sessionRecorder,
                 configService,
                 policyService,
-                activityGuard);
+                activityGuard,
+                actionExecutor);
         });
 
         // ViewModels

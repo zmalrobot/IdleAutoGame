@@ -45,5 +45,30 @@ public sealed record ActionParameters
     /// Gets the interval in milliseconds between consecutive taps for multi-tap actions.
     /// </summary>
     public int? IntervalMs { get; init; }
+
+    /// <summary>
+    /// Gets the direction for directional scroll actions.
+    /// </summary>
+    public IdleAutoGame.Core.Enums.ScrollDirection? Direction { get; init; }
+
+    /// <summary>
+    /// Gets the normalized distance ratio [0.05 - 0.95] for scroll actions.
+    /// </summary>
+    public double? Distance { get; init; }
+
+    /// <summary>
+    /// Gets the text string payload for text input actions.
+    /// </summary>
+    public string? Text { get; init; }
+
+    /// <summary>
+    /// Gets the whitelisted Android key code for single keypress actions.
+    /// </summary>
+    public IdleAutoGame.Core.Enums.AndroidKeyCode? KeyCode { get; init; }
+
+    /// <summary>
+    /// Gets the ordered list of whitelisted Android key codes for key sequence actions.
+    /// </summary>
+    public IReadOnlyList<IdleAutoGame.Core.Enums.AndroidKeyCode>? KeyCodes { get; init; }
 }
 

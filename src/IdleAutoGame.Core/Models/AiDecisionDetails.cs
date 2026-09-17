@@ -99,6 +99,46 @@ public sealed record AiDecisionDetails
     public double? TargetY { get; init; }
 
     /// <summary>
+    /// Gets the normalized target end X coordinate for swipe/drag if applicable.
+    /// </summary>
+    public double? TargetEndX { get; init; }
+
+    /// <summary>
+    /// Gets the normalized target end Y coordinate for swipe/drag if applicable.
+    /// </summary>
+    public double? TargetEndY { get; init; }
+
+    /// <summary>
+    /// Gets the gesture duration in milliseconds if applicable.
+    /// </summary>
+    public int? DurationMs { get; init; }
+
+    /// <summary>
+    /// Gets the repetition count for tap/multi-tap actions.
+    /// </summary>
+    public int Count { get; init; } = 1;
+
+    /// <summary>
+    /// Gets the scroll direction if applicable.
+    /// </summary>
+    public string? Direction { get; init; }
+
+    /// <summary>
+    /// Gets the scroll distance ratio if applicable.
+    /// </summary>
+    public double? Distance { get; init; }
+
+    /// <summary>
+    /// Gets the text input content if applicable.
+    /// </summary>
+    public string? Text { get; init; }
+
+    /// <summary>
+    /// Gets the keycode or key sequence if applicable.
+    /// </summary>
+    public string? KeyCode { get; init; }
+
+    /// <summary>
     /// Gets the base64 encoded screenshot image inspected by the model.
     /// </summary>
     public string? ScreenshotBase64 { get; init; }

@@ -266,6 +266,46 @@
                             </StackPanel>
 
                             <Separator Background="{DynamicResource BorderDarkBrush}"/>
+                            <TextBlock Text="⏱️ Timing Azioni — Gesture e Input:" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Intervallo Double Tap (ms, default 120):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DoubleTapIntervalMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Durata Long Press predefinita (ms, default 1000):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DefaultLongPressDurationMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Durata Swipe predefinita (ms, default 300):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DefaultSwipeDurationMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Durata Drag predefinita (ms, default 1000):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DefaultDragDurationMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Durata Scroll predefinita (ms, default 400):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DefaultScrollDurationMs}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Distanza Scroll predefinita (0.05–0.90, default 0.4):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding DefaultScrollDistance}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Lunghezza Max Testo Input (default 100 car.):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding MaxTextInputLength}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Lunghezza Max Sequenza Tasti (default 10):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding MaxKeySequenceLength}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Timeout Esecuzione Azione (s, default 15):" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <TextBox Text="{Binding ActionExecutionTimeoutSeconds}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                            </StackPanel>
+
+                            <Separator Background="{DynamicResource BorderDarkBrush}"/>
                             <TextBlock Text="Policy Predefinite Valuta e Acquisti (Deny-by-Default):" FontWeight="SemiBold" Foreground="{DynamicResource WarningBrush}"/>
                             <CheckBox IsChecked="{Binding AllowPremiumCurrencyDefault}" Content="Permetti all'LLM di usare currency premium (Predefinito: Disabilitato)" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <CheckBox IsChecked="{Binding AllowCreditPurchasesDefault}" Content="Permetti all'LLM di acquistare crediti (Predefinito: Disabilitato)" Foreground="{DynamicResource TextPrimaryBrush}"/>

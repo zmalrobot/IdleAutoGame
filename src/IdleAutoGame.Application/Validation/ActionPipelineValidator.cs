@@ -25,7 +25,8 @@ public static class ActionPipelineValidator
         IEnumerable<GameConstraint>? constraints,
         IEnumerable<UserOverride>? userOverrides,
         out GameAction? clampedAction,
-        GamePolicy? policy = null)
+        GamePolicy? policy = null,
+        Core.Interfaces.IGameDefinition? game = null)
     {
         clampedAction = null;
 
@@ -34,6 +35,12 @@ public static class ActionPipelineValidator
         if (!schemaResult.IsValid)
         {
             return schemaResult;
+        }
+
+        // Stage 1.5: Game Capability Check
+        if (game != null && game.AllowedActions.Count > 0 && !game.AllowedActions.Contains(action!.Action))
+        {
+            return ValidationResult.Failure($"Action '{action!.Action}' is not permitted by game profile '{game.Name}'. Allowed actions: {string.Join(", ", game.AllowedActions)}.");
         }
 
         // Stage 2: Semantic Validation

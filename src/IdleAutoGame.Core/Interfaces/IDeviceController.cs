@@ -34,6 +34,46 @@ public interface IDeviceController
     Task BackAsync(string serial, CancellationToken ct = default);
 
     /// <summary>
+    /// Injects an Android Home navigation button press.
+    /// </summary>
+    Task HomeAsync(string serial, CancellationToken ct = default);
+
+    /// <summary>
+    /// Injects an Android Recents / App Switch button press.
+    /// </summary>
+    Task RecentsAsync(string serial, CancellationToken ct = default);
+
+    /// <summary>
+    /// Injects an Android Volume Up hardware keypress.
+    /// </summary>
+    Task VolumeUpAsync(string serial, CancellationToken ct = default);
+
+    /// <summary>
+    /// Injects an Android Volume Down hardware keypress.
+    /// </summary>
+    Task VolumeDownAsync(string serial, CancellationToken ct = default);
+
+    /// <summary>
+    /// Injects two consecutive rapid taps at (x, y) separated by intervalMs.
+    /// </summary>
+    Task DoubleTapAsync(string serial, int x, int y, int intervalMs = 120, CancellationToken ct = default);
+
+    /// <summary>
+    /// Injects a sustained drag gesture between absolute pixel coordinates.
+    /// </summary>
+    Task DragAsync(string serial, int x1, int y1, int x2, int y2, int durationMs = 1000, CancellationToken ct = default);
+
+    /// <summary>
+    /// Types the specified text string into the currently focused input field.
+    /// </summary>
+    Task SendTextAsync(string serial, string text, CancellationToken ct = default);
+
+    /// <summary>
+    /// Sends a raw whitelisted Android KeyCode event.
+    /// </summary>
+    Task SendKeyEventAsync(string serial, int keyCode, CancellationToken ct = default);
+
+    /// <summary>
     /// Queries the physical screen resolution of the device.
     /// </summary>
     Task<Resolution> GetScreenResolutionAsync(string serial, CancellationToken ct = default);

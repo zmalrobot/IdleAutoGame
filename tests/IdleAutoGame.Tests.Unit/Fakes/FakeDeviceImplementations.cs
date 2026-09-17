@@ -90,6 +90,54 @@ public class FakeDeviceController : IDeviceController
         return Task.CompletedTask;
     }
 
+    public Task HomeAsync(string serial, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"Home({serial})");
+        return Task.CompletedTask;
+    }
+
+    public Task RecentsAsync(string serial, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"Recents({serial})");
+        return Task.CompletedTask;
+    }
+
+    public Task VolumeUpAsync(string serial, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"VolumeUp({serial})");
+        return Task.CompletedTask;
+    }
+
+    public Task VolumeDownAsync(string serial, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"VolumeDown({serial})");
+        return Task.CompletedTask;
+    }
+
+    public Task DoubleTapAsync(string serial, int x, int y, int intervalMs = 120, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"DoubleTap({serial}, {x}, {y}, {intervalMs})");
+        return Task.CompletedTask;
+    }
+
+    public Task DragAsync(string serial, int x1, int y1, int x2, int y2, int durationMs = 1000, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"Drag({serial}, {x1}, {y1}, {x2}, {y2}, {durationMs})");
+        return Task.CompletedTask;
+    }
+
+    public Task SendTextAsync(string serial, string text, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"SendText({serial}, {text})");
+        return Task.CompletedTask;
+    }
+
+    public Task SendKeyEventAsync(string serial, int keyCode, CancellationToken ct = default)
+    {
+        ExecutedCommands.Add($"SendKeyEvent({serial}, {keyCode})");
+        return Task.CompletedTask;
+    }
+
     public Task<Resolution> GetScreenResolutionAsync(string serial, CancellationToken ct = default)
     {
         return Task.FromResult(ScreenResolution);

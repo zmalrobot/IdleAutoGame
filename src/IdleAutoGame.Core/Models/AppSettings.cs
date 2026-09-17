@@ -100,7 +100,22 @@ public sealed class AppSettings
                 DefaultTapIntervalMs = Automation.DefaultTapIntervalMs,
                 MinTapIntervalMs = Automation.MinTapIntervalMs,
                 MaxTapIntervalMs = Automation.MaxTapIntervalMs,
-                RecentDecisionsHistoryLimit = Automation.RecentDecisionsHistoryLimit
+                RecentDecisionsHistoryLimit = Automation.RecentDecisionsHistoryLimit,
+                DoubleTapIntervalMs = Automation.DoubleTapIntervalMs,
+                DefaultLongPressDurationMs = Automation.DefaultLongPressDurationMs,
+                MinLongPressDurationMs = Automation.MinLongPressDurationMs,
+                MaxLongPressDurationMs = Automation.MaxLongPressDurationMs,
+                DefaultSwipeDurationMs = Automation.DefaultSwipeDurationMs,
+                MinSwipeDurationMs = Automation.MinSwipeDurationMs,
+                MaxSwipeDurationMs = Automation.MaxSwipeDurationMs,
+                DefaultDragDurationMs = Automation.DefaultDragDurationMs,
+                MinDragDurationMs = Automation.MinDragDurationMs,
+                MaxDragDurationMs = Automation.MaxDragDurationMs,
+                DefaultScrollDurationMs = Automation.DefaultScrollDurationMs,
+                DefaultScrollDistance = Automation.DefaultScrollDistance,
+                MaxTextInputLength = Automation.MaxTextInputLength,
+                MaxKeySequenceLength = Automation.MaxKeySequenceLength,
+                ActionExecutionTimeoutSeconds = Automation.ActionExecutionTimeoutSeconds
             } : new AutomationSettings(),
             Device = Device != null ? new DeviceSettings
             {
@@ -339,6 +354,81 @@ public sealed class AutomationSettings
     /// Maximum number of recent AI decision details retained in memory for diagnostic inspection.
     /// </summary>
     public int RecentDecisionsHistoryLimit { get; set; } = 10;
+
+    /// <summary>
+    /// Default interval in milliseconds between the two taps of a double tap.
+    /// </summary>
+    public int DoubleTapIntervalMs { get; set; } = 120;
+
+    /// <summary>
+    /// Default duration in milliseconds for long press gestures.
+    /// </summary>
+    public int DefaultLongPressDurationMs { get; set; } = 1000;
+
+    /// <summary>
+    /// Minimum allowed duration in milliseconds for long press gestures.
+    /// </summary>
+    public int MinLongPressDurationMs { get; set; } = 500;
+
+    /// <summary>
+    /// Maximum allowed duration in milliseconds for long press gestures.
+    /// </summary>
+    public int MaxLongPressDurationMs { get; set; } = 5000;
+
+    /// <summary>
+    /// Default duration in milliseconds for swipe gestures.
+    /// </summary>
+    public int DefaultSwipeDurationMs { get; set; } = 300;
+
+    /// <summary>
+    /// Minimum allowed duration in milliseconds for swipe gestures.
+    /// </summary>
+    public int MinSwipeDurationMs { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum allowed duration in milliseconds for swipe gestures.
+    /// </summary>
+    public int MaxSwipeDurationMs { get; set; } = 3000;
+
+    /// <summary>
+    /// Default duration in milliseconds for drag gestures.
+    /// </summary>
+    public int DefaultDragDurationMs { get; set; } = 1000;
+
+    /// <summary>
+    /// Minimum allowed duration in milliseconds for drag gestures.
+    /// </summary>
+    public int MinDragDurationMs { get; set; } = 300;
+
+    /// <summary>
+    /// Maximum allowed duration in milliseconds for drag gestures.
+    /// </summary>
+    public int MaxDragDurationMs { get; set; } = 10000;
+
+    /// <summary>
+    /// Default duration in milliseconds for scroll gestures.
+    /// </summary>
+    public int DefaultScrollDurationMs { get; set; } = 400;
+
+    /// <summary>
+    /// Default normalized distance ratio (0.05 - 0.95) for scroll gestures.
+    /// </summary>
+    public double DefaultScrollDistance { get; set; } = 0.4;
+
+    /// <summary>
+    /// Maximum allowed character length for text input actions.
+    /// </summary>
+    public int MaxTextInputLength { get; set; } = 100;
+
+    /// <summary>
+    /// Maximum allowed number of key codes in a single key sequence action.
+    /// </summary>
+    public int MaxKeySequenceLength { get; set; } = 10;
+
+    /// <summary>
+    /// Timeout in seconds for individual action execution.
+    /// </summary>
+    public int ActionExecutionTimeoutSeconds { get; set; } = 15;
 }
 
 /// <summary>

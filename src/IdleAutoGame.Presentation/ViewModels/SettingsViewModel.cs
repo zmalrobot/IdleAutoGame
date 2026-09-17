@@ -111,6 +111,35 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private int _emergencyStopTimeoutMs = 3000;
 
+    // ── Action Timing ──────────────────────────────────────────────────────────
+
+    [ObservableProperty]
+    private int _doubleTapIntervalMs = 120;
+
+    [ObservableProperty]
+    private int _defaultLongPressDurationMs = 1000;
+
+    [ObservableProperty]
+    private int _defaultSwipeDurationMs = 300;
+
+    [ObservableProperty]
+    private int _defaultDragDurationMs = 1000;
+
+    [ObservableProperty]
+    private int _defaultScrollDurationMs = 400;
+
+    [ObservableProperty]
+    private double _defaultScrollDistance = 0.4;
+
+    [ObservableProperty]
+    private int _maxTextInputLength = 100;
+
+    [ObservableProperty]
+    private int _maxKeySequenceLength = 10;
+
+    [ObservableProperty]
+    private int _actionExecutionTimeoutSeconds = 15;
+
     [ObservableProperty]
     private string _connectionPreference = "usb";
 
@@ -200,6 +229,17 @@ public partial class SettingsViewModel : ViewModelBase
         ActivityCheckIntervalSeconds = s.Automation.ActivityCheckIntervalSeconds;
         ActivityCancellationTimeoutMs = s.Automation.ActivityCancellationTimeoutMs;
         EmergencyStopTimeoutMs = s.Automation.EmergencyStopTimeoutMs;
+
+        DoubleTapIntervalMs = s.Automation.DoubleTapIntervalMs;
+        DefaultLongPressDurationMs = s.Automation.DefaultLongPressDurationMs;
+        DefaultSwipeDurationMs = s.Automation.DefaultSwipeDurationMs;
+        DefaultDragDurationMs = s.Automation.DefaultDragDurationMs;
+        DefaultScrollDurationMs = s.Automation.DefaultScrollDurationMs;
+        DefaultScrollDistance = s.Automation.DefaultScrollDistance;
+        MaxTextInputLength = s.Automation.MaxTextInputLength;
+        MaxKeySequenceLength = s.Automation.MaxKeySequenceLength;
+        ActionExecutionTimeoutSeconds = s.Automation.ActionExecutionTimeoutSeconds;
+
 
         ConnectionPreference = s.Device.ConnectionPreference;
         DefaultDeviceSerial = s.Device.DefaultDeviceSerial;
@@ -416,6 +456,17 @@ public partial class SettingsViewModel : ViewModelBase
         s.Automation.ActivityCheckIntervalSeconds = ActivityCheckIntervalSeconds;
         s.Automation.ActivityCancellationTimeoutMs = ActivityCancellationTimeoutMs;
         s.Automation.EmergencyStopTimeoutMs = EmergencyStopTimeoutMs;
+
+        s.Automation.DoubleTapIntervalMs = DoubleTapIntervalMs;
+        s.Automation.DefaultLongPressDurationMs = DefaultLongPressDurationMs;
+        s.Automation.DefaultSwipeDurationMs = DefaultSwipeDurationMs;
+        s.Automation.DefaultDragDurationMs = DefaultDragDurationMs;
+        s.Automation.DefaultScrollDurationMs = DefaultScrollDurationMs;
+        s.Automation.DefaultScrollDistance = DefaultScrollDistance;
+        s.Automation.MaxTextInputLength = MaxTextInputLength;
+        s.Automation.MaxKeySequenceLength = MaxKeySequenceLength;
+        s.Automation.ActionExecutionTimeoutSeconds = ActionExecutionTimeoutSeconds;
+
 
         s.Automation.AdbCommandTimeoutSeconds = AdbCommandTimeoutSeconds;
         s.Device.ConnectionPreference = ConnectionPreference;

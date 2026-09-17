@@ -132,5 +132,222 @@ public class LlmResponseParserTests
         action.Objective.Should().Be("Defeat stage boss before timer expires.");
         action.DecisionSummary.Should().Be("Perform multi-tap sequence on central titan body.");
     }
+
+    [Fact]
+    public void TryParse_ScrollAction_ParsesDirectionAndDistance()
+    {
+        var json = """
+        {
+          "action": "scroll",
+          "parameters": {
+            "direction": "down",
+            "distance": 0.4
+          },
+          "explanation": "Scroll down to see more heroes.",
+          "confidence": 0.9,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.Scroll);
+        action.Parameters.Direction.Should().Be(ScrollDirection.Down);
+        action.Parameters.Distance.Should().Be(0.4);
+    }
+
+    [Fact]
+    public void TryParse_DragAction_ParsesStartAndEnd()
+    {
+        var json = """
+        {
+          "action": "drag",
+          "parameters": {
+            "x": 0.3,
+            "y": 0.2,
+            "end_x": 0.7,
+            "end_y": 0.8,
+            "duration_ms": 1200
+          },
+          "explanation": "Drag hero card to slot.",
+          "confidence": 0.88,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.Drag);
+        action.Parameters.X.Should().Be(0.3);
+        action.Parameters.Y.Should().Be(0.2);
+        action.Parameters.EndX.Should().Be(0.7);
+        action.Parameters.EndY.Should().Be(0.8);
+        action.Parameters.DurationMs.Should().Be(1200);
+    }
+
+    [Fact]
+    public void TryParse_DoubleTapAction_ParsesIntervalMs()
+    {
+        var json = """
+        {
+          "action": "double_tap",
+          "parameters": {
+            "x": 0.5,
+            "y": 0.5,
+            "interval_ms": 100
+          },
+          "explanation": "Double tap to activate skill.",
+          "confidence": 0.92,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.DoubleTap);
+        action.Parameters.X.Should().Be(0.5);
+        action.Parameters.IntervalMs.Should().Be(100);
+    }
+
+    [Fact]
+    public void TryParse_TextInputAction_ParsesText()
+    {
+        var json = """
+        {
+          "action": "text_input",
+          "parameters": {
+            "text": "hello"
+          },
+          "explanation": "Enter player name.",
+          "confidence": 0.8,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.TextInput);
+        action.Parameters.Text.Should().Be("hello");
+    }
+
+    [Fact]
+    public void TryParse_KeyPressAction_ParsesKeyCodeByName()
+    {
+        var json = """
+        {
+          "action": "key_press",
+          "parameters": {
+            "key_code": "back"
+          },
+          "explanation": "Press back to dismiss dialog.",
+          "confidence": 0.95,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.KeyPress);
+        action.Parameters.KeyCode.Should().Be(AndroidKeyCode.Back);
+    }
+
+    [Fact]
+    public void TryParse_KeyPressAction_ParsesKeyCodeWithPrefix()
+    {
+        var json = """
+        {
+          "action": "key_press",
+          "parameters": {
+            "key_code": "KEYCODE_ENTER"
+          },
+          "explanation": "Press enter.",
+          "confidence": 0.9,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Parameters.KeyCode.Should().Be(AndroidKeyCode.Enter);
+    }
+
+    [Fact]
+    public void TryParse_KeySequenceAction_ParsesKeyCodesArray()
+    {
+        var json = """
+        {
+          "action": "key_sequence",
+          "parameters": {
+            "key_codes": ["dpad_up", "dpad_down", "enter"],
+            "interval_ms": 80
+          },
+          "explanation": "Navigate menu.",
+          "confidence": 0.87,
+          "game_state": "menu"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.KeySequence);
+        action.Parameters.KeyCodes.Should().HaveCount(3);
+        action.Parameters.KeyCodes![0].Should().Be(AndroidKeyCode.DpadUp);
+        action.Parameters.KeyCodes[1].Should().Be(AndroidKeyCode.DpadDown);
+        action.Parameters.KeyCodes[2].Should().Be(AndroidKeyCode.Enter);
+        action.Parameters.IntervalMs.Should().Be(80);
+    }
+
+    [Fact]
+    public void TryParse_BackAction_Parses()
+    {
+        var json = """
+        {
+          "action": "back",
+          "explanation": "Press back button.",
+          "confidence": 0.99,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Action.Should().Be(ActionType.Back);
+    }
+
+    [Fact]
+    public void TryParse_CamelCaseEndXEndY_ParsesSuccessfully()
+    {
+        var json = """
+        {
+          "action": "swipe",
+          "parameters": {
+            "x": 0.1,
+            "y": 0.5,
+            "endX": 0.9,
+            "endY": 0.5,
+            "durationMs": 350
+          },
+          "explanation": "Swipe across screen.",
+          "confidence": 0.9,
+          "game_state": "normal"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(json, out var action, out _);
+
+        ok.Should().BeTrue();
+        action!.Parameters.EndX.Should().Be(0.9);
+        action.Parameters.EndY.Should().Be(0.5);
+        action.Parameters.DurationMs.Should().Be(350);
+    }
 }
+
 

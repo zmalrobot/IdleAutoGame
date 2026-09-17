@@ -124,35 +124,79 @@ public static class LlmResponseParser
             }
 
             var parameters = new ActionParameters();
-            if (root.TryGetProperty("parameters", out var paramsProp) && paramsProp.ValueKind == JsonValueKind.Object)
+            JsonElement paramsProp = default;
+            bool hasParams = root.TryGetProperty("parameters", out paramsProp) && paramsProp.ValueKind == JsonValueKind.Object;
+
+            double? x = null, y = null, endX = null, endY = null;
+            int? durationMs = null;
+            string? target = null;
+            int count = (actionType == ActionType.DoubleTap) ? 2 : 1;
+            int? intervalMs = null;
+            ScrollDirection? direction = null;
+            double? distance = null;
+            string? text = null;
+            AndroidKeyCode? keyCode = null;
+            List<AndroidKeyCode>? keyCodes = null;
+
+            if (hasParams)
             {
-                double? x = null, y = null, endX = null, endY = null;
-                int? durationMs = null;
-                string? target = null;
-                int count = 1;
-                int? intervalMs = null;
+                if (TryGetDouble(paramsProp, "x", "x", out var xVal)) x = xVal;
+                if (TryGetDouble(paramsProp, "y", "y", out var yVal)) y = yVal;
+                if (TryGetDouble(paramsProp, "end_x", "endX", out var endXVal)) endX = endXVal;
+                if (TryGetDouble(paramsProp, "end_y", "endY", out var endYVal)) endY = endYVal;
+                if (TryGetInt32(paramsProp, "duration_ms", "durationMs", out var durVal)) durationMs = durVal;
+                if (TryGetString(paramsProp, "target", "target", out var targetVal)) target = targetVal;
+                if (TryGetInt32(paramsProp, "count", "count", out var countVal)) count = countVal;
+                if (TryGetInt32(paramsProp, "interval_ms", "intervalMs", out var intervalVal)) intervalMs = intervalVal;
+                if (TryGetDouble(paramsProp, "distance", "distance", out var distVal)) distance = distVal;
+                if (TryGetString(paramsProp, "text", "text", out var textVal)) text = textVal;
 
-                if (paramsProp.TryGetProperty("x", out var xProp) && xProp.TryGetDouble(out var xVal)) x = xVal;
-                if (paramsProp.TryGetProperty("y", out var yProp) && yProp.TryGetDouble(out var yVal)) y = yVal;
-                if (paramsProp.TryGetProperty("end_x", out var endXProp) && endXProp.TryGetDouble(out var endXVal)) endX = endXVal;
-                if (paramsProp.TryGetProperty("end_y", out var endYProp) && endYProp.TryGetDouble(out var endYVal)) endY = endYVal;
-                if (paramsProp.TryGetProperty("duration_ms", out var durProp) && durProp.TryGetInt32(out var durVal)) durationMs = durVal;
-                if (paramsProp.TryGetProperty("target", out var targetProp)) target = targetProp.GetString();
-                if (paramsProp.TryGetProperty("count", out var countProp) && countProp.TryGetInt32(out var countVal)) count = countVal;
-                if (paramsProp.TryGetProperty("interval_ms", out var intervalProp) && intervalProp.TryGetInt32(out var intervalVal)) intervalMs = intervalVal;
-
-                parameters = new ActionParameters
+                if (TryGetProperty(paramsProp, "direction", "direction", out var dirElem))
                 {
-                    X = x,
-                    Y = y,
-                    EndX = endX,
-                    EndY = endY,
-                    DurationMs = durationMs,
-                    Target = target,
-                    Count = count,
-                    IntervalMs = intervalMs
-                };
+                    direction = ParseScrollDirection(dirElem);
+                }
+
+                if (TryGetProperty(paramsProp, "key_code", "keyCode", out var keyElem))
+                {
+                    keyCode = ParseKeyCode(keyElem);
+                }
+
+                if (TryGetProperty(paramsProp, "key_codes", "keyCodes", out var keysElem) && keysElem.ValueKind == JsonValueKind.Array)
+                {
+                    keyCodes = new List<AndroidKeyCode>();
+                    foreach (var item in keysElem.EnumerateArray())
+                    {
+                        var parsedKey = ParseKeyCode(item);
+                        if (parsedKey.HasValue)
+                        {
+                            keyCodes.Add(parsedKey.Value);
+                        }
+                    }
+                }
             }
+
+            // Root-level fallbacks if not found in parameters
+            if (!x.HasValue && TryGetDouble(root, "x", "x", out var rootX)) x = rootX;
+            if (!y.HasValue && TryGetDouble(root, "y", "y", out var rootY)) y = rootY;
+            if (!endX.HasValue && TryGetDouble(root, "end_x", "endX", out var rootEndX)) endX = rootEndX;
+            if (!endY.HasValue && TryGetDouble(root, "end_y", "endY", out var rootEndY)) endY = rootEndY;
+
+            parameters = new ActionParameters
+            {
+                X = x,
+                Y = y,
+                EndX = endX,
+                EndY = endY,
+                DurationMs = durationMs,
+                Target = target,
+                Count = count,
+                IntervalMs = intervalMs,
+                Direction = direction,
+                Distance = distance,
+                Text = text,
+                KeyCode = keyCode,
+                KeyCodes = keyCodes
+            };
 
             parsedAction = new GameAction
             {
@@ -198,4 +242,98 @@ public static class LlmResponseParser
         // If no JSON object pattern, return trimmed text directly
         return trimmed;
     }
+
+    private static bool TryGetProperty(JsonElement element, string snakeCase, string camelCase, out JsonElement prop)
+    {
+        if (element.TryGetProperty(snakeCase, out prop))
+        {
+            return true;
+        }
+        if (element.TryGetProperty(camelCase, out prop))
+        {
+            return true;
+        }
+        prop = default;
+        return false;
+    }
+
+    private static bool TryGetDouble(JsonElement element, string snakeCase, string camelCase, out double value)
+    {
+        value = 0;
+        if (TryGetProperty(element, snakeCase, camelCase, out var prop) && prop.TryGetDouble(out var dVal))
+        {
+            value = dVal;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryGetInt32(JsonElement element, string snakeCase, string camelCase, out int value)
+    {
+        value = 0;
+        if (TryGetProperty(element, snakeCase, camelCase, out var prop) && prop.TryGetInt32(out var iVal))
+        {
+            value = iVal;
+            return true;
+        }
+        return false;
+    }
+
+    private static bool TryGetString(JsonElement element, string snakeCase, string camelCase, out string? value)
+    {
+        value = null;
+        if (TryGetProperty(element, snakeCase, camelCase, out var prop) && prop.ValueKind == JsonValueKind.String)
+        {
+            value = prop.GetString();
+            return true;
+        }
+        return false;
+    }
+
+    private static ScrollDirection? ParseScrollDirection(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var dirInt))
+        {
+            if (Enum.IsDefined(typeof(ScrollDirection), dirInt))
+            {
+                return (ScrollDirection)dirInt;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.String)
+        {
+            var str = element.GetString();
+            if (!string.IsNullOrWhiteSpace(str) && Enum.TryParse<ScrollDirection>(str.Replace("_", ""), ignoreCase: true, out var parsed))
+            {
+                return parsed;
+            }
+        }
+        return null;
+    }
+
+    private static AndroidKeyCode? ParseKeyCode(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Number && element.TryGetInt32(out var codeInt))
+        {
+            if (Enum.IsDefined(typeof(AndroidKeyCode), codeInt))
+            {
+                return (AndroidKeyCode)codeInt;
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.String)
+        {
+            var str = element.GetString();
+            if (!string.IsNullOrWhiteSpace(str))
+            {
+                // Clean common prefixes like KEYCODE_ or android.view.KeyEvent.KEYCODE_
+                str = Regex.Replace(str, @"^(?:android\.view\.KeyEvent\.)?(?:KEYCODE_)?", "", RegexOptions.IgnoreCase);
+                str = str.Replace("_", "");
+                if (Enum.TryParse<AndroidKeyCode>(str, ignoreCase: true, out var parsed))
+                {
+                    return parsed;
+                }
+            }
+        }
+        return null;
+    }
 }
+

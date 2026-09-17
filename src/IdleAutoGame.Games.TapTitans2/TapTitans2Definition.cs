@@ -40,10 +40,15 @@ public sealed class TapTitans2Definition : IGameDefinition
     public IReadOnlyList<ActionType> AllowedActions { get; } =
     [
         ActionType.Tap,
-        ActionType.Swipe,
+        ActionType.MultiTap,
+        ActionType.DoubleTap,
         ActionType.LongPress,
+        ActionType.Swipe,
+        ActionType.Drag,
+        ActionType.Scroll,
         ActionType.Wait,
-        ActionType.DoNothing
+        ActionType.DoNothing,
+        ActionType.Back
     ];
 
     /// <inheritdoc />

@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using IdleAutoGame.Application.Actions;
+using IdleAutoGame.Application.Actions.Handlers;
 using IdleAutoGame.Application.Pipeline;
 using IdleAutoGame.Application.Prompts;
 using IdleAutoGame.Application.Services;
@@ -24,6 +26,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     private readonly IConfigurationService _configurationService;
     private readonly IGamePolicyService _policyService;
     private readonly IGameActivityGuard _activityGuard;
+    private readonly IActionExecutor _actionExecutor;
 
     private AppSettings _settings => _configurationService.Current;
 
@@ -88,7 +91,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         SessionRecorder sessionRecorder,
         IConfigurationService configurationService,
         IGamePolicyService? policyService = null,
-        IGameActivityGuard? activityGuard = null)
+        IGameActivityGuard? activityGuard = null,
+        IActionExecutor? actionExecutor = null)
     {
         _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
         _llmProviderFactory = llmProviderFactory ?? throw new ArgumentNullException(nameof(llmProviderFactory));
@@ -97,6 +101,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
         _policyService = policyService ?? new GamePolicyService(_configurationService);
         _activityGuard = activityGuard ?? new GameActivityGuard(_deviceController);
+        _actionExecutor = actionExecutor ?? CreateDefaultActionExecutor();
     }
 
     /// <summary>
@@ -109,7 +114,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         SessionRecorder sessionRecorder,
         AppSettings? settings = null,
         IGamePolicyService? policyService = null,
-        IGameActivityGuard? activityGuard = null)
+        IGameActivityGuard? activityGuard = null,
+        IActionExecutor? actionExecutor = null)
         : this(
             deviceController,
             () => llmProvider,
@@ -117,8 +123,33 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             sessionRecorder,
             new ConfigurationService(new InMemorySettingsRepository(settings), new SettingsValidator(), settings),
             policyService,
-            activityGuard)
+            activityGuard,
+            actionExecutor)
     {
+    }
+
+    private static IActionExecutor CreateDefaultActionExecutor()
+    {
+        return new ActionExecutor(new IActionHandler[]
+        {
+            new TapActionHandler(),
+            new MultiTapActionHandler(),
+            new DoubleTapActionHandler(),
+            new LongPressActionHandler(),
+            new SwipeActionHandler(),
+            new DragActionHandler(),
+            new ScrollActionHandler(),
+            new TextInputActionHandler(),
+            new KeyPressActionHandler(),
+            new KeySequenceActionHandler(),
+            new BackActionHandler(),
+            new HomeActionHandler(),
+            new RecentsActionHandler(),
+            new VolumeUpActionHandler(),
+            new VolumeDownActionHandler(),
+            new WaitActionHandler(),
+            new DoNothingActionHandler()
+        });
     }
 
     /// <inheritdoc />
@@ -502,7 +533,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         game.Constraints,
                         currentOverrides,
                         out var clampedAction,
-                        policy: _policyService.CurrentPolicy);
+                        policy: _policyService.CurrentPolicy,
+                        game: game);
 
                     if (!validationResult.IsValid)
                     {
@@ -533,9 +565,13 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                             }
                         }
 
-                        // 5. Executing: Send ADB Gesture
+                        // 5. Executing: Send ADB Gesture via IActionExecutor
                         if (!TrySetOperationalState(AutomationState.Executing)) continue;
-                        var execResult = await ExecuteActionAsync(deviceSerial, parsedAction!, resolution, cycleCt).ConfigureAwait(false);
+                        var effectiveResolution = (screenshot != null && screenshot.Width > 0 && screenshot.Height > 0)
+                            ? new Resolution(screenshot.Width, screenshot.Height)
+                            : resolution;
+
+                        var execResult = await ExecuteActionAsync(deviceSerial, parsedAction!, effectiveResolution, game, cycleCt).ConfigureAwait(false);
                         actionExecuted = execResult.Success;
                         executionResult = execResult.Message;
 
@@ -675,6 +711,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         string serial,
         GameAction action,
         Resolution resolution,
+        IGameDefinition game,
         CancellationToken ct)
     {
         // Fail-safe pre-execution state guard
@@ -684,90 +721,20 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         }
 
         ct.ThrowIfCancellationRequested();
-        var p = action.Parameters;
 
-        try
+        var execContext = new ActionExecutionContext
         {
-            switch (action.Action)
-            {
-                case ActionType.Tap:
-                    if (p.X.HasValue && p.Y.HasValue)
-                    {
-                        int absX = (int)Math.Round(p.X.Value * (resolution.Width - 1));
-                        int absY = (int)Math.Round(p.Y.Value * (resolution.Height - 1));
-                        int maxCount = _settings.Automation.MaxTapCount > 0 ? _settings.Automation.MaxTapCount : 50;
-                        int count = Math.Clamp(p.Count, 1, maxCount);
-                        int intervalMs = p.IntervalMs.HasValue && p.IntervalMs.Value >= 10
-                            ? p.IntervalMs.Value
-                            : (_settings.Automation.DefaultTapIntervalMs >= 10 ? _settings.Automation.DefaultTapIntervalMs : 50);
+            DeviceSerial = serial,
+            Action = action,
+            EffectiveResolution = resolution,
+            Game = game,
+            Settings = _settings,
+            DeviceController = _deviceController,
+            IsInterrupted = () => State is AutomationState.Paused or AutomationState.Stopping or AutomationState.Stopped or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Error
+        };
 
-                        int completedTaps = 0;
-                        for (int i = 0; i < count; i++)
-                        {
-                            ct.ThrowIfCancellationRequested();
-                            if (State is AutomationState.Paused or AutomationState.Stopping or AutomationState.Stopped or AutomationState.ActivityLost or AutomationState.PolicyBlocked)
-                            {
-                                return (completedTaps > 0, $"Multi-tap interrupted after {completedTaps}/{count} taps due to engine state change.");
-                            }
-
-                            await _deviceController.TapAsync(serial, absX, absY, ct).ConfigureAwait(false);
-                            completedTaps++;
-
-                            if (i < count - 1)
-                            {
-                                await Task.Delay(intervalMs, ct).ConfigureAwait(false);
-                            }
-                        }
-
-                        string tapMsg = count > 1
-                            ? $"Tapped {completedTaps}/{count} times at ({absX}, {absY}) (interval: {intervalMs}ms)"
-                            : $"Tapped at ({absX}, {absY})";
-                        return (true, tapMsg);
-                    }
-                    return (false, "Missing coordinates for tap");
-
-                case ActionType.Swipe:
-                    if (p.X.HasValue && p.Y.HasValue && p.EndX.HasValue && p.EndY.HasValue)
-                    {
-                        int x1 = (int)Math.Round(p.X.Value * (resolution.Width - 1));
-                        int y1 = (int)Math.Round(p.Y.Value * (resolution.Height - 1));
-                        int x2 = (int)Math.Round(p.EndX.Value * (resolution.Width - 1));
-                        int y2 = (int)Math.Round(p.EndY.Value * (resolution.Height - 1));
-                        int dur = p.DurationMs ?? 300;
-                        await _deviceController.SwipeAsync(serial, x1, y1, x2, y2, dur, ct).ConfigureAwait(false);
-                        return (true, $"Swiped ({x1},{y1}) -> ({x2},{y2}) in {dur}ms");
-                    }
-                    return (false, "Missing endpoints for swipe");
-
-                case ActionType.LongPress:
-                    if (p.X.HasValue && p.Y.HasValue)
-                    {
-                        int absX = (int)Math.Round(p.X.Value * (resolution.Width - 1));
-                        int absY = (int)Math.Round(p.Y.Value * (resolution.Height - 1));
-                        int dur = p.DurationMs ?? 1000;
-                        await _deviceController.LongPressAsync(serial, absX, absY, dur, ct).ConfigureAwait(false);
-                        return (true, $"Long pressed at ({absX}, {absY}) for {dur}ms");
-                    }
-                    return (false, "Missing coordinates for long press");
-
-                case ActionType.Back:
-                    await _deviceController.BackAsync(serial, ct).ConfigureAwait(false);
-                    return (true, "Back button pressed");
-
-                case ActionType.Wait:
-                    return (true, $"Waiting {action.WaitAfterMs ?? 1000}ms");
-
-                case ActionType.DoNothing:
-                    return (true, "No action required");
-
-                default:
-                    return (false, $"Unsupported action type: {action.Action}");
-            }
-        }
-        catch (Exception ex)
-        {
-            return (false, $"Device interaction error: {ex.Message}");
-        }
+        var result = await _actionExecutor.ExecuteAsync(execContext, ct).ConfigureAwait(false);
+        return (result.Success, result.Message ?? result.Error);
     }
 
     private async Task HandleErrorPolicyAsync(string reason, CancellationToken ct)

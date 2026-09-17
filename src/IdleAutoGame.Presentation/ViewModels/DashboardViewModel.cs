@@ -305,9 +305,7 @@ public partial class DashboardViewModel : ViewModelBase
 
             if (cycle.Action != null)
             {
-                LastActionType = (cycle.Action.Action == ActionType.Tap && cycle.Action.Parameters.Count > 1)
-                    ? $"Tap × {cycle.Action.Parameters.Count}"
-                    : cycle.Action.Action.ToString();
+                LastActionType = FormatActionType(cycle.Action);
                 LastActionExplanation = cycle.Action.Explanation;
                 LastActionConfidence = cycle.Action.Confidence;
                 LastGameState = cycle.Action.GameState;
@@ -468,5 +466,31 @@ public partial class DashboardViewModel : ViewModelBase
         if (ovr == null) return;
         _engine.RemoveOverride(ovr.Id);
         ActiveOverrides.Remove(ovr);
+    }
+
+    private static string FormatActionType(GameAction action)
+    {
+        var p = action.Parameters;
+        return action.Action switch
+        {
+            ActionType.Tap => (p.Count > 1) ? $"MultiTap ({p.Count}x)" : "Tap",
+            ActionType.MultiTap => $"MultiTap ({p.Count}x @ {p.IntervalMs ?? 50}ms)",
+            ActionType.DoubleTap => "DoubleTap",
+            ActionType.LongPress => $"LongPress ({p.DurationMs ?? 1000}ms)",
+            ActionType.Swipe => "Swipe",
+            ActionType.Drag => $"Drag ({p.DurationMs ?? 1000}ms)",
+            ActionType.Scroll => $"Scroll {p.Direction?.ToString() ?? "Down"}",
+            ActionType.TextInput => $"TextInput: \"{p.Text}\"",
+            ActionType.KeyPress => $"KeyPress: {p.KeyCode}",
+            ActionType.KeySequence => $"KeySequence ({p.KeyCodes?.Count ?? 0} keys)",
+            ActionType.Back => "Back",
+            ActionType.Home => "Home",
+            ActionType.Recents => "Recents",
+            ActionType.VolumeUp => "VolumeUp",
+            ActionType.VolumeDown => "VolumeDown",
+            ActionType.Wait => $"Wait ({p.DurationMs ?? action.WaitAfterMs ?? 1000}ms)",
+            ActionType.DoNothing => "DoNothing",
+            _ => action.Action.ToString()
+        };
     }
 }

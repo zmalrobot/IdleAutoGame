@@ -116,10 +116,84 @@ public sealed class AdbDeviceController : IDeviceController
     /// <inheritdoc />
     public async Task BackAsync(string serial, CancellationToken ct = default)
     {
+        await SendKeyEventAsync(serial, 4, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task HomeAsync(string serial, CancellationToken ct = default)
+    {
+        await SendKeyEventAsync(serial, 3, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task RecentsAsync(string serial, CancellationToken ct = default)
+    {
+        await SendKeyEventAsync(serial, 187, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task VolumeUpAsync(string serial, CancellationToken ct = default)
+    {
+        await SendKeyEventAsync(serial, 24, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task VolumeDownAsync(string serial, CancellationToken ct = default)
+    {
+        await SendKeyEventAsync(serial, 25, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task DoubleTapAsync(string serial, int x, int y, int intervalMs = 120, CancellationToken ct = default)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        await TapAsync(serial, x, y, ct).ConfigureAwait(false);
+        if (intervalMs > 0)
+        {
+            await Task.Delay(intervalMs, ct).ConfigureAwait(false);
+        }
+        await TapAsync(serial, x, y, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task DragAsync(string serial, int x1, int y1, int x2, int y2, int durationMs = 1000, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        await SwipeAsync(serial, x1, y1, x2, y2, Math.Max(100, durationMs), ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task SendTextAsync(string serial, string text, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        ArgumentNullException.ThrowIfNull(text);
+
+        // Security check: reject shell injection characters
+        char[] forbidden = ['$', ';', '&', '|', '`', '<', '>', '"', '\\', '\r', '\n'];
+        if (text.IndexOfAny(forbidden) >= 0)
+        {
+            throw new ArgumentException("Text input contains forbidden shell control characters.", nameof(text));
+        }
+
+        // Encode space as %s for Android input text command
+        var safeText = text.Replace(" ", "%s").Replace("'", "\\'");
         var device = new AdvancedSharpAdbClient.Models.DeviceData { Serial = serial };
         var receiver = new ConsoleOutputReceiver();
-        await _client.ExecuteRemoteCommandAsync("input keyevent 4", device, receiver, ct).ConfigureAwait(false);
+        await _client.ExecuteRemoteCommandAsync($"input text {safeText}", device, receiver, ct).ConfigureAwait(false);
+    }
+
+    /// <inheritdoc />
+    public async Task SendKeyEventAsync(string serial, int keyCode, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+        if (keyCode <= 0 || keyCode > 350)
+        {
+            throw new ArgumentOutOfRangeException(nameof(keyCode), "Invalid Android KeyCode range.");
+        }
+
+        var device = new AdvancedSharpAdbClient.Models.DeviceData { Serial = serial };
+        var receiver = new ConsoleOutputReceiver();
+        await _client.ExecuteRemoteCommandAsync($"input keyevent {keyCode}", device, receiver, ct).ConfigureAwait(false);
     }
 
     /// <inheritdoc />

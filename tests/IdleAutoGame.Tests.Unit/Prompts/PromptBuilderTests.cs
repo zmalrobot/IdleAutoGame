@@ -21,7 +21,15 @@ public class PromptBuilderTests
         prompt.Should().Contain("Tap Titans 2");
         prompt.Should().Contain("Battle titans by tapping the middle active screen area");
         prompt.Should().Contain("Always save gold for clan boss.");
-        prompt.Should().Contain("Allowed action primitives: Tap, Swipe, LongPress, Wait, DoNothing");
+        // AllowedActions now includes the full extended set
+        prompt.Should().Contain("Allowed action primitives:");
+        prompt.Should().Contain("Tap");
+        prompt.Should().Contain("MultiTap");
+        prompt.Should().Contain("Swipe");
+        prompt.Should().Contain("Back");
+        // New schema section must be present
+        prompt.Should().Contain("\"multi_tap\":");
+        prompt.Should().Contain("\"scroll\":");
     }
 
     [Fact]
