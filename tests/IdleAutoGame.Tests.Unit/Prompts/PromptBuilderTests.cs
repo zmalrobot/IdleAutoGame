@@ -19,7 +19,7 @@ public class PromptBuilderTests
 
         prompt.Should().Contain("SYSTEM CONSTRAINTS");
         prompt.Should().Contain("Tap Titans 2");
-        prompt.Should().Contain("Battle titans by tapping the middle active screen area");
+        prompt.Should().Contain("SCREEN REGIONS & COORDINATE MAPPING");
         prompt.Should().Contain("Always save gold for clan boss.");
         // AllowedActions now includes the full extended set
         prompt.Should().Contain("Allowed action primitives:");
@@ -87,10 +87,11 @@ public class PromptBuilderTests
         var prompt = PromptBuilder.BuildSystemPrompt(game, genericSystemPrompt: emptyPrompt);
 
         prompt.Should().Contain("### 1. YOUR PURPOSE & ROLE");
-        prompt.Should().Contain("### 2. SCREEN UNDERSTANDING & DECISION RULES");
-        prompt.Should().Contain("### 3. RESPONSE CONTRACT & JSON FORMAT");
+        prompt.Should().Contain("### 2. DECISION HIERARCHY & SCREEN REASONING");
+        prompt.Should().Contain("### 3. RESPONSE CONTRACT (STRICT JSON ONLY)");
         prompt.Should().Contain("### 4. AVAILABLE ACTIONS & PARAMETERS");
-        prompt.Should().Contain("### 5. CONTEXT & DATA PROVIDED TO YOU");
+        prompt.Should().Contain("### 5. EXAMPLES OF VALID ACTIONS");
+        prompt.Should().Contain("### 6. CONTEXT & DATA PROVIDED TO YOU");
     }
 
     [Fact]
