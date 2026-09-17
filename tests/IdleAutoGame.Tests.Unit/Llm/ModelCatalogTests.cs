@@ -96,7 +96,7 @@ public class ModelCatalogTests
     public void LocalModel_IsCompatibleWith_EnforcesRamLimitsWithHeadroom()
     {
         var catalog = new JsonModelCatalog("non-existent-models.json");
-        var heavyModel = catalog.GetLocalModel("llama-3.2-11b-vision-q4");
+        var heavyModel = catalog.GetLocalModel("qwen2.5-vl-7b-q6");
         heavyModel.Should().NotBeNull();
 
         // 8 GB RAM cannot run 16 GB model

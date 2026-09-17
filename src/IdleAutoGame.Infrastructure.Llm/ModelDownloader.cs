@@ -42,12 +42,29 @@ public sealed class ModelDownloader : IModelDownloader
             Directory.CreateDirectory(directory);
         }
 
-        using var response = await _httpClient.GetAsync(
-            model.DownloadUrl,
+        using var request = new HttpRequestMessage(HttpMethod.Get, model.DownloadUrl);
+        request.Headers.UserAgent.ParseAdd("IdleAutoGame/1.0 (Desktop; Linux; Windows)");
+
+        using var response = await _httpClient.SendAsync(
+            request,
             HttpCompletionOption.ResponseHeadersRead,
             ct).ConfigureAwait(false);
 
-        response.EnsureSuccessStatusCode();
+        if (!response.IsSuccessStatusCode)
+        {
+            var statusCode = (int)response.StatusCode;
+            if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            {
+                throw new HttpRequestException($"Download of '{model.DisplayName}' failed with HTTP {statusCode} ({response.ReasonPhrase}). The remote model repository is restricted or requires authentication.", null, response.StatusCode);
+            }
+
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                throw new HttpRequestException($"Download of '{model.DisplayName}' failed with HTTP 404 (Not Found). URL '{model.DownloadUrl}' is unreachable.", null, response.StatusCode);
+            }
+
+            response.EnsureSuccessStatusCode();
+        }
 
         long totalBytes = response.Content.Headers.ContentLength ?? model.FileSize;
         if (totalBytes <= 0)

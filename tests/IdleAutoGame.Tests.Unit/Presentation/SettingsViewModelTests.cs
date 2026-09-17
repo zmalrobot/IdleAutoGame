@@ -38,6 +38,17 @@ public class SettingsViewModelTests
     }
 
     [Fact]
+    public void AvailableDropdownOptions_ContainExpectedValues()
+    {
+        _viewModel.AvailableThemes.Should().Contain("dark").And.Contain("light");
+        _viewModel.AvailableLocales.Should().Contain("system").And.Contain("en").And.Contain("it");
+        _viewModel.AvailableErrorPolicies.Should().Contain("pause").And.Contain("stop").And.Contain("ignore");
+        _viewModel.AvailableLlmProviders.Should().Contain("llama.cpp").And.Contain("LLamaSharp").And.Contain("openai");
+        _viewModel.AvailableConnectionPreferences.Should().Contain("usb").And.Contain("wireless");
+        _viewModel.AvailableLogLevels.Should().Contain("Information").And.Contain("Debug");
+    }
+
+    [Fact]
     public async Task SaveSettingsAsync_PersistsToConfigService()
     {
         _viewModel.LlmEndpoint = "http://192.168.1.100:8080";

@@ -12,17 +12,36 @@
 
         <Border Grid.Row="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
             <TabControl Background="Transparent" SelectedIndex="{Binding SelectedTabIndex}">
+                <TabControl.Styles>
+                    <Style Selector="TabItem">
+                        <Setter Property="FontSize" Value="13"/>
+                        <Setter Property="FontWeight" Value="SemiBold"/>
+                        <Setter Property="Padding" Value="12,8"/>
+                        <Setter Property="MinHeight" Value="34"/>
+                    </Style>
+                </TabControl.Styles>
+
                 <!-- Tab 1: Generale -->
                 <TabItem Header="Generale">
                     <ScrollViewer Margin="0,16,0,0">
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Locale / Lingua dell'interfaccia:" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Text="{Binding Locale}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                <ComboBox ItemsSource="{Binding AvailableLocales}"
+                                          SelectedItem="{Binding Locale}"
+                                          HorizontalAlignment="Stretch"
+                                          Background="{DynamicResource Surface2Brush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Politica di errore ('pause', 'stop', 'ignore'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Text="{Binding ErrorPolicy}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                <ComboBox ItemsSource="{Binding AvailableErrorPolicies}"
+                                          SelectedItem="{Binding ErrorPolicy}"
+                                          HorizontalAlignment="Stretch"
+                                          Background="{DynamicResource Surface2Brush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <CheckBox IsChecked="{Binding AutoReconnect}" Content="Riconnessione automatica in caso di disconnessione device" Foreground="{DynamicResource TextPrimaryBrush}"/>
                         </StackPanel>
@@ -40,7 +59,12 @@
                                     <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
                                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="4" Margin="0,0,8,8">
                                             <TextBlock Text="Provider (LLamaSharp, openai, llama.cpp):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                            <TextBox Text="{Binding LlmProvider}" Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                            <ComboBox ItemsSource="{Binding AvailableLlmProviders}"
+                                                      SelectedItem="{Binding LlmProvider}"
+                                                      HorizontalAlignment="Stretch"
+                                                      Background="{DynamicResource Surface1Brush}"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}"
+                                                      BorderBrush="{DynamicResource BorderLightBrush}"/>
                                         </StackPanel>
                                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="4" Margin="0,0,0,8">
                                             <TextBlock Text="Endpoint URL:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -193,7 +217,12 @@
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Preferenza di Connessione ('usb' o 'wireless'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Text="{Binding ConnectionPreference}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                <ComboBox ItemsSource="{Binding AvailableConnectionPreferences}"
+                                          SelectedItem="{Binding ConnectionPreference}"
+                                          HorizontalAlignment="Stretch"
+                                          Background="{DynamicResource Surface2Brush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Seriale Dispositivo Predefinito (Opzionale):" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -250,7 +279,12 @@
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Livello di Log ('Debug', 'Information', 'Warning', 'Error'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Text="{Binding LogLevel}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                <ComboBox ItemsSource="{Binding AvailableLogLevels}"
+                                          SelectedItem="{Binding LogLevel}"
+                                          HorizontalAlignment="Stretch"
+                                          Background="{DynamicResource Surface2Brush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Giorni di Conservazione Cronologia (Retention Days):" Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -271,7 +305,12 @@
                         <StackPanel Spacing="16" MaxWidth="600" HorizontalAlignment="Left">
                             <StackPanel Spacing="6">
                                 <TextBlock Text="Tema UI ('dark', 'light'):" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                <TextBox Text="{Binding Theme}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                <ComboBox ItemsSource="{Binding AvailableThemes}"
+                                          SelectedItem="{Binding Theme}"
+                                          HorizontalAlignment="Stretch"
+                                          Background="{DynamicResource Surface2Brush}"
+                                          Foreground="{DynamicResource TextPrimaryBrush}"
+                                          BorderBrush="{DynamicResource BorderLightBrush}"/>
                             </StackPanel>
                             <CheckBox IsChecked="{Binding ShowConfidence}" Content="Mostra Badge di Confidenza nella Dashboard" Foreground="{DynamicResource TextPrimaryBrush}"/>
                             <CheckBox IsChecked="{Binding ShowRawResponse}" Content="Mostra JSON Risposta Grezza nel Pannello Ispettore" Foreground="{DynamicResource TextPrimaryBrush}"/>

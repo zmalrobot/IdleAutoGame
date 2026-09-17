@@ -18,6 +18,18 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private int _selectedTabIndex = 0;
 
+    public IReadOnlyList<string> AvailableLocales { get; } = new[] { "system", "en", "it" };
+
+    public IReadOnlyList<string> AvailableThemes { get; } = new[] { "dark", "light" };
+
+    public IReadOnlyList<string> AvailableErrorPolicies { get; } = new[] { "pause", "stop", "ignore" };
+
+    public IReadOnlyList<string> AvailableLlmProviders { get; } = new[] { "LLamaSharp", "openai", "llama.cpp" };
+
+    public IReadOnlyList<string> AvailableConnectionPreferences { get; } = new[] { "usb", "wireless" };
+
+    public IReadOnlyList<string> AvailableLogLevels { get; } = new[] { "Debug", "Information", "Warning", "Error" };
+
     [ObservableProperty]
     private string _locale = "system";
 
