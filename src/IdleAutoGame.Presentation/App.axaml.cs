@@ -108,6 +108,7 @@ public partial class App : Avalonia.Application
         services.AddSingleton<ISessionRepository, SqliteSessionRepository>();
 
         // Application Services & Configuration
+        services.AddSingleton<IExecutionStateGuard, ExecutionStateGuard>();
         services.AddSingleton<SettingsValidator>();
         services.AddSingleton<IConfigurationService, ConfigurationService>();
         services.AddSingleton<SessionRecorder>();
@@ -221,6 +222,7 @@ public partial class App : Avalonia.Application
             var policyService = sp.GetRequiredService<IGamePolicyService>();
             var activityGuard = sp.GetRequiredService<IGameActivityGuard>();
             var actionExecutor = sp.GetRequiredService<IActionExecutor>();
+            var executionGuard = sp.GetRequiredService<IExecutionStateGuard>();
 
             return new AutomationEngine(
                 deviceController,
@@ -230,7 +232,8 @@ public partial class App : Avalonia.Application
                 configService,
                 policyService,
                 activityGuard,
-                actionExecutor);
+                actionExecutor,
+                executionGuard);
         });
 
         // ViewModels

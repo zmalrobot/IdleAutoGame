@@ -34,6 +34,10 @@ public partial class GameSelectionViewModel : ViewModelBase
     private readonly IGameRegistry _gameRegistry;
     private readonly IConfigurationService _configService;
     private readonly IActiveContextService _activeContext;
+    private readonly IExecutionStateGuard? _guard;
+
+    [ObservableProperty]
+    private bool _isExecutionLocked;
 
     [ObservableProperty]
     private ObservableCollection<GameDisplayItem> _games = new();
@@ -68,11 +72,25 @@ public partial class GameSelectionViewModel : ViewModelBase
     public GameSelectionViewModel(
         IGameRegistry gameRegistry,
         IConfigurationService configService,
-        IActiveContextService activeContext)
+        IActiveContextService activeContext,
+        IExecutionStateGuard? guard = null)
     {
         _gameRegistry = gameRegistry ?? throw new ArgumentNullException(nameof(gameRegistry));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
+        _guard = guard;
+
+        if (_guard != null)
+        {
+            _isExecutionLocked = _guard.IsExecutionLocked;
+            _guard.StateChanged += (_, e) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    IsExecutionLocked = e.IsExecutionLocked;
+                });
+            };
+        }
 
         _activeContext.ContextChanged += OnActiveContextChanged;
         SyncFromActiveContext();
@@ -152,6 +170,16 @@ public partial class GameSelectionViewModel : ViewModelBase
         {
             StatusMessage = "Seleziona un gioco.";
             return;
+        }
+
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var check = _guard.CanChangeGame(SelectedGame.Id);
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
         }
 
         var current = _configService.Current;

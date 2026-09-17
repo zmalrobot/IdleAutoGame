@@ -18,3 +18,4 @@ public interface IClipboardService
     /// </summary>
     Task<string?> GetTextAsync();
 }
+

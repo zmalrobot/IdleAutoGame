@@ -65,3 +65,4 @@ public sealed record LlmOutputChunk
     /// </summary>
     public LlmResponse? FinalResponse { get; init; }
 }
+

@@ -17,6 +17,7 @@ public sealed class ActiveContextService : IActiveContextService
     private readonly IModelManager _modelManager;
     private readonly IGameActivityGuard _activityGuard;
     private readonly DeviceService? _deviceService;
+    private readonly IExecutionStateGuard? _guard;
     private readonly object _lock = new();
 
     private ActiveModelContext _activeModel;
@@ -74,7 +75,8 @@ public sealed class ActiveContextService : IActiveContextService
         IModelCatalog catalog,
         IModelManager modelManager,
         IGameActivityGuard activityGuard,
-        DeviceService? deviceService = null)
+        DeviceService? deviceService = null,
+        IExecutionStateGuard? guard = null)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
@@ -84,6 +86,7 @@ public sealed class ActiveContextService : IActiveContextService
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
         _activityGuard = activityGuard ?? throw new ArgumentNullException(nameof(activityGuard));
         _deviceService = deviceService;
+        _guard = guard;
 
         _activeModel = new ActiveModelContext("None", "Nessun modello", "None", "Non pronto", false);
         _activeDevice = new ActiveDeviceContext("None", "Nessun dispositivo", ConnectionType.USB, DeviceState.Offline, false);
@@ -189,9 +192,19 @@ public sealed class ActiveContextService : IActiveContextService
     }
 
     /// <inheritdoc />
+    /// <inheritdoc />
     public async Task SetActiveDeviceAsync(DeviceInfo device, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(device);
+
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeDevice(device.Serial);
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
 
         ActiveDevice = new ActiveDeviceContext(
             device.Serial,
@@ -224,6 +237,15 @@ public sealed class ActiveContextService : IActiveContextService
     public async Task SetActiveDeviceBySerialAsync(string serial, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeDevice(serial);
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
 
         try
         {
@@ -265,6 +287,15 @@ public sealed class ActiveContextService : IActiveContextService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(modelId);
 
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeModel(modelId);
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
+
         var current = _configService.Current;
         current.Llm.SelectedModelId = modelId;
         current.Llm.Provider = provider;
@@ -292,6 +323,15 @@ public sealed class ActiveContextService : IActiveContextService
     public async Task SetActiveGameAsync(string gameId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameId);
+
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeGame(gameId);
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
 
         var game = _gameRegistry.GetById(gameId);
         if (game != null)

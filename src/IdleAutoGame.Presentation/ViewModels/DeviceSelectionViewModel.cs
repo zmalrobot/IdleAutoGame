@@ -44,6 +44,10 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     private readonly IConfigurationService _configService;
     private readonly IActiveContextService _activeContext;
     private readonly DeviceService? _deviceService;
+    private readonly IExecutionStateGuard? _guard;
+
+    [ObservableProperty]
+    private bool _isExecutionLocked;
 
     [ObservableProperty]
     private ObservableCollection<DeviceDisplayItem> _devices = new();
@@ -86,13 +90,27 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         IDeviceConnectionManager connectionManager,
         IConfigurationService configService,
         IActiveContextService activeContext,
-        DeviceService? deviceService = null)
+        DeviceService? deviceService = null,
+        IExecutionStateGuard? guard = null)
     {
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         _deviceService = deviceService;
+        _guard = guard;
+
+        if (_guard != null)
+        {
+            _isExecutionLocked = _guard.IsExecutionLocked;
+            _guard.StateChanged += (_, e) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    IsExecutionLocked = e.IsExecutionLocked;
+                });
+            };
+        }
 
         _activeContext.ContextChanged += OnActiveContextChanged;
         SyncFromActiveContext();
@@ -176,6 +194,16 @@ public partial class DeviceSelectionViewModel : ViewModelBase
         {
             StatusMessage = "Seleziona un dispositivo.";
             return;
+        }
+
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var check = _guard.CanChangeDevice(SelectedDevice.Serial);
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
         }
 
         if (SelectedDevice.Device.State == DeviceState.Unauthorized)
@@ -262,6 +290,16 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task ConnectWirelessAsync()
     {
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var check = _guard.CanChangeDevice($"{WirelessHost}:{WirelessPort}");
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(WirelessHost))
         {
             StatusMessage = "Inserisci un indirizzo IP o hostname valido.";
@@ -297,6 +335,16 @@ public partial class DeviceSelectionViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task PairWirelessAsync()
     {
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var check = _guard.CanChangeDevice($"{WirelessHost}:{WirelessPort}");
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(WirelessHost) || string.IsNullOrWhiteSpace(PairingCode))
         {
             StatusMessage = "Host e codice di accoppiamento sono richiesti per il pairing wireless.";

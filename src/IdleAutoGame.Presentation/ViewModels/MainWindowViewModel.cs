@@ -18,6 +18,18 @@ public partial class MainWindowViewModel : ViewModelBase
     public SettingsViewModel Settings { get; }
     public SplashViewModel Splash { get; }
     private readonly IdleAutoGame.Application.Services.IActiveContextService _activeContext;
+    private readonly IdleAutoGame.Application.Services.IExecutionStateGuard? _executionGuard;
+
+    [ObservableProperty]
+    private string? _navigationNotice;
+
+    [ObservableProperty]
+    private bool _isExecutionLocked;
+
+    [ObservableProperty]
+    private string? _lockSummary;
+
+    public bool CanNavigateToNonDashboard => !IsExecutionLocked;
 
     public MainWindowViewModel(
         DashboardViewModel dashboard,
@@ -26,7 +38,8 @@ public partial class MainWindowViewModel : ViewModelBase
         GameSelectionViewModel games,
         SettingsViewModel settings,
         SplashViewModel splash,
-        IdleAutoGame.Application.Services.IActiveContextService activeContext)
+        IdleAutoGame.Application.Services.IActiveContextService activeContext,
+        IdleAutoGame.Application.Services.IExecutionStateGuard? executionGuard = null)
     {
         Dashboard = dashboard ?? throw new ArgumentNullException(nameof(dashboard));
         Devices = devices ?? throw new ArgumentNullException(nameof(devices));
@@ -35,14 +48,45 @@ public partial class MainWindowViewModel : ViewModelBase
         Settings = settings ?? throw new ArgumentNullException(nameof(settings));
         Splash = splash ?? throw new ArgumentNullException(nameof(splash));
         _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
+        _executionGuard = executionGuard;
+
+        if (_executionGuard != null)
+        {
+            _isExecutionLocked = _executionGuard.IsExecutionLocked;
+            _lockSummary = _executionGuard.LockSummary;
+            _executionGuard.StateChanged += OnExecutionStateChanged;
+        }
+
         Splash.Ready += (_, _) => CurrentView = Dashboard;
 
         _currentView = Splash;
     }
 
+    private void OnExecutionStateChanged(object? sender, IdleAutoGame.Application.Services.ApplicationRuntimeStateChangedEventArgs e)
+    {
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            IsExecutionLocked = e.IsExecutionLocked;
+            LockSummary = _executionGuard?.LockSummary;
+            OnPropertyChanged(nameof(CanNavigateToNonDashboard));
+
+            if (e.IsExecutionLocked && CurrentView != Dashboard && CurrentView != Splash)
+            {
+                CurrentView = Dashboard;
+            }
+        });
+    }
+
+    [RelayCommand]
+    public void DismissNotice()
+    {
+        NavigationNotice = null;
+    }
+
     [RelayCommand]
     public void NavigateToDashboard()
     {
+        NavigationNotice = null;
         CurrentView = Dashboard;
         _ = _activeContext.RefreshForegroundStatusAsync();
     }
@@ -50,6 +94,17 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task NavigateToDevicesAsync()
     {
+        if (_executionGuard != null)
+        {
+            var check = _executionGuard.CanNavigateTo("Devices");
+            if (!check.IsAllowed)
+            {
+                NavigationNotice = check.Message;
+                return;
+            }
+        }
+
+        NavigationNotice = null;
         CurrentView = Devices;
         await Devices.RefreshDevicesAsync();
     }
@@ -57,6 +112,17 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task NavigateToModelsAsync()
     {
+        if (_executionGuard != null)
+        {
+            var check = _executionGuard.CanNavigateTo("Models");
+            if (!check.IsAllowed)
+            {
+                NavigationNotice = check.Message;
+                return;
+            }
+        }
+
+        NavigationNotice = null;
         CurrentView = Models;
         await Models.LoadModelsAsync();
     }
@@ -64,6 +130,17 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void NavigateToGames()
     {
+        if (_executionGuard != null)
+        {
+            var check = _executionGuard.CanNavigateTo("Games");
+            if (!check.IsAllowed)
+            {
+                NavigationNotice = check.Message;
+                return;
+            }
+        }
+
+        NavigationNotice = null;
         CurrentView = Games;
         Games.LoadGames();
     }
@@ -71,6 +148,17 @@ public partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public void NavigateToSettings()
     {
+        if (_executionGuard != null)
+        {
+            var check = _executionGuard.CanNavigateTo("Settings");
+            if (!check.IsAllowed)
+            {
+                NavigationNotice = check.Message;
+                return;
+            }
+        }
+
+        NavigationNotice = null;
         CurrentView = Settings;
         Settings.LoadFromCurrent();
     }

@@ -13,6 +13,7 @@ public sealed class DeviceService
     private readonly IDeviceController _controller;
     private readonly IDeviceConnectionManager _connectionManager;
     private readonly IConfigurationService _configurationService;
+    private readonly IExecutionStateGuard? _guard;
     private readonly object _lock = new();
 
     private DeviceInfo? _selectedDevice;
@@ -51,12 +52,14 @@ public sealed class DeviceService
         IDeviceDiscovery discovery,
         IDeviceController controller,
         IDeviceConnectionManager connectionManager,
-        IConfigurationService configurationService)
+        IConfigurationService configurationService,
+        IExecutionStateGuard? guard = null)
     {
         _discovery = discovery ?? throw new ArgumentNullException(nameof(discovery));
         _controller = controller ?? throw new ArgumentNullException(nameof(controller));
         _connectionManager = connectionManager ?? throw new ArgumentNullException(nameof(connectionManager));
         _configurationService = configurationService ?? throw new ArgumentNullException(nameof(configurationService));
+        _guard = guard;
     }
 
     /// <summary>
@@ -73,6 +76,15 @@ public sealed class DeviceService
     public async Task<DeviceInfo> SelectDeviceAsync(string serial, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(serial);
+
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeDevice(serial);
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
 
         var details = await _discovery.GetDeviceDetailsAsync(serial, ct).ConfigureAwait(false);
         SelectedDevice = details;
@@ -126,8 +138,20 @@ public sealed class DeviceService
     /// <summary>
     /// Connects to a wireless endpoint and registers it in saved settings if successful.
     /// </summary>
+    /// <summary>
+    /// Connects to a wireless endpoint and registers it in saved settings if successful.
+    /// </summary>
     public async Task<bool> ConnectWirelessAsync(string host, int port, string? alias = null, CancellationToken ct = default)
     {
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeDevice($"{host}:{port}");
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
+
         var success = await _connectionManager.ConnectWirelessAsync(host, port, ct).ConfigureAwait(false);
         if (success)
         {
@@ -157,6 +181,15 @@ public sealed class DeviceService
     /// </summary>
     public async Task<bool> PairWirelessAsync(string host, int port, string pairingCode, CancellationToken ct = default)
     {
+        if (_guard != null)
+        {
+            var check = _guard.CanChangeDevice($"{host}:{port}");
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
+
         return await _connectionManager.PairWirelessAsync(host, port, pairingCode, ct).ConfigureAwait(false);
     }
 }

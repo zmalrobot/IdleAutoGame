@@ -27,6 +27,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     private readonly IGamePolicyService _policyService;
     private readonly IGameActivityGuard _activityGuard;
     private readonly IActionExecutor _actionExecutor;
+    private readonly IExecutionStateGuard? _executionGuard;
 
     private AppSettings _settings => _configurationService.Current;
 
@@ -95,7 +96,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         IConfigurationService configurationService,
         IGamePolicyService? policyService = null,
         IGameActivityGuard? activityGuard = null,
-        IActionExecutor? actionExecutor = null)
+        IActionExecutor? actionExecutor = null,
+        IExecutionStateGuard? executionGuard = null)
     {
         _deviceController = deviceController ?? throw new ArgumentNullException(nameof(deviceController));
         _llmProviderFactory = llmProviderFactory ?? throw new ArgumentNullException(nameof(llmProviderFactory));
@@ -105,6 +107,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         _policyService = policyService ?? new GamePolicyService(_configurationService);
         _activityGuard = activityGuard ?? new GameActivityGuard(_deviceController);
         _actionExecutor = actionExecutor ?? CreateDefaultActionExecutor();
+        _executionGuard = executionGuard;
     }
 
     /// <summary>
@@ -118,7 +121,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         AppSettings? settings = null,
         IGamePolicyService? policyService = null,
         IGameActivityGuard? activityGuard = null,
-        IActionExecutor? actionExecutor = null)
+        IActionExecutor? actionExecutor = null,
+        IExecutionStateGuard? executionGuard = null)
         : this(
             deviceController,
             () => llmProvider,
@@ -127,7 +131,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             new ConfigurationService(new InMemorySettingsRepository(settings), new SettingsValidator(), settings),
             policyService,
             activityGuard,
-            actionExecutor)
+            actionExecutor,
+            executionGuard)
     {
     }
 
@@ -156,6 +161,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     }
 
     /// <inheritdoc />
+    /// <inheritdoc />
     public async Task StartAsync(string deviceSerial, string gameId, string modelId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(deviceSerial);
@@ -178,6 +184,40 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         // Initialize and apply effective policy for game
         var effectivePolicy = _policyService.GetEffectivePolicy(gameId);
         _policyService.SetPolicy(effectivePolicy, $"Session initialized for game '{gameId}'");
+
+        if (_executionGuard != null)
+        {
+            var snapshot = new GameplaySessionSnapshot
+            {
+                SessionId = Guid.NewGuid().ToString("N"),
+                StartedAt = DateTimeOffset.UtcNow,
+                DeviceSerial = deviceSerial,
+                DeviceDisplayName = deviceSerial,
+                GameId = gameId,
+                GameName = game.Name,
+                PackageName = game.ExpectedPackageName ?? string.Empty,
+                ValidActivities = game.ValidActivities,
+                LlmProvider = _settings.Llm.Provider,
+                ModelId = modelId,
+                GenericSystemPrompt = _settings.Llm.GenericSystemPrompt,
+                AllowPremiumCurrency = effectivePolicy.AllowPremiumCurrency,
+                AllowCreditPurchases = effectivePolicy.AllowCreditPurchases,
+                AutomationSettings = _settings.Clone().Automation,
+                DeviceSettings = _settings.Clone().Device,
+                LlmSettings = _settings.Clone().Llm
+            };
+
+            var lockResult = await _executionGuard.AcquireLockAsync(snapshot, ct).ConfigureAwait(false);
+            if (!lockResult.IsAllowed)
+            {
+                lock (_stateLock)
+                {
+                    _state = AutomationState.Idle;
+                }
+                throw new InvalidOperationException($"Impossibile avviare la sessione di automazione: {lockResult.Message}");
+            }
+            _executionGuard.TransitionState(ApplicationRuntimeState.Running);
+        }
 
         await _sessionRecorder.StartSessionAsync(gameId, deviceSerial, modelId, ct).ConfigureAwait(false);
 
@@ -233,6 +273,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             }
         }
 
+        _executionGuard?.TransitionState(ApplicationRuntimeState.Paused, _pauseReason);
+
         // Cancel currently in-flight cycle operations (inference, delays, gestures) immediately
         try
         {
@@ -258,6 +300,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             _resumeTcs?.TrySetResult(true);
             _resumeTcs = null;
         }
+
+        _executionGuard?.TransitionState(ApplicationRuntimeState.Running);
         return Task.CompletedTask;
     }
 
@@ -270,6 +314,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             State = AutomationState.Stopping;
             _pauseReason = null;
         }
+
+        _executionGuard?.TransitionState(ApplicationRuntimeState.Stopping);
 
         // 1. Immediate cancellation signal
         try { _loopCts?.Cancel(); } catch (ObjectDisposedException) { }
@@ -329,6 +375,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             _pauseReason = "Automazione arrestata dall'utente.";
             State = AutomationState.Stopped;
         }
+
+        if (_executionGuard != null)
+        {
+            await _executionGuard.ReleaseLockAsync().ConfigureAwait(false);
+        }
     }
 
     /// <inheritdoc />
@@ -340,6 +391,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             State = AutomationState.Stopping;
             _pauseReason = "Arresto di Emergenza richiesto dall'utente";
         }
+
+        _executionGuard?.TransitionState(ApplicationRuntimeState.EmergencyStopping, _pauseReason);
 
         // 1. Instant abort across all tokens
         try { _loopCts?.Cancel(); } catch { }
@@ -376,6 +429,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             _consecutiveUnknownStates = 0;
             _pauseReason = "Arresto di emergenza completato. Sistema in sicurezza.";
             State = AutomationState.Stopped;
+        }
+
+        if (_executionGuard != null)
+        {
+            await _executionGuard.ReleaseLockAsync().ConfigureAwait(false);
         }
     }
 
@@ -830,6 +888,10 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         _loopCts?.Dispose();
         _resumeTcs?.TrySetCanceled();
         try { _currentCycleCts?.Dispose(); } catch (ObjectDisposedException) { }
+        if (_executionGuard != null && _executionGuard.IsExecutionLocked)
+        {
+            try { _executionGuard.ReleaseLockAsync().GetAwaiter().GetResult(); } catch { }
+        }
     }
 
     private sealed class InMemorySettingsRepository : ISettingsRepository

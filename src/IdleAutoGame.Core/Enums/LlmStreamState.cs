@@ -45,3 +45,4 @@ public enum LlmStreamState
     /// </summary>
     Unavailable
 }
+

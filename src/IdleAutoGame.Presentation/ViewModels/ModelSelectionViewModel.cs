@@ -92,6 +92,10 @@ public partial class ModelSelectionViewModel : ViewModelBase
     private readonly IConfigurationService _configService;
     private readonly IActiveContextService _activeContext;
     private readonly LocalLlamaProvider _localProvider;
+    private readonly IExecutionStateGuard? _guard;
+
+    [ObservableProperty]
+    private bool _isExecutionLocked;
 
     [ObservableProperty]
     private bool _isLocalMode = true;
@@ -147,7 +151,8 @@ public partial class ModelSelectionViewModel : ViewModelBase
         IHardwareDetector hardwareDetector,
         IConfigurationService configService,
         IActiveContextService activeContext,
-        LocalLlamaProvider localProvider)
+        LocalLlamaProvider localProvider,
+        IExecutionStateGuard? guard = null)
     {
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
@@ -155,6 +160,19 @@ public partial class ModelSelectionViewModel : ViewModelBase
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         _localProvider = localProvider ?? throw new ArgumentNullException(nameof(localProvider));
+        _guard = guard;
+
+        if (_guard != null)
+        {
+            _isExecutionLocked = _guard.IsExecutionLocked;
+            _guard.StateChanged += (_, e) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    IsExecutionLocked = e.IsExecutionLocked;
+                });
+            };
+        }
 
         _modelManager.DownloadProgressChanged += OnDownloadProgressChanged;
         _modelManager.ModelStatusChanged += OnModelStatusChanged;
@@ -330,6 +348,16 @@ public partial class ModelSelectionViewModel : ViewModelBase
                 return;
             }
 
+            if (_guard != null && _guard.IsExecutionLocked)
+            {
+                var check = _guard.CanChangeModel(SelectedLocalModel.Model.Id);
+                if (!check.IsAllowed)
+                {
+                    StatusMessage = check.Message;
+                    return;
+                }
+            }
+
             if (!SelectedLocalModel.IsCompatible)
             {
                 StatusMessage = $"Attivazione bloccata: modello incompatibile con questo PC (Selection blocked: Incompatible - {SelectedLocalModel.CompatibilityReason}).";
@@ -388,6 +416,16 @@ public partial class ModelSelectionViewModel : ViewModelBase
             {
                 StatusMessage = "Seleziona un profilo remoto.";
                 return;
+            }
+
+            if (_guard != null && _guard.IsExecutionLocked)
+            {
+                var check = _guard.CanChangeModel(SelectedRemoteItem.Profile.Id);
+                if (!check.IsAllowed)
+                {
+                    StatusMessage = check.Message;
+                    return;
+                }
             }
 
             current.Llm.SelectedModelId = SelectedRemoteItem.Profile.Id;

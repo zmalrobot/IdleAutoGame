@@ -18,3 +18,4 @@ public class FakeClipboardService : IClipboardService
         return Task.FromResult(Text);
     }
 }
+

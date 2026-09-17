@@ -12,6 +12,7 @@ public sealed class ConfigurationService : IConfigurationService
 {
     private readonly ISettingsRepository _repository;
     private readonly SettingsValidator _validator;
+    private readonly IExecutionStateGuard? _guard;
     private readonly object _lock = new();
     private AppSettings _current;
 
@@ -25,9 +26,22 @@ public sealed class ConfigurationService : IConfigurationService
         ISettingsRepository repository,
         SettingsValidator? validator = null,
         AppSettings? initialSettings = null)
+        : this(repository, validator, null, initialSettings)
+    {
+    }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="ConfigurationService"/> with execution lock guard.
+    /// </summary>
+    public ConfigurationService(
+        ISettingsRepository repository,
+        SettingsValidator? validator,
+        IExecutionStateGuard? guard,
+        AppSettings? initialSettings = null)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _validator = validator ?? new SettingsValidator();
+        _guard = guard;
         _current = initialSettings?.Clone() ?? new AppSettings();
     }
 
@@ -92,6 +106,71 @@ public sealed class ConfigurationService : IConfigurationService
             return validation;
         }
 
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            AppSettings currentSnapshot;
+            lock (_lock)
+            {
+                currentSnapshot = _current.Clone();
+            }
+
+            var errors = new List<string>();
+
+            // Check Device
+            if (!Equals(currentSnapshot.Device.DefaultDeviceSerial, newSettings.Device.DefaultDeviceSerial) ||
+                !Equals(currentSnapshot.Device.ConnectionPreference, newSettings.Device.ConnectionPreference))
+            {
+                errors.Add("Impossibile modificare le impostazioni del dispositivo durante l'esecuzione attiva.");
+            }
+
+            // Check LLM
+            if (currentSnapshot.Llm.Provider != newSettings.Llm.Provider ||
+                currentSnapshot.Llm.SelectedModelId != newSettings.Llm.SelectedModelId ||
+                currentSnapshot.Llm.Endpoint != newSettings.Llm.Endpoint ||
+                currentSnapshot.Llm.ApiKey != newSettings.Llm.ApiKey ||
+                currentSnapshot.Llm.Temperature != newSettings.Llm.Temperature ||
+                currentSnapshot.Llm.MaxTokens != newSettings.Llm.MaxTokens ||
+                currentSnapshot.Llm.ContextSize != newSettings.Llm.ContextSize ||
+                currentSnapshot.Llm.GpuLayerCount != newSettings.Llm.GpuLayerCount ||
+                currentSnapshot.Llm.ThreadCount != newSettings.Llm.ThreadCount ||
+                currentSnapshot.Llm.BatchSize != newSettings.Llm.BatchSize ||
+                currentSnapshot.Llm.ModelStorageDirectory != newSettings.Llm.ModelStorageDirectory ||
+                currentSnapshot.Llm.GenericSystemPrompt != newSettings.Llm.GenericSystemPrompt)
+            {
+                errors.Add("Impossibile modificare le impostazioni LLM durante l'esecuzione attiva.");
+            }
+
+            // Check Automation
+            if (currentSnapshot.Automation.ObservationIntervalSeconds != newSettings.Automation.ObservationIntervalSeconds ||
+                currentSnapshot.Automation.ErrorPolicy != newSettings.Automation.ErrorPolicy ||
+                currentSnapshot.Automation.EnableActivityGuard != newSettings.Automation.EnableActivityGuard ||
+                currentSnapshot.Automation.ActivityCheckIntervalSeconds != newSettings.Automation.ActivityCheckIntervalSeconds ||
+                currentSnapshot.Automation.ActivityCancellationTimeoutMs != newSettings.Automation.ActivityCancellationTimeoutMs ||
+                currentSnapshot.Automation.EmergencyStopTimeoutMs != newSettings.Automation.EmergencyStopTimeoutMs)
+            {
+                errors.Add("Impossibile modificare le impostazioni di automazione durante l'esecuzione attiva.");
+            }
+
+            // Check Games
+            if (currentSnapshot.Games.DefaultGameId != newSettings.Games.DefaultGameId)
+            {
+                errors.Add("Impossibile modificare il gioco attivo durante l'esecuzione attiva.");
+            }
+
+            // Check Logging (SaveRawLlmOutput and Level are mutable, others locked)
+            if (currentSnapshot.Logging.SaveScreenshots != newSettings.Logging.SaveScreenshots ||
+                currentSnapshot.Logging.HistoryLength != newSettings.Logging.HistoryLength ||
+                currentSnapshot.Logging.RetentionDays != newSettings.Logging.RetentionDays)
+            {
+                errors.Add("Impossibile modificare i parametri di ritenzione log e screenshot durante l'esecuzione attiva.");
+            }
+
+            if (errors.Count > 0)
+            {
+                return ValidationResult.Failure(errors);
+            }
+        }
+
         var cloned = newSettings.Clone();
 
         await _repository.SaveAsync(cloned, ct).ConfigureAwait(false);
@@ -109,6 +188,15 @@ public sealed class ConfigurationService : IConfigurationService
     public async Task ResetCategoryAsync(string category, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(category);
+
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var norm = category.Trim().ToLowerInvariant().Replace(" ", "").Replace("/", "");
+            if (norm != "ui" && norm != "interfaccia" && norm != "interface")
+            {
+                throw new InvalidOperationException($"Impossibile ripristinare la categoria '{category}' mentre l'esecuzione è bloccata.");
+            }
+        }
 
         AppSettings updated;
         lock (_lock)
@@ -177,6 +265,11 @@ public sealed class ConfigurationService : IConfigurationService
     /// <inheritdoc />
     public async Task ResetAllAsync(CancellationToken ct = default)
     {
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            throw new InvalidOperationException("Impossibile ripristinare tutte le impostazioni mentre l'esecuzione è bloccata.");
+        }
+
         var defaults = new AppSettings();
 
         await _repository.SaveAsync(defaults, ct).ConfigureAwait(false);

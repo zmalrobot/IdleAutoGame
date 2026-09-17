@@ -14,6 +14,10 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IModelManager _modelManager;
     private readonly IHardwareDetector _hardwareDetector;
     private readonly LocalLlamaProvider _localProvider;
+    private readonly IExecutionStateGuard? _guard;
+
+    [ObservableProperty]
+    private bool _isExecutionLocked;
 
     [ObservableProperty]
     private int _selectedTabIndex = 0;
@@ -208,12 +212,26 @@ public partial class SettingsViewModel : ViewModelBase
         IConfigurationService configService,
         IModelManager modelManager,
         IHardwareDetector hardwareDetector,
-        LocalLlamaProvider localProvider)
+        LocalLlamaProvider localProvider,
+        IExecutionStateGuard? guard = null)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
         _hardwareDetector = hardwareDetector ?? throw new ArgumentNullException(nameof(hardwareDetector));
         _localProvider = localProvider ?? throw new ArgumentNullException(nameof(localProvider));
+        _guard = guard;
+
+        if (_guard != null)
+        {
+            _isExecutionLocked = _guard.IsExecutionLocked;
+            _guard.StateChanged += (_, e) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+                {
+                    IsExecutionLocked = e.IsExecutionLocked;
+                });
+            };
+        }
 
         _modelManager.ModelStatusChanged += (_, _) => _ = RefreshLocalModelsAsync();
 
@@ -367,6 +385,16 @@ public partial class SettingsViewModel : ViewModelBase
     {
         if (model == null) return;
 
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var check = _guard.CanUnloadModel(model.Id);
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
+        }
+
         if (_modelManager.IsModelInUse(model.Id))
         {
             StatusMessage = $"Cannot delete model '{model.DisplayName}' because it is currently in use.";
@@ -389,6 +417,16 @@ public partial class SettingsViewModel : ViewModelBase
     public async Task SelectActiveModelAsync(LocalModel model)
     {
         if (model == null) return;
+
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            var check = _guard.CanChangeModel(model.Id);
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
+        }
 
         if (!await _modelManager.IsModelInstalledAsync(model.Id))
         {
@@ -434,10 +472,20 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task UnloadActiveModelAsync()
     {
+        var activeId = _configService.Current.Llm.SelectedModelId;
+        if (_guard != null && _guard.IsExecutionLocked && !string.IsNullOrEmpty(activeId))
+        {
+            var check = _guard.CanUnloadModel(activeId);
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
+        }
+
         try
         {
             await _localProvider.UnloadModelAsync();
-            var activeId = _configService.Current.Llm.SelectedModelId;
             if (!string.IsNullOrEmpty(activeId))
             {
                 _modelManager.MarkModelInUse(activeId, false);
@@ -536,6 +584,12 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task ResetDefaultsAsync()
     {
+        if (_guard != null && _guard.IsExecutionLocked)
+        {
+            StatusMessage = "Impossibile ripristinare le impostazioni predefinite durante l'esecuzione attiva. Arresta prima l'agente.";
+            return;
+        }
+
         await _configService.ResetAllAsync();
         LoadFromCurrent();
         StatusMessage = "Settings reset to defaults.";

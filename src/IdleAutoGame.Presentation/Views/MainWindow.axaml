@@ -12,7 +12,7 @@
         Icon="/Assets/app.ico"
         Background="{DynamicResource AppBackgroundBrush}">
 
-    <Grid RowDefinitions="Auto,*">
+    <Grid RowDefinitions="Auto,Auto,*">
         <!-- Top App Navigation Bar -->
         <Border Grid.Row="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="0,0,0,1" Padding="16,10">
             <Grid ColumnDefinitions="Auto,*,Auto">
@@ -28,27 +28,50 @@
                             Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                             BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,6"/>
                     <Button Content="Devices" Command="{Binding NavigateToDevicesCommand}"
+                            IsEnabled="{Binding CanNavigateToNonDashboard}"
                             Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                             BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,6"/>
                     <Button Content="AI Models" Command="{Binding NavigateToModelsCommand}"
+                            IsEnabled="{Binding CanNavigateToNonDashboard}"
                             Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                             BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,6"/>
                     <Button Content="Games" Command="{Binding NavigateToGamesCommand}"
+                            IsEnabled="{Binding CanNavigateToNonDashboard}"
                             Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                             BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,6"/>
                     <Button Content="Settings" Command="{Binding NavigateToSettingsCommand}"
+                            IsEnabled="{Binding CanNavigateToNonDashboard}"
                             Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                             BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="14,6"/>
                 </StackPanel>
 
-                <!-- Status indicator -->
-                <Border Grid.Column="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
-                    <TextBlock Text="Native Desktop" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
-                </Border>
+                <!-- Status & Lock indicator -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border IsVisible="{Binding IsExecutionLocked}" Background="#3D2005" BorderBrush="#FF9800" BorderThickness="1" CornerRadius="4" Padding="8,4">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="🔒" FontSize="11" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding LockSummary}" FontSize="11" FontWeight="Bold" Foreground="#FFB74D" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="8,4" VerticalAlignment="Center">
+                        <TextBlock Text="Native Desktop" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Navigation Notice Banner -->
+        <Border Grid.Row="1" IsVisible="{Binding NavigationNotice, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                Background="#4A1818" BorderBrush="#EF5350" BorderThickness="0,0,0,1" Padding="16,8">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="⚠️" FontSize="14" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding NavigationNotice}" FontSize="12" FontWeight="SemiBold" Foreground="#FFCDD2" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Grid.Column="2" Content="✕" Command="{Binding DismissNoticeCommand}"
+                        Background="Transparent" BorderThickness="0" Foreground="#FFCDD2" FontWeight="Bold" Padding="6,2" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 
         <!-- Dynamic Screen Content -->
-        <ContentControl Grid.Row="1" Content="{Binding CurrentView}"/>
+        <ContentControl Grid.Row="2" Content="{Binding CurrentView}"/>
     </Grid>
 </Window>
