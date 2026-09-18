@@ -99,6 +99,10 @@
                                             <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2">
                                                 <TextBlock Text="{Binding FormattedSize}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
                                             </Border>
+                                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource PrimaryDarkBrush}" BorderThickness="1" CornerRadius="4" Padding="6,2"
+                                                    ToolTip.Tip="{Binding GpuRecommendationText}">
+                                                <TextBlock Text="{Binding GpuCompatibilityBadge}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                            </Border>
                                         </StackPanel>
                                         <TextBlock Text="{Binding Model.Description}" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                     </StackPanel>

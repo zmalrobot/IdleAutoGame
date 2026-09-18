@@ -1,3 +1,4 @@
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Models;
 
 namespace IdleAutoGame.Application.Validation;
@@ -205,6 +206,34 @@ public sealed class SettingsValidator
         if (llm.GenericSystemPrompt != null && llm.GenericSystemPrompt.Length > 50000)
         {
             result.AddError($"Generic System Prompt cannot exceed 50,000 characters. Current: {llm.GenericSystemPrompt.Length}.");
+        }
+
+        if (llm.Gpu != null)
+        {
+            ValidateGpu(llm.Gpu, result);
+        }
+    }
+
+    private static void ValidateGpu(GpuSettings gpu, ValidationResult result)
+    {
+        if (gpu.GpuLayerCount < 0)
+        {
+            result.AddError($"GPU Layer Count cannot be negative. Current: {gpu.GpuLayerCount}.");
+        }
+
+        if (gpu.GpuMemoryReserveMb is < 0 or > 65536)
+        {
+            result.AddError($"GPU Memory Reserve must be between 0 and 65,536 MB. Current: {gpu.GpuMemoryReserveMb}.");
+        }
+
+        if (gpu.GpuMinFreeMemoryMb is < 0 or > 65536)
+        {
+            result.AddError($"GPU Min Free Memory must be between 0 and 65,536 MB. Current: {gpu.GpuMinFreeMemoryMb}.");
+        }
+
+        if (!Enum.IsDefined(typeof(GpuOffloadMode), gpu.OffloadMode))
+        {
+            result.AddError($"Invalid GPU Offload Mode: {gpu.OffloadMode}.");
         }
     }
 

@@ -12,6 +12,7 @@ using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Games.TapTitans2;
 using IdleAutoGame.Infrastructure.Adb;
 using IdleAutoGame.Infrastructure.Llm;
+using IdleAutoGame.Infrastructure.Llm.Gpu;
 using IdleAutoGame.Infrastructure.Persistence;
 using IdleAutoGame.Presentation.Services;
 using IdleAutoGame.Presentation.ViewModels;
@@ -117,6 +118,8 @@ public partial class App : Avalonia.Application
         services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
 
         // Hardware & Models
+        services.AddSingleton<IGpuDeviceDetector, VulkanGpuDeviceDetector>();
+        services.AddSingleton<IModelMemoryEstimator, ModelMemoryEstimator>();
         services.AddSingleton<IHardwareDetector, LinuxHardwareDetector>();
         services.AddSingleton<IModelCatalog, JsonModelCatalog>();
         services.AddSingleton<IModelDownloader, ModelDownloader>();

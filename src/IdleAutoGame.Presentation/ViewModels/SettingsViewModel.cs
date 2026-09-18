@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using IdleAutoGame.Application.Services;
+using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Infrastructure.Llm;
+using IdleAutoGame.Infrastructure.Llm.Gpu;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
@@ -15,6 +17,8 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IHardwareDetector _hardwareDetector;
     private readonly LocalLlamaProvider _localProvider;
     private readonly IExecutionStateGuard? _guard;
+    private readonly IGpuDeviceDetector _gpuDetector;
+    private readonly IModelMemoryEstimator _memoryEstimator;
 
     [ObservableProperty]
     private bool _isExecutionLocked;
@@ -33,6 +37,53 @@ public partial class SettingsViewModel : ViewModelBase
     public IReadOnlyList<string> AvailableConnectionPreferences { get; } = new[] { "usb", "wireless" };
 
     public IReadOnlyList<string> AvailableLogLevels { get; } = new[] { "Debug", "Information", "Warning", "Error" };
+
+    public IReadOnlyList<GpuOffloadMode> AvailableOffloadModes { get; } = new[]
+    {
+        GpuOffloadMode.Auto,
+        GpuOffloadMode.Full,
+        GpuOffloadMode.Partial,
+        GpuOffloadMode.CpuOnly
+    };
+
+    [ObservableProperty]
+    private bool _useGpu = true;
+
+    [ObservableProperty]
+    private GpuOffloadMode _gpuOffloadMode = GpuOffloadMode.Auto;
+
+    [ObservableProperty]
+    private ObservableCollection<VulkanGpuDevice> _availableGpuDevices = new();
+
+    [ObservableProperty]
+    private VulkanGpuDevice? _selectedGpuDevice;
+
+    [ObservableProperty]
+    private string _selectedGpuId = "auto";
+
+    [ObservableProperty]
+    private int _gpuMemoryReserveMb = 1024;
+
+    [ObservableProperty]
+    private int _gpuMinFreeMemoryMb = 512;
+
+    [ObservableProperty]
+    private bool _allowGpuFallback = true;
+
+    [ObservableProperty]
+    private bool _fallbackToCpu = true;
+
+    [ObservableProperty]
+    private bool _fallbackToGpu = true;
+
+    [ObservableProperty]
+    private bool _isVulkanAvailable = false;
+
+    [ObservableProperty]
+    private string _detectedGpuSummary = "Rilevamento GPU Vulkan...";
+
+    [ObservableProperty]
+    private string _activeVramProfile = "Nessun profilo attivo";
 
     [ObservableProperty]
     private string _locale = "system";
@@ -213,13 +264,17 @@ public partial class SettingsViewModel : ViewModelBase
         IModelManager modelManager,
         IHardwareDetector hardwareDetector,
         LocalLlamaProvider localProvider,
-        IExecutionStateGuard? guard = null)
+        IExecutionStateGuard? guard = null,
+        IGpuDeviceDetector? gpuDetector = null,
+        IModelMemoryEstimator? memoryEstimator = null)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
         _hardwareDetector = hardwareDetector ?? throw new ArgumentNullException(nameof(hardwareDetector));
         _localProvider = localProvider ?? throw new ArgumentNullException(nameof(localProvider));
         _guard = guard;
+        _gpuDetector = gpuDetector ?? new VulkanGpuDeviceDetector();
+        _memoryEstimator = memoryEstimator ?? new ModelMemoryEstimator();
 
         if (_guard != null)
         {
@@ -255,7 +310,7 @@ public partial class SettingsViewModel : ViewModelBase
 
         ModelStorageDirectory = s.Llm.ModelStorageDirectory;
         ContextSize = s.Llm.ContextSize;
-        GpuLayerCount = s.Llm.GpuLayerCount;
+        GpuLayerCount = s.Llm.Gpu.GpuLayerCount;
         ThreadCount = s.Llm.ThreadCount;
         BatchSize = s.Llm.BatchSize;
         TopP = s.Llm.TopP;
@@ -264,6 +319,17 @@ public partial class SettingsViewModel : ViewModelBase
         UseMemoryMapping = s.Llm.UseMemoryMapping;
         UseMemoryLock = s.Llm.UseMemoryLock;
         GenericSystemPrompt = s.Llm.GenericSystemPrompt ?? LlmSettings.DefaultGenericSystemPrompt;
+
+        UseGpu = s.Llm.Gpu.UseGpu;
+        GpuOffloadMode = s.Llm.Gpu.OffloadMode;
+        SelectedGpuId = s.Llm.Gpu.SelectedGpuId;
+        GpuMemoryReserveMb = s.Llm.Gpu.GpuMemoryReserveMb;
+        GpuMinFreeMemoryMb = s.Llm.Gpu.GpuMinFreeMemoryMb;
+        AllowGpuFallback = s.Llm.Gpu.AllowFallback;
+        FallbackToCpu = s.Llm.Gpu.FallbackToCpu;
+        FallbackToGpu = s.Llm.Gpu.FallbackToGpu;
+
+        _ = RefreshGpuDevicesAsync();
 
         ObservationIntervalSeconds = s.Automation.ObservationIntervalSeconds;
         ErrorPolicy = s.Automation.ErrorPolicy;
@@ -337,6 +403,49 @@ public partial class SettingsViewModel : ViewModelBase
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task RefreshGpuDevicesAsync()
+    {
+        try
+        {
+            var devices = await _gpuDetector.DetectDevicesAsync();
+
+            AvailableGpuDevices.Clear();
+            foreach (var d in devices)
+            {
+                AvailableGpuDevices.Add(d);
+            }
+
+            IsVulkanAvailable = devices.Count > 0;
+            if (devices.Count > 0)
+            {
+                var preferred = devices[0];
+                DetectedGpuSummary = $"{preferred.Name} ({preferred.DedicatedVideoMemoryMb} MB VRAM, Vulkan {preferred.VulkanApiVersion})";
+                var profile = GpuProfileResolver.Resolve(preferred);
+                ActiveVramProfile = profile.DisplayName;
+
+                if (SelectedGpuId == "auto" || string.IsNullOrWhiteSpace(SelectedGpuId))
+                {
+                    SelectedGpuDevice = preferred;
+                }
+                else
+                {
+                    SelectedGpuDevice = devices.FirstOrDefault(d => d.GpuDeviceId == SelectedGpuId) ?? preferred;
+                }
+            }
+            else
+            {
+                DetectedGpuSummary = "Nessun dispositivo GPU Vulkan compatibile rilevato.";
+                ActiveVramProfile = "Nessun profilo attivo (CPU Only)";
+                SelectedGpuDevice = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            DetectedGpuSummary = $"Errore rilevamento Vulkan: {ex.Message}";
+        }
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task AutoConfigureLlmAsync()
     {
         try
@@ -348,13 +457,24 @@ public partial class SettingsViewModel : ViewModelBase
             LlmAutoConfigurator.ApplyHardwareRecommendations(current, hardware);
 
             ContextSize = current.ContextSize;
-            GpuLayerCount = current.GpuLayerCount;
+            GpuLayerCount = current.Gpu.GpuLayerCount;
             ThreadCount = current.ThreadCount;
             BatchSize = current.BatchSize;
             UseMemoryMapping = current.UseMemoryMapping;
             UseMemoryLock = current.UseMemoryLock;
 
-            StatusMessage = $"Auto-configuration applied: {ThreadCount} threads, {GpuLayerCount} GPU layers, context {ContextSize}.";
+            UseGpu = current.Gpu.UseGpu;
+            GpuOffloadMode = current.Gpu.OffloadMode;
+            GpuMemoryReserveMb = current.Gpu.GpuMemoryReserveMb;
+            GpuMinFreeMemoryMb = current.Gpu.GpuMinFreeMemoryMb;
+            AllowGpuFallback = current.Gpu.AllowFallback;
+            FallbackToCpu = current.Gpu.FallbackToCpu;
+            FallbackToGpu = current.Gpu.FallbackToGpu;
+            SelectedGpuId = current.Gpu.SelectedGpuId;
+
+            await RefreshGpuDevicesAsync();
+
+            StatusMessage = $"Auto-configuration applied: {ThreadCount} threads, {GpuLayerCount} GPU layers ({GpuOffloadMode}), context {ContextSize}.";
         }
         catch (Exception ex)
         {
@@ -525,6 +645,16 @@ public partial class SettingsViewModel : ViewModelBase
         s.Llm.UseMemoryMapping = UseMemoryMapping;
         s.Llm.UseMemoryLock = UseMemoryLock;
         s.Llm.GenericSystemPrompt = GenericSystemPrompt;
+
+        s.Llm.Gpu.UseGpu = UseGpu;
+        s.Llm.Gpu.OffloadMode = GpuOffloadMode;
+        s.Llm.Gpu.SelectedGpuId = SelectedGpuDevice?.GpuDeviceId ?? SelectedGpuId;
+        s.Llm.Gpu.GpuLayerCount = GpuLayerCount;
+        s.Llm.Gpu.GpuMemoryReserveMb = GpuMemoryReserveMb;
+        s.Llm.Gpu.GpuMinFreeMemoryMb = GpuMinFreeMemoryMb;
+        s.Llm.Gpu.AllowFallback = AllowGpuFallback;
+        s.Llm.Gpu.FallbackToCpu = FallbackToCpu;
+        s.Llm.Gpu.FallbackToGpu = FallbackToGpu;
 
         s.Automation.ObservationIntervalSeconds = ObservationIntervalSeconds;
         s.Automation.ErrorPolicy = ErrorPolicy;

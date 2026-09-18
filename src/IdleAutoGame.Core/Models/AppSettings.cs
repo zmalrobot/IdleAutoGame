@@ -84,7 +84,8 @@ public sealed class AppSettings
                 Seed = Llm.Seed,
                 UseMemoryMapping = Llm.UseMemoryMapping,
                 UseMemoryLock = Llm.UseMemoryLock,
-                GenericSystemPrompt = Llm.GenericSystemPrompt ?? LlmSettings.DefaultGenericSystemPrompt
+                GenericSystemPrompt = Llm.GenericSystemPrompt ?? LlmSettings.DefaultGenericSystemPrompt,
+                Gpu = Llm.Gpu != null ? Llm.Gpu.Clone() : new GpuSettings()
             } : new LlmSettings(),
             Automation = Automation != null ? new AutomationSettings
             {
@@ -244,9 +245,29 @@ public sealed class LlmSettings
     public int ContextSize { get; set; } = 8192;
 
     /// <summary>
-    /// Number of model layers to offload to GPU VRAM (0 = CPU only).
+    /// Configuration for hardware GPU acceleration and Vulkan offloading.
     /// </summary>
-    public int GpuLayerCount { get; set; } = 0;
+    public GpuSettings Gpu { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets a value indicating whether GPU acceleration via Vulkan is enabled.
+    /// Proxy to <see cref="GpuSettings.UseGpu"/>.
+    /// </summary>
+    public bool UseGpu
+    {
+        get => Gpu?.UseGpu ?? true;
+        set { if (Gpu != null) Gpu.UseGpu = value; }
+    }
+
+    /// <summary>
+    /// Number of model layers to offload to GPU VRAM (0 = auto or CPU only).
+    /// Proxy to <see cref="GpuSettings.GpuLayerCount"/>.
+    /// </summary>
+    public int GpuLayerCount
+    {
+        get => Gpu?.GpuLayerCount ?? 0;
+        set { if (Gpu != null) Gpu.GpuLayerCount = value; }
+    }
 
     /// <summary>
     /// Number of CPU threads used for token inference.

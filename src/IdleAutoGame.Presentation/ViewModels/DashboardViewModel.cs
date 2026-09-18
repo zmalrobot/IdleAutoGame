@@ -168,6 +168,15 @@ public partial class DashboardViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isLlmWarmingUp;
 
+    [ObservableProperty]
+    private string _executionBackendBadgeText = "CPU";
+
+    [ObservableProperty]
+    private string _executionBackendBadgeTooltip = "Esecuzione su processore host (CPU)";
+
+    [ObservableProperty]
+    private bool _isGpuActive;
+
     public bool CanStart => State is AutomationState.Idle or AutomationState.Stopped or AutomationState.Error;
     public bool CanPause => State is not (AutomationState.Idle or AutomationState.Stopped or AutomationState.Error or AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked or AutomationState.Stopping);
     public bool CanResume => State is AutomationState.Paused or AutomationState.ActivityLost or AutomationState.PolicyBlocked;
@@ -211,6 +220,7 @@ public partial class DashboardViewModel : ViewModelBase
             LlmStatusDetail = _localProvider.CurrentStatus;
             LlmPhaseText = _localProvider.CurrentPhase.ToString();
             IsLlmWarmingUp = _localProvider.CurrentPhase == LlmLifecyclePhase.WarmingUp;
+            UpdateBackendBadge();
         }
 
         // Initialize policy from current default game
@@ -222,6 +232,39 @@ public partial class DashboardViewModel : ViewModelBase
 
         UpdateCommandStates();
         SyncFromActiveContext();
+    }
+
+    private void UpdateBackendBadge()
+    {
+        if (_localProvider == null || !_localProvider.IsModelLoaded)
+        {
+            ExecutionBackendBadgeText = "Non caricato";
+            ExecutionBackendBadgeTooltip = "Nessun modello LLM locale attualmente caricato in memoria.";
+            IsGpuActive = false;
+            return;
+        }
+
+        switch (_localProvider.CurrentBackend)
+        {
+            case ExecutionBackend.VulkanGpu:
+                ExecutionBackendBadgeText = "GPU Vulkan";
+                ExecutionBackendBadgeTooltip = $"Offload completo su GPU Vulkan: {_localProvider.ActualOffloadedLayers}/{_localProvider.TotalModelLayers} layers ({_localProvider.ActiveGpuDeviceName ?? "Dispositivo GPU"}).";
+                IsGpuActive = true;
+                break;
+            case ExecutionBackend.VulkanGpuPartial:
+                ExecutionBackendBadgeText = $"CPU + GPU Vulkan ({_localProvider.ActualOffloadedLayers}L)";
+                ExecutionBackendBadgeTooltip = $"Offload parziale: {_localProvider.ActualOffloadedLayers}/{_localProvider.TotalModelLayers} layers su GPU ({_localProvider.ActiveGpuDeviceName ?? "Dispositivo GPU"}), resto su CPU.";
+                IsGpuActive = true;
+                break;
+            case ExecutionBackend.Cpu:
+            default:
+                ExecutionBackendBadgeText = "CPU";
+                ExecutionBackendBadgeTooltip = _localProvider.GpuState == GpuUsageState.Failed
+                    ? "Inizializzazione GPU non riuscita; fallback attivo su CPU."
+                    : "Esecuzione completa su processore host CPU.";
+                IsGpuActive = false;
+                break;
+        }
     }
 
     private void OnLocalLlamaStatusChanged(object? sender, LlmStatusChangedEventArgs e)
@@ -240,6 +283,7 @@ public partial class DashboardViewModel : ViewModelBase
                 _ => e.Phase.ToString().ToUpperInvariant()
             };
             IsLlmWarmingUp = e.Phase == LlmLifecyclePhase.WarmingUp;
+            UpdateBackendBadge();
         });
     }
 
@@ -336,6 +380,9 @@ public partial class DashboardViewModel : ViewModelBase
 
         // 5. Agent
         UpdateAgentDisplayState();
+
+        // 6. LLM Backend Badge
+        UpdateBackendBadge();
     }
 
     private void UpdateAgentDisplayState()

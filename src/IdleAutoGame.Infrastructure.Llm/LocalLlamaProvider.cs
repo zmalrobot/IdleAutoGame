@@ -53,6 +53,8 @@ public sealed class LlmStatusChangedEventArgs : EventArgs
 public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDisposable
 {
     private readonly SemaphoreSlim _inferenceLock = new(1, 1);
+    private readonly IGpuDeviceDetector _gpuDetector;
+    private readonly IModelMemoryEstimator _memoryEstimator;
     private LLamaWeights? _weights;
     private StatelessExecutor? _executor;
     private ModelParams? _modelParams;
@@ -88,6 +90,49 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     /// Gets the error message of the last failed warmup, if any.
     /// </summary>
     public string? LastWarmupError { get; private set; }
+
+    /// <summary>
+    /// Gets the execution backend currently active for model inference.
+    /// </summary>
+    public ExecutionBackend CurrentBackend { get; private set; } = ExecutionBackend.Unknown;
+
+    /// <summary>
+    /// Gets the current GPU usage and offload state.
+    /// </summary>
+    public GpuUsageState GpuState { get; private set; } = GpuUsageState.Disabled;
+
+    /// <summary>
+    /// Gets the number of layers successfully offloaded to the GPU for the loaded model.
+    /// </summary>
+    public int ActualOffloadedLayers { get; private set; }
+
+    /// <summary>
+    /// Gets the total number of layers in the currently loaded model.
+    /// </summary>
+    public int TotalModelLayers { get; private set; }
+
+    /// <summary>
+    /// Gets the name of the active GPU device executing offloaded layers, if any.
+    /// </summary>
+    public string? ActiveGpuDeviceName { get; private set; }
+
+    /// <summary>
+    /// Gets the last calculated memory estimate for the active or pending model.
+    /// </summary>
+    public ModelMemoryEstimate? LastMemoryEstimate { get; private set; }
+
+    /// <summary>
+    /// Initializes a new instance of <see cref="LocalLlamaProvider"/>.
+    /// </summary>
+    /// <param name="gpuDetector">Optional GPU device detector.</param>
+    /// <param name="memoryEstimator">Optional model memory estimator.</param>
+    public LocalLlamaProvider(
+        IGpuDeviceDetector? gpuDetector = null,
+        IModelMemoryEstimator? memoryEstimator = null)
+    {
+        _gpuDetector = gpuDetector ?? new Gpu.VulkanGpuDeviceDetector();
+        _memoryEstimator = memoryEstimator ?? new Gpu.ModelMemoryEstimator();
+    }
 
     private void SetStatus(LlmLifecyclePhase phase, string message, long elapsedMs = 0, double progress = 0.0)
     {
@@ -129,6 +174,17 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     private static bool _isSupported;
     private static string _activeBackend = "Uninitialized";
     private static bool _isFallback;
+    private static readonly System.Collections.Concurrent.ConcurrentQueue<string> _nativeLogBuffer = new();
+
+    private static void OnNativeLlamaLog(LLamaLogLevel level, string message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return;
+        _nativeLogBuffer.Enqueue(message);
+        while (_nativeLogBuffer.Count > 1000)
+        {
+            _nativeLogBuffer.TryDequeue(out _);
+        }
+    }
 
     /// <summary>
     /// Gets a human-readable description of the active native llama.cpp backend ("Classica", "Fallback", or diagnostic reason).
@@ -157,7 +213,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     /// <summary>
     /// Ensures that the native LLamaSharp backend is properly detected, configured, and bound for the current CPU architecture.
     /// </summary>
-    public static bool EnsureBackendConfigured()
+    /// <param name="enableVulkan">Whether to enable Vulkan GPU offloading in the native runtime.</param>
+    public static bool EnsureBackendConfigured(bool enableVulkan = true)
     {
         if (_initialized)
         {
@@ -169,6 +226,24 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             if (_initialized)
             {
                 return _isSupported;
+            }
+
+            try
+            {
+                NativeLibraryConfig.All.WithLogCallback(OnNativeLlamaLog);
+            }
+            catch
+            {
+                // Native log callback registration is best effort
+            }
+
+            try
+            {
+                NativeLibraryConfig.All.WithVulkan(enableVulkan);
+            }
+            catch
+            {
+                // Vulkan configuration is best effort
             }
 
             if (RuntimeInformation.ProcessArchitecture == Architecture.X64)
@@ -349,12 +424,82 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             var stopwatch = Stopwatch.StartNew();
 
             int threads = settings.ThreadCount > 0 ? settings.ThreadCount : Math.Max(1, Environment.ProcessorCount);
-            SetStatus(LlmLifecyclePhase.AllocatingContext, $"Allocazione parametri runtime (Threads: {threads}, GPU Layers: {settings.GpuLayerCount}, Context: {settings.ContextSize})...");
+
+            // GPU & Offload Resolution
+            bool useGpu = settings.Gpu.UseGpu;
+            VulkanGpuDevice? targetGpu = null;
+            int targetGpuLayers = 0;
+
+            if (useGpu)
+            {
+                GpuState = GpuUsageState.Initializing;
+                EnsureBackendConfigured(enableVulkan: true);
+
+                try
+                {
+                    var detectedDevices = await _gpuDetector.DetectDevicesAsync(ct).ConfigureAwait(false);
+                    targetGpu = await _gpuDetector.GetPreferredDeviceAsync(settings.Gpu.SelectedGpuId, ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Device detection exception handled via fallback check below
+                }
+
+                if (targetGpu == null)
+                {
+                    if (settings.Gpu.AllowFallback && settings.Gpu.FallbackToCpu)
+                    {
+                        GpuState = GpuUsageState.Unavailable;
+                        SetStatus(LlmLifecyclePhase.CheckingWeights, "Nessun dispositivo GPU Vulkan disponibile. Fallback automatico su CPU abilitato.");
+                        targetGpuLayers = 0;
+                        useGpu = false;
+                    }
+                    else
+                    {
+                        GpuState = GpuUsageState.Unavailable;
+                        throw new PlatformNotSupportedException("Nessuna GPU Vulkan rilevata sul sistema e fallback su CPU disabilitato.");
+                    }
+                }
+                else
+                {
+                    switch (settings.Gpu.OffloadMode)
+                    {
+                        case GpuOffloadMode.CpuOnly:
+                            targetGpuLayers = 0;
+                            break;
+                        case GpuOffloadMode.Full:
+                            targetGpuLayers = 999;
+                            break;
+                        case GpuOffloadMode.Partial:
+                            targetGpuLayers = settings.Gpu.GpuLayerCount > 0 ? settings.Gpu.GpuLayerCount : 16;
+                            break;
+                        case GpuOffloadMode.Auto:
+                        default:
+                            var estimate = _memoryEstimator.Estimate(modelPath, targetGpu, settings.Gpu, settings.ContextSize, null);
+                            LastMemoryEstimate = estimate;
+                            targetGpuLayers = estimate.RecommendedGpuLayers;
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                EnsureBackendConfigured(enableVulkan: false);
+                GpuState = GpuUsageState.Disabled;
+                targetGpuLayers = 0;
+            }
+
+            var gpuInfoStatus = targetGpuLayers > 0
+                ? $"GPU: {targetGpu?.Name ?? "Vulkan"} ({targetGpuLayers} layers)"
+                : "CPU Only";
+
+            SetStatus(LlmLifecyclePhase.AllocatingContext, $"Allocazione parametri runtime (Threads: {threads}, Backend: {gpuInfoStatus}, Context: {settings.ContextSize})...");
 
             var parameters = new ModelParams(modelPath)
             {
                 ContextSize = (uint)Math.Max(512, settings.ContextSize),
-                GpuLayerCount = settings.GpuLayerCount,
+                GpuLayerCount = targetGpuLayers,
+                MainGpu = targetGpu?.DeviceIndex ?? 0,
                 Threads = threads,
                 BatchSize = (uint)Math.Max(64, settings.BatchSize),
                 UseMemorymap = settings.UseMemoryMapping,
@@ -362,7 +507,30 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             };
 
             SetStatus(LlmLifecyclePhase.LoadingWeights, $"Caricamento pesi e tensori del modello '{Path.GetFileName(modelPath)}' in memoria...");
-            var weights = await Task.Run(() => LLamaWeights.LoadFromFile(parameters), ct).ConfigureAwait(false);
+
+            LLamaWeights weights;
+            int initialLogCount = _nativeLogBuffer.Count;
+
+            try
+            {
+                if (targetGpuLayers > 0)
+                {
+                    GpuState = GpuUsageState.Loading;
+                }
+                weights = await Task.Run(() => LLamaWeights.LoadFromFile(parameters), ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (useGpu && settings.Gpu.AllowFallback && settings.Gpu.FallbackToCpu)
+            {
+                SetStatus(LlmLifecyclePhase.LoadingWeights, $"Caricamento su GPU Vulkan fallito ({ex.Message}). Esecuzione fallback automatico su CPU...");
+                GpuState = GpuUsageState.Failed;
+                parameters.GpuLayerCount = 0;
+                targetGpuLayers = 0;
+                weights = await Task.Run(() => LLamaWeights.LoadFromFile(parameters), ct).ConfigureAwait(false);
+            }
+
+            // Inspect native llama.cpp logs to verify actual layer offloading
+            ParseOffloadedLayersFromLogs(initialLogCount, targetGpu, targetGpuLayers);
+
             var executor = new StatelessExecutor(weights, parameters);
 
             _weights = weights;
@@ -373,7 +541,15 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
             stopwatch.Stop();
             LastLoadTimeMs = stopwatch.ElapsedMilliseconds;
-            SetStatus(LlmLifecyclePhase.Ready, $"Modello caricato in memoria con successo in {LastLoadTimeMs} ms (in attesa di warmup).", LastLoadTimeMs, 1.0);
+
+            var backendDesc = CurrentBackend switch
+            {
+                ExecutionBackend.VulkanGpu => $"GPU Vulkan ({ActualOffloadedLayers}/{TotalModelLayers} layers - {ActiveGpuDeviceName})",
+                ExecutionBackend.VulkanGpuPartial => $"CPU + GPU Vulkan Parziale ({ActualOffloadedLayers}/{TotalModelLayers} layers - {ActiveGpuDeviceName})",
+                _ => "CPU"
+            };
+
+            SetStatus(LlmLifecyclePhase.Ready, $"Modello caricato in {LastLoadTimeMs} ms [{backendDesc}] (in attesa di warmup).", LastLoadTimeMs, 1.0);
         }
         catch (OperationCanceledException)
         {
@@ -382,12 +558,77 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
         catch (Exception ex)
         {
+            if (GpuState is GpuUsageState.Loading or GpuUsageState.Initializing)
+            {
+                GpuState = GpuUsageState.Failed;
+            }
             SetStatus(LlmLifecyclePhase.Error, $"Errore durante il caricamento del modello: {ex.Message}");
             throw;
         }
         finally
         {
             _inferenceLock.Release();
+        }
+    }
+
+    private void ParseOffloadedLayersFromLogs(int initialLogCount, VulkanGpuDevice? targetGpu, int requestedLayers)
+    {
+        var logs = _nativeLogBuffer.Skip(initialLogCount).ToList();
+        int offloaded = 0;
+        int totalLayers = 0;
+        string? detectedGpu = null;
+
+        foreach (var log in logs)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(log, @"offloaded\s+(\d+)/(\d+)\s+layers", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (m.Success)
+            {
+                offloaded = int.Parse(m.Groups[1].Value);
+                totalLayers = int.Parse(m.Groups[2].Value);
+            }
+            else
+            {
+                var m2 = System.Text.RegularExpressions.Regex.Match(log, @"offloading\s+(\d+)\s+repeating\s+layers", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (m2.Success)
+                {
+                    offloaded = int.Parse(m2.Groups[1].Value);
+                }
+            }
+
+            var devMatch = System.Text.RegularExpressions.Regex.Match(log, @"(?:vulkan|ggml_vulkan|device\s+\d+):\s*([^\r\n]+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (devMatch.Success)
+            {
+                detectedGpu = devMatch.Groups[1].Value.Trim();
+            }
+        }
+
+        // If logs didn't contain explicit offloaded regex but requestedLayers > 0 and no crash:
+        if (offloaded == 0 && requestedLayers > 0)
+        {
+            offloaded = requestedLayers;
+        }
+
+        ActualOffloadedLayers = offloaded;
+        TotalModelLayers = totalLayers > 0 ? totalLayers : offloaded;
+        ActiveGpuDeviceName = detectedGpu ?? targetGpu?.Name;
+
+        if (offloaded > 0)
+        {
+            if (totalLayers > 0 && offloaded >= totalLayers)
+            {
+                CurrentBackend = ExecutionBackend.VulkanGpu;
+                GpuState = GpuUsageState.Active;
+            }
+            else
+            {
+                CurrentBackend = ExecutionBackend.VulkanGpuPartial;
+                GpuState = GpuUsageState.Partial;
+            }
+        }
+        else
+        {
+            CurrentBackend = ExecutionBackend.Cpu;
+            GpuState = targetGpu != null ? GpuUsageState.Ready : GpuUsageState.Disabled;
         }
     }
 
@@ -421,6 +662,13 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         _currentModelPath = null;
         IsWarmedUp = false;
         LastWarmupError = null;
+
+        CurrentBackend = ExecutionBackend.Unknown;
+        GpuState = GpuUsageState.Disabled;
+        ActualOffloadedLayers = 0;
+        TotalModelLayers = 0;
+        ActiveGpuDeviceName = null;
+        LastMemoryEstimate = null;
 
         // Hint GC to collect unmanaged memory wrappers
         GC.Collect(2, GCCollectionMode.Optimized, false);

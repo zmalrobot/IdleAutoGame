@@ -66,7 +66,7 @@ if [ ! -f "${COMMIT_FILE}" ] || [ "$(cat "${COMMIT_FILE}" 2>/dev/null)" != "${TA
 fi
 mkdir -p "${BUILD_DIR}"
 
-log_info "Configuring CMake for x86-64-v2 (AVX 1.0, no FMA, no AVX2, no BMI2)..."
+log_info "Configuring CMake for x86-64-v2 (AVX 1.0, no FMA, no AVX2, no BMI2) with Vulkan GPU acceleration..."
 cmake -B "${BUILD_DIR}" -S "${LLAMA_SOURCE}" \
     -G "${BUILD_GENERATOR}" \
     -DCMAKE_BUILD_TYPE=Release \
@@ -75,17 +75,18 @@ cmake -B "${BUILD_DIR}" -S "${LLAMA_SOURCE}" \
     -DGGML_AVX2=OFF \
     -DGGML_FMA=OFF \
     -DGGML_AVX512=OFF \
+    -DGGML_VULKAN=ON \
     -DGGML_CCACHE=OFF \
     -DCMAKE_C_FLAGS="-march=x86-64-v2 -mtune=generic" \
     -DCMAKE_CXX_FLAGS="-march=x86-64-v2 -mtune=generic"
 echo "${TARGET_LLAMA_COMMIT}" > "${COMMIT_FILE}"
 
 # 4. Compile shared libraries
-log_info "Compiling native shared libraries..."
+log_info "Compiling native shared libraries (llama, mtmd, ggml-vulkan)..."
 if [ "${BUILD_GENERATOR}" = "Ninja" ]; then
-    ninja -C "${BUILD_DIR}" bin/libllama.so bin/libmtmd.so -j "$(nproc)"
+    ninja -C "${BUILD_DIR}" llama mtmd ggml-vulkan -j "$(nproc)"
 else
-    make -C "${BUILD_DIR}" llama mtmd -j "$(nproc)"
+    make -C "${BUILD_DIR}" llama mtmd ggml-vulkan -j "$(nproc)"
 fi
 
 # 5. Install libraries to target destination and staging area

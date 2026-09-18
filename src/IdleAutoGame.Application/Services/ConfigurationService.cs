@@ -135,7 +135,15 @@ public sealed class ConfigurationService : IConfigurationService
                 currentSnapshot.Llm.ThreadCount != newSettings.Llm.ThreadCount ||
                 currentSnapshot.Llm.BatchSize != newSettings.Llm.BatchSize ||
                 currentSnapshot.Llm.ModelStorageDirectory != newSettings.Llm.ModelStorageDirectory ||
-                currentSnapshot.Llm.GenericSystemPrompt != newSettings.Llm.GenericSystemPrompt)
+                currentSnapshot.Llm.GenericSystemPrompt != newSettings.Llm.GenericSystemPrompt ||
+                currentSnapshot.Llm.Gpu.UseGpu != newSettings.Llm.Gpu.UseGpu ||
+                currentSnapshot.Llm.Gpu.OffloadMode != newSettings.Llm.Gpu.OffloadMode ||
+                currentSnapshot.Llm.Gpu.SelectedGpuId != newSettings.Llm.Gpu.SelectedGpuId ||
+                currentSnapshot.Llm.Gpu.GpuLayerCount != newSettings.Llm.Gpu.GpuLayerCount ||
+                currentSnapshot.Llm.Gpu.GpuMemoryReserveMb != newSettings.Llm.Gpu.GpuMemoryReserveMb ||
+                currentSnapshot.Llm.Gpu.AllowFallback != newSettings.Llm.Gpu.AllowFallback ||
+                currentSnapshot.Llm.Gpu.FallbackToCpu != newSettings.Llm.Gpu.FallbackToCpu ||
+                currentSnapshot.Llm.Gpu.FallbackToGpu != newSettings.Llm.Gpu.FallbackToGpu)
             {
                 errors.Add("Impossibile modificare le impostazioni LLM durante l'esecuzione attiva.");
             }

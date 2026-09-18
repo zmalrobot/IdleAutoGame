@@ -75,8 +75,13 @@
                             </DockPanel>
                             <TextBlock Text="{Binding ActiveModelName}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}" TextTrimming="CharacterEllipsis"/>
                             <DockPanel>
-                                <TextBlock Text="{Binding ActiveModelProvider, StringFormat='Provider: {0}'}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
-                                <TextBlock DockPanel.Dock="Right" Text="{Binding LlmStatusDetail}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis" MaxWidth="120" HorizontalAlignment="Right"/>
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="{Binding ActiveModelProvider, StringFormat='Provider: {0}'}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                    <Border Background="{DynamicResource PrimaryMainBrush}" CornerRadius="3" Padding="4,1" ToolTip.Tip="{Binding ExecutionBackendBadgeTooltip}">
+                                        <TextBlock Text="{Binding ExecutionBackendBadgeText}" FontSize="9" FontWeight="Bold" Foreground="#091015"/>
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding LlmStatusDetail}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis" MaxWidth="110" HorizontalAlignment="Right"/>
                             </DockPanel>
                         </StackPanel>
                     </Border>

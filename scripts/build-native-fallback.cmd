@@ -36,15 +36,15 @@ if errorlevel 1 (
 set "BUILD_DIR=%ROOT_DIR%\native\build-fallback-win"
 if not exist "%BUILD_DIR%" mkdir "%BUILD_DIR%"
 
-echo [INFO] Configuring CMake for legacy CPU compatibility...
-cmake -B "%BUILD_DIR%" -S "%LLAMA_SOURCE%" -DBUILD_SHARED_LIBS=ON -DGGML_AVX=ON -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_AVX512=OFF -DCMAKE_BUILD_TYPE=Release
+echo [INFO] Configuring CMake for legacy CPU compatibility with Vulkan GPU acceleration...
+cmake -B "%BUILD_DIR%" -S "%LLAMA_SOURCE%" -DBUILD_SHARED_LIBS=ON -DGGML_AVX=ON -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_AVX512=OFF -DGGML_VULKAN=ON -DCMAKE_BUILD_TYPE=Release
 if errorlevel 1 (
     echo [WARNING] CMake configuration failed.
     exit /b 0
 )
 
-echo [INFO] Building native fallback shared libraries...
-cmake --build "%BUILD_DIR%" --config Release --target llama mtmd -j %NUMBER_OF_PROCESSORS%
+echo [INFO] Building native fallback shared libraries (llama, mtmd, ggml-vulkan)...
+cmake --build "%BUILD_DIR%" --config Release --target llama mtmd ggml-vulkan -j %NUMBER_OF_PROCESSORS%
 if errorlevel 1 (
     echo [WARNING] Native build failed.
     exit /b 0

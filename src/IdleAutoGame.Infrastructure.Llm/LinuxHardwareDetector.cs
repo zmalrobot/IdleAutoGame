@@ -12,16 +12,19 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
 {
     private readonly string _memInfoPath;
     private readonly string _cpuInfoPath;
+    private readonly IGpuDeviceDetector _gpuDetector;
 
     /// <summary>
     /// Initializes a new instance of <see cref="LinuxHardwareDetector"/>.
     /// </summary>
     /// <param name="memInfoPath">Path to meminfo file (defaults to /proc/meminfo).</param>
     /// <param name="cpuInfoPath">Path to cpuinfo file (defaults to /proc/cpuinfo).</param>
-    public LinuxHardwareDetector(string? memInfoPath = null, string? cpuInfoPath = null)
+    /// <param name="gpuDetector">Optional Vulkan GPU device detector.</param>
+    public LinuxHardwareDetector(string? memInfoPath = null, string? cpuInfoPath = null, IGpuDeviceDetector? gpuDetector = null)
     {
         _memInfoPath = memInfoPath ?? "/proc/meminfo";
         _cpuInfoPath = cpuInfoPath ?? "/proc/cpuinfo";
+        _gpuDetector = gpuDetector ?? new Gpu.VulkanGpuDeviceDetector();
     }
 
     /// <inheritdoc />
@@ -179,6 +182,28 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
             }
         }
 
+        // 4. Query Vulkan GPUs
+        IReadOnlyList<VulkanGpuDevice> vulkanDevices = Array.Empty<VulkanGpuDevice>();
+        VulkanGpuDevice? preferredDevice = null;
+        try
+        {
+            vulkanDevices = await _gpuDetector.DetectDevicesAsync(ct).ConfigureAwait(false);
+            preferredDevice = await _gpuDetector.GetPreferredDeviceAsync(null, ct).ConfigureAwait(false);
+
+            if (preferredDevice != null)
+            {
+                gpuName = preferredDevice.Name;
+                if (preferredDevice.DedicatedVideoMemoryMb > 0)
+                {
+                    vramMb = preferredDevice.DedicatedVideoMemoryMb;
+                }
+            }
+        }
+        catch
+        {
+            // Non-critical detection failure
+        }
+
         return new HardwareInfo
         {
             TotalRamMb = totalRamMb,
@@ -187,6 +212,8 @@ public sealed class LinuxHardwareDetector : IHardwareDetector
             CpuCores = cpuCores,
             GpuName = gpuName,
             VramMb = vramMb,
+            GpuDevices = vulkanDevices,
+            PreferredGpuDevice = preferredDevice,
             SupportsInProcessLlm = supportsInProcessLlm,
             InProcessLlmUnsupportedReason = inProcessLlmUnsupportedReason
         };

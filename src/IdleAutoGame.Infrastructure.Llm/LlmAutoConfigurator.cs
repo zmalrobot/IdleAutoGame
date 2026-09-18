@@ -34,30 +34,69 @@ public static class LlmAutoConfigurator
             settings.ContextSize = 2048;
         }
 
-        // 3. GPU Layer offloading based on dedicated video memory (VRAM)
-        if (hardware.VramMb.HasValue && hardware.VramMb.Value > 0)
+        // 3. GPU offloading and VRAM profile configuration
+        settings.Gpu ??= new GpuSettings();
+
+        var preferredGpu = hardware.PreferredGpuDevice ??
+            hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan && d.IsDiscrete) ??
+            hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan);
+
+        if (preferredGpu != null && preferredGpu.DedicatedVideoMemoryBytes > 0)
         {
-            long vramMb = hardware.VramMb.Value;
-            if (vramMb >= 12288) // 12+ GB VRAM
+            var profile = Gpu.GpuProfileResolver.Resolve(preferredGpu);
+            settings.Gpu.UseGpu = true;
+            settings.Gpu.GpuBackend = "Vulkan";
+            settings.Gpu.SelectedGpuId = preferredGpu.GpuDeviceId;
+            settings.Gpu.VramProfile = profile.Id;
+            settings.Gpu.OffloadMode = profile.RecommendedOffloadMode;
+            settings.Gpu.GpuMemoryReserveMb = profile.ReservedVramMb;
+
+            long vramMb = preferredGpu.DedicatedVideoMemoryMb;
+            if (vramMb >= 14336) // 14+ GB
             {
-                settings.GpuLayerCount = 33; // Full layer offload for 7B-8B models
+                settings.GpuLayerCount = 33; // Full offload for 7B-8B
             }
-            else if (vramMb >= 8192) // 8 GB VRAM
+            else if (vramMb >= 7168) // 7+ GB (e.g. 8 GB RX 480)
             {
-                settings.GpuLayerCount = 24;
+                settings.GpuLayerCount = 24; // Safe partial offload
             }
-            else if (vramMb >= 4096) // 4 GB VRAM
+            else if (vramMb >= 5120) // 5+ GB (e.g. 6 GB)
             {
-                settings.GpuLayerCount = 12;
+                settings.GpuLayerCount = 16;
             }
             else
             {
-                settings.GpuLayerCount = 0;
+                settings.GpuLayerCount = 8;
+            }
+        }
+        else if (hardware.VramMb.HasValue && hardware.VramMb.Value > 0)
+        {
+            long vramMb = hardware.VramMb.Value;
+            settings.Gpu.UseGpu = true;
+            settings.Gpu.GpuBackend = "Vulkan";
+
+            if (vramMb >= 12288)
+            {
+                settings.GpuLayerCount = 33;
+                settings.Gpu.VramProfile = "16gb";
+            }
+            else if (vramMb >= 7168)
+            {
+                settings.GpuLayerCount = 24;
+                settings.Gpu.VramProfile = "8gb";
+            }
+            else
+            {
+                settings.GpuLayerCount = 12;
+                settings.Gpu.VramProfile = "6gb";
             }
         }
         else
         {
+            settings.Gpu.UseGpu = false;
+            settings.Gpu.OffloadMode = Core.Enums.GpuOffloadMode.CpuOnly;
             settings.GpuLayerCount = 0;
+            settings.Gpu.VramProfile = "6gb";
         }
 
         // 4. Batch size

@@ -51,6 +51,12 @@ public sealed partial class LocalModelDisplayItem : ObservableObject
 
     public string RamBadge => Model.RecommendedRamRange;
 
+    [ObservableProperty]
+    private string _gpuCompatibilityBadge = string.Empty;
+
+    [ObservableProperty]
+    private string _gpuRecommendationText = string.Empty;
+
     public string QualityBadge => $"Qualità: {Model.QualityTier}";
 
     public string SpeedBadge => $"Velocità: {Model.SpeedTier}";
@@ -237,6 +243,35 @@ public partial class ModelSelectionViewModel : ViewModelBase
                 var installed = await _modelManager.IsModelInstalledAsync(lm.Id);
                 var isActive = string.Equals(lm.Id, activeId, StringComparison.OrdinalIgnoreCase);
                 var item = new LocalModelDisplayItem(lm, compatible, reason, installed, isActive);
+
+                var preferredGpu = hardware.PreferredGpuDevice;
+                if (preferredGpu != null && preferredGpu.DedicatedVideoMemoryMb > 0)
+                {
+                    long totalModelMb = (lm.FileSize + (lm.RequiresMmproj ? lm.MmprojFileSize : 0)) / (1024 * 1024);
+                    long usableVramMb = Math.Max(0, preferredGpu.DedicatedVideoMemoryMb - 1024);
+                    if (totalModelMb + 600 <= usableVramMb)
+                    {
+                        item.GpuCompatibilityBadge = "Vulkan: Full GPU";
+                        item.GpuRecommendationText = $"Offload completo in VRAM ({totalModelMb} MB su {preferredGpu.DedicatedVideoMemoryMb} MB)";
+                    }
+                    else if (usableVramMb >= 1500)
+                    {
+                        int estLayers = Math.Clamp((int)(usableVramMb * 33 / (totalModelMb + 600)), 4, 30);
+                        item.GpuCompatibilityBadge = $"Vulkan: Parziale (~{estLayers}L)";
+                        item.GpuRecommendationText = $"Offload parziale stimato: ~{estLayers} layer su GPU Vulkan, resto su CPU";
+                    }
+                    else
+                    {
+                        item.GpuCompatibilityBadge = "Vulkan: CPU Only";
+                        item.GpuRecommendationText = "VRAM insufficiente per offload sicuro; esecuzione CPU raccomandata";
+                    }
+                }
+                else
+                {
+                    item.GpuCompatibilityBadge = "CPU Only";
+                    item.GpuRecommendationText = "Nessun dispositivo GPU Vulkan con VRAM dedicata rilevato";
+                }
+
                 RecommendedLocalModels.Add(item);
             }
 

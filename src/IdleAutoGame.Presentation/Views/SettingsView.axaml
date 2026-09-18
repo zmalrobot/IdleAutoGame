@@ -90,6 +90,90 @@
                                 </StackPanel>
                             </Border>
 
+                            <!-- Accelerazione GPU & Vulkan -->
+                            <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                                <StackPanel Spacing="12">
+                                    <DockPanel>
+                                        <Button DockPanel.Dock="Right" Content="Rileva GPU"
+                                                Command="{Binding RefreshGpuDevicesCommand}"
+                                                IsEnabled="{Binding !IsExecutionLocked}"
+                                                Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="12"/>
+                                        <TextBlock Text="Accelerazione GPU Vulkan" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+
+                                    <!-- Status / Profile Banner -->
+                                    <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Spacing="2">
+                                                <TextBlock Text="{Binding DetectedGpuSummary}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                                <TextBlock Text="{Binding ActiveVramProfile, StringFormat='Profilo VRAM: {0}'}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            </StackPanel>
+                                            <Border Grid.Column="1" Background="{DynamicResource SuccessBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding IsVulkanAvailable}">
+                                                <TextBlock Text="VULKAN DISPONIBILE" FontSize="9" FontWeight="Bold" Foreground="#091015"/>
+                                            </Border>
+                                        </Grid>
+                                    </Border>
+
+                                    <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto" Margin="0,4,0,0">
+                                        <!-- Usa GPU & Dispositivo -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6" Margin="0,0,8,8">
+                                            <CheckBox IsChecked="{Binding UseGpu}" Content="Usa GPU (Accelerazione Vulkan)"
+                                                      IsEnabled="{Binding !IsExecutionLocked}"
+                                                      Foreground="{DynamicResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Text="Dispositivo GPU:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <ComboBox ItemsSource="{Binding AvailableGpuDevices}"
+                                                      SelectedItem="{Binding SelectedGpuDevice}"
+                                                      IsEnabled="{Binding !IsExecutionLocked}"
+                                                      HorizontalAlignment="Stretch"
+                                                      Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}">
+                                                <ComboBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding Name}" FontSize="12"/>
+                                                    </DataTemplate>
+                                                </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                                        <!-- Modalita Offload -->
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" Margin="0,0,0,8">
+                                            <TextBlock Text="Modalità Offload GPU:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,4,0,0"/>
+                                            <ComboBox ItemsSource="{Binding AvailableOffloadModes}"
+                                                      SelectedItem="{Binding GpuOffloadMode}"
+                                                      IsEnabled="{Binding !IsExecutionLocked}"
+                                                      HorizontalAlignment="Stretch"
+                                                      Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                            <TextBlock Text="Auto calcola dinamicamente i layer ottimali in base a modello e VRAM." FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                        </StackPanel>
+
+                                        <!-- VRAM Riservata & Minima Libera -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4" Margin="0,0,8,0">
+                                            <TextBlock Text="VRAM Riservata SO / Display (MB):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding GpuMemoryReserveMb}" IsEnabled="{Binding !IsExecutionLocked}"
+                                                     Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4" Margin="0,0,0,0">
+                                            <TextBlock Text="VRAM Minima Libera Richiesta (MB):" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                            <TextBox Text="{Binding GpuMinFreeMemoryMb}" IsEnabled="{Binding !IsExecutionLocked}"
+                                                     Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}" BorderBrush="{DynamicResource BorderLightBrush}"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Fallback Options -->
+                                    <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,4,0,0">
+                                        <CheckBox IsChecked="{Binding AllowGpuFallback}" Content="Consenti Fallback"
+                                                  IsEnabled="{Binding !IsExecutionLocked}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11"/>
+                                        <CheckBox IsChecked="{Binding FallbackToCpu}" Content="Fallback su CPU se GPU fallisce"
+                                                  IsEnabled="{Binding !IsExecutionLocked}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11"/>
+                                        <CheckBox IsChecked="{Binding FallbackToGpu}" Content="Usa GPU anche in fallback runtime"
+                                                  IsEnabled="{Binding !IsExecutionLocked}"
+                                                  Foreground="{DynamicResource TextPrimaryBrush}" FontSize="11"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+
                             <!-- Hardware Auto-Config & Storage -->
                             <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
                                 <StackPanel Spacing="12">

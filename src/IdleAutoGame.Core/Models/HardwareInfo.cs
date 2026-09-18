@@ -36,6 +36,16 @@ public sealed record HardwareInfo
     public long? VramMb { get; init; }
 
     /// <summary>
+    /// Gets the list of detected physical Vulkan graphics adapters.
+    /// </summary>
+    public IReadOnlyList<VulkanGpuDevice> GpuDevices { get; init; } = Array.Empty<VulkanGpuDevice>();
+
+    /// <summary>
+    /// Gets the preferred or highest-performing Vulkan graphics adapter selected for inference.
+    /// </summary>
+    public VulkanGpuDevice? PreferredGpuDevice { get; init; }
+
+    /// <summary>
     /// Gets a value indicating whether the host CPU supports running in-process LLamaSharp inference.
     /// </summary>
     public bool SupportsInProcessLlm { get; init; } = true;
