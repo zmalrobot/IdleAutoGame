@@ -23,15 +23,15 @@ public static class LlmAutoConfigurator
         // 2. Context length based on available physical memory
         if (hardware.TotalRamMb >= 32768)
         {
-            settings.ContextSize = 8192;
+            settings.ContextSize = 16384;
         }
         else if (hardware.TotalRamMb >= 16384)
         {
-            settings.ContextSize = 4096;
+            settings.ContextSize = 8192;
         }
         else
         {
-            settings.ContextSize = 2048;
+            settings.ContextSize = 4096;
         }
 
         // 3. GPU offloading and VRAM profile configuration

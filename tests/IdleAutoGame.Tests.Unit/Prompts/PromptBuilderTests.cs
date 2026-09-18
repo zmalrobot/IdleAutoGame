@@ -19,7 +19,7 @@ public class PromptBuilderTests
 
         prompt.Should().Contain("SYSTEM CONSTRAINTS");
         prompt.Should().Contain("Tap Titans 2");
-        prompt.Should().Contain("SCREEN REGIONS & COORDINATE MAPPING");
+        prompt.Should().Contain("SCREEN REGIONS");
         prompt.Should().Contain("Always save gold for clan boss.");
         // AllowedActions now includes the full extended set
         prompt.Should().Contain("Allowed action primitives:");

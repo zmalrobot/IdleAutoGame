@@ -338,7 +338,7 @@ public sealed class LlamaCppProvider : ILlmProvider
             SupportsVision = true,
             SupportsJsonSchema = true,
             SupportsStreaming = true,
-            MaxContextTokens = 8192
+            MaxContextTokens = 16384
         });
     }
 }

@@ -33,7 +33,7 @@ public class SettingsViewModelTests
         _viewModel.LlmProvider.Should().Be("llama.cpp");
         _viewModel.LlmEndpoint.Should().Be("http://localhost:8080");
         _viewModel.ObservationIntervalSeconds.Should().Be(2.0);
-        _viewModel.ContextSize.Should().Be(8192);
+        _viewModel.ContextSize.Should().Be(16384);
         _viewModel.ThreadCount.Should().BeGreaterThanOrEqualTo(1);
     }
 
@@ -92,7 +92,7 @@ public class SettingsViewModelTests
         await _viewModel.AutoConfigureLlmAsync();
 
         _viewModel.ThreadCount.Should().Be(11);
-        _viewModel.ContextSize.Should().Be(8192);
+        _viewModel.ContextSize.Should().Be(16384);
         _viewModel.GpuLayerCount.Should().Be(24);
         _viewModel.StatusMessage.Should().Contain("Auto-configuration applied");
     }
