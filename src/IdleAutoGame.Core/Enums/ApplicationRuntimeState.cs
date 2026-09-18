@@ -60,3 +60,4 @@ public enum ApplicationRuntimeState
     /// </summary>
     Error
 }
+

@@ -4,133 +4,211 @@
         xmlns:models="using:IdleAutoGame.Core.Models"
         x:Class="IdleAutoGame.Presentation.Views.AiDecisionDetailsWindow"
         x:DataType="vm:AiDecisionDetailsViewModel"
-        Title="Diagnostica Decisioni AI &amp; Visione Schermata — IdleAutoGame"
-        Width="1100" Height="780"
-        MinWidth="860" MinHeight="600"
+        Title="Dettaglio Esecuzione in Tempo Reale &amp; Diagnostica AI — IdleAutoGame"
+        Width="1260" Height="840"
+        MinWidth="960" MinHeight="640"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource AppBackgroundBrush}">
 
-    <Grid RowDefinitions="Auto,*" Margin="20">
-        <!-- Top Toolbar Header -->
+    <Grid RowDefinitions="Auto,*" Margin="16">
+        <!-- Top Global Toolbar Header -->
         <Border Grid.Row="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}"
-                BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,0,0,16">
+                BorderThickness="1" CornerRadius="8" Padding="16,12" Margin="0,0,0,14">
             <DockPanel>
-                <!-- Right Controls: Auto-follow toggle & Clear button -->
+                <!-- Right Controls: Auto-follow toggle & Clear history button -->
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
                     <CheckBox IsChecked="{Binding AutoFollowLatest}" Content="Segui ultima decisione live"
                               Foreground="{DynamicResource TextPrimaryBrush}" FontSize="12" VerticalAlignment="Center"/>
-                    <Button Content="🗑️ Svuota Storico" Command="{Binding ClearHistoryCommand}"
+                    <Button Content="🗑️ Svuota Cronologia" Command="{Binding ClearHistoryCommand}"
                             Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
-                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="11"/>
+                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,5" FontSize="11" CornerRadius="4"/>
                 </StackPanel>
 
                 <!-- Left Title & Subtitle -->
                 <StackPanel Orientation="Vertical" Spacing="2">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="🔍 DIAGNOSTICA DECISIONI AI (TEMPO REALE)" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource AccentBrush}"/>
-                        <Border Background="{DynamicResource Surface2Brush}" CornerRadius="4" Padding="6,1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                        <TextBlock Text="⚡ DETTAGLIO ESECUZIONE IN TEMPO REALE" FontWeight="Bold" FontSize="15" Foreground="{DynamicResource AccentBrush}"/>
+                        <Border Background="{DynamicResource Surface2Brush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
                             <TextBlock Text="{Binding TotalDecisionsCount, StringFormat='Decisioni totali: {0}'}" FontSize="11" Foreground="{DynamicResource SecondaryLightBrush}"/>
                         </Border>
                     </StackPanel>
-                    <TextBlock Text="Ispezione trasparente dell'interpretazione visiva e degli obiettivi tattici senza chain-of-thought nascosto."
+                    <TextBlock Text="Monitoraggio live dello screenshot del dispositivo, streaming raw token-per-token del modello e diagnostica decisionale trasparente."
                                FontSize="11" Foreground="{DynamicResource TextDisabledBrush}"/>
                 </StackPanel>
             </DockPanel>
         </Border>
 
-        <!-- Main Workspace: Split View -->
-        <Grid Grid.Row="1" ColumnDefinitions="360,*">
-            <!-- Left Panel: Recent Decisions History (bounded to max 10) -->
+        <!-- Main Workspace: Dual Panel Split (Left: Live Screenshot; Right: LLM Streaming & Structured Decision) -->
+        <Grid Grid.Row="1" ColumnDefinitions="480,*">
+
+            <!-- LEFT COLUMN: LATEST DEVICE SCREENSHOT (LIVE) -->
             <Border Grid.Column="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,16,0">
-                <Grid RowDefinitions="Auto,*">
-                    <DockPanel Grid.Row="0" Margin="0,0,0,10">
-                        <TextBlock Text="CRONOLOGIA DECISIONI (MAX 10)" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        <TextBlock DockPanel.Dock="Right" Text="{Binding Decisions.Count, StringFormat='Elementi: {0}'}" FontSize="11" Foreground="{DynamicResource TextDisabledBrush}"/>
-                    </DockPanel>
+                    BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,0,14,0">
+                <Grid RowDefinitions="Auto,*,Auto">
+                    <!-- Top Toolbar for Screenshot -->
+                    <StackPanel Grid.Row="0" Spacing="8" Margin="0,0,0,10">
+                        <DockPanel>
+                            <Border DockPanel.Dock="Right" Background="{DynamicResource Surface2Brush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding LatestScreenshotStatus}" FontSize="10" FontWeight="Bold" Foreground="{Binding ScreenshotStatusBadgeColor}"/>
+                            </Border>
+                            <TextBlock Text="📸 SCREENSHOT DISPOSITIVO" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource PrimaryLightBrush}" VerticalAlignment="Center"/>
+                        </DockPanel>
 
-                    <ListBox Grid.Row="1" ItemsSource="{Binding Decisions}" SelectedItem="{Binding SelectedDecision}"
-                             Background="Transparent" BorderThickness="0">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="models:AiDecisionDetails">
-                                <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}"
-                                        BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,8">
-                                    <StackPanel Spacing="4">
-                                        <DockPanel>
-                                            <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="3" Padding="4,1">
-                                                <TextBlock Text="{Binding Confidence, StringFormat='{}{0:P0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                        <!-- Controls Bar -->
+                        <Grid ColumnDefinitions="*,Auto,Auto">
+                            <Button Grid.Column="0" Command="{Binding ToggleZoomModeCommand}"
+                                    ToolTip.Tip="Alterna tra Adatta Schermo (Uniform) e Dimensione Originale 100%"
+                                    Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="8,4" FontSize="11" CornerRadius="4" Margin="0,0,6,0">
+                                <StackPanel Orientation="Horizontal" Spacing="4" HorizontalAlignment="Center">
+                                    <TextBlock Text="🔍" FontSize="10"/>
+                                    <TextBlock Text="100% / Adatta" FontSize="11"/>
+                                </StackPanel>
+                            </Button>
+                            <Button Grid.Column="1" Command="{Binding CopyScreenshotCommand}"
+                                    ToolTip.Tip="Copia lo screenshot corrente negli appunti di sistema"
+                                    IsEnabled="{Binding HasScreenshot}"
+                                    Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="11" CornerRadius="4" Margin="0,0,6,0">
+                                <TextBlock Text="📋 Copia" FontSize="11"/>
+                            </Button>
+                            <Button Grid.Column="2" Command="{Binding SaveScreenshotAsCommand}"
+                                    ToolTip.Tip="Salva lo screenshot corrente come file PNG sul disco"
+                                    IsEnabled="{Binding HasScreenshot}"
+                                    Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                                    BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10,4" FontSize="11" CornerRadius="4">
+                                <TextBlock Text="💾 Salva PNG" FontSize="11"/>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+
+                    <!-- Center Viewport Container -->
+                    <Border Grid.Row="1" Background="#0D1117" BorderBrush="{DynamicResource BorderDarkBrush}"
+                            BorderThickness="1" CornerRadius="6" ClipToBounds="True">
+                        <Grid>
+                            <!-- State 1: Active Screenshot Rendered -->
+                            <ScrollViewer IsVisible="{Binding HasScreenshot}"
+                                          HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                                <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <Image Source="{Binding LatestScreenshotBitmap}"
+                                           Stretch="{Binding ScreenshotStretchMode}"
+                                           MaxWidth="1600" MaxHeight="2200"/>
+
+                                    <!-- Visual Gesture HUD Overlay -->
+                                    <Border Background="#CC0D1117" BorderBrush="{DynamicResource PrimaryLightBrush}"
+                                            BorderThickness="1" CornerRadius="6" Padding="8,5" Margin="8"
+                                            VerticalAlignment="Top" HorizontalAlignment="Left"
+                                            IsVisible="{Binding HasVisualGesture}">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <Border Background="{DynamicResource PrimaryLightBrush}" CornerRadius="3" Padding="5,2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding GestureHudTitle}" FontWeight="Bold" FontSize="10" Foreground="#FFFFFF"/>
                                             </Border>
-                                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding CycleNumber, StringFormat='Ciclo #{0}'}" FontWeight="Bold" FontSize="12" Foreground="{DynamicResource PrimaryLightBrush}"/>
-                                                <TextBlock Text="{Binding Timestamp, StringFormat='Ora: {0:HH:mm:ss}'}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </DockPanel>
+                                            <TextBlock Text="{Binding GestureHudDetails}" FontSize="11" FontFamily="Consolas, monospace"
+                                                       Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </ScrollViewer>
 
-                                        <Grid ColumnDefinitions="*,Auto">
-                                            <TextBlock Grid.Column="0" Text="{Binding ActionType}" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding GameState}" FontSize="10" Foreground="{DynamicResource WarningBrush}" VerticalAlignment="Center"/>
-                                        </Grid>
+                            <!-- State 2: Placeholder (No Screenshot Available) -->
+                            <Border IsVisible="{Binding !HasScreenshot}" Background="#091015" Padding="20">
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                                    <Border Background="{DynamicResource Surface2Brush}" CornerRadius="28" Width="56" Height="56" HorizontalAlignment="Center">
+                                        <TextBlock Text="📱" FontSize="26" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <TextBlock Text="Nessuno screenshot disponibile" FontWeight="Bold" FontSize="14"
+                                               Foreground="{DynamicResource TextSecondaryBrush}" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="In attesa che l'agente catturi il primo frame da ADB durante il ciclo di osservazione attivo."
+                                               FontSize="11" Foreground="{DynamicResource TextDisabledBrush}"
+                                               TextWrapping="Wrap" TextAlignment="Center" MaxWidth="320"/>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
 
-                                        <TextBlock Text="{Binding Objective}" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding ParametersSummary}" FontSize="10" FontFamily="Consolas, monospace" Foreground="{DynamicResource SecondaryLightBrush}" TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
+                    <!-- Bottom Metadata Strip -->
+                    <Border Grid.Row="2" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}"
+                            BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,10,0,0">
+                        <StackPanel Spacing="6">
+                            <Grid ColumnDefinitions="*,*,*">
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="ACQUISITO" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="{Binding LatestScreenshotTimestamp}" FontSize="11" FontFamily="Consolas, monospace" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="RISOLUZIONE" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="{Binding LatestScreenshotResolution}" FontSize="11" FontFamily="Consolas, monospace" FontWeight="SemiBold" Foreground="{DynamicResource AccentBrush}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Spacing="2">
+                                    <TextBlock Text="CICLO ASSOC." FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="{Binding LatestScreenshotCycle}" FontSize="11" FontFamily="Consolas, monospace" FontWeight="SemiBold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                </StackPanel>
+                            </Grid>
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Dispositivo:" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="{Binding LatestScreenshotDevice}" FontSize="10" FontWeight="SemiBold" Foreground="{DynamicResource TextSecondaryBrush}" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4">
+                                    <TextBlock Text="Memoria:" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="1 frame attivo (0 cronologia)" FontSize="10" Foreground="{DynamicResource SuccessBrush}"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </Grid>
             </Border>
 
-            <!-- Right Panel: Deep Inspection of Selected Decision -->
+            <!-- RIGHT COLUMN: STREAMING RAW OUTPUT & STRUCTURED DECISION DEEP DIVE -->
             <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}"
-                    BorderThickness="1" CornerRadius="8" Padding="16">
+                    BorderThickness="1" CornerRadius="8" Padding="14">
                 <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                    <StackPanel Spacing="14">
-                        <!-- Top Summary Strip -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10">
+                    <StackPanel Spacing="12">
+                        <!-- Top Selected Cycle Summary Strip -->
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12,8">
                             <Grid ColumnDefinitions="*,*,*,*">
                                 <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="CICLO SELEZIONATO" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="{Binding SelectedDecision.CycleNumber, FallbackValue='-', TargetNullValue='-', StringFormat='Ciclo #{0}'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                    <TextBlock Text="CICLO SELEZIONATO" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SelectedDecision.CycleNumber, FallbackValue='-', TargetNullValue='-', StringFormat='Ciclo #{0}'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" Spacing="2">
-                                    <TextBlock Text="STATO GIOCO" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="{Binding SelectedDecision.GameState, FallbackValue='-', TargetNullValue='-'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
+                                    <TextBlock Text="STATO GIOCO" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SelectedDecision.GameState, FallbackValue='-', TargetNullValue='-'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Spacing="2">
-                                    <TextBlock Text="LATENZA INFERENZA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="{Binding SelectedDecision.LatencyMs, FallbackValue='-', TargetNullValue='-', StringFormat='{}{0} ms'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                    <TextBlock Text="LATENZA INFERENZA" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SelectedDecision.LatencyMs, FallbackValue='-', TargetNullValue='-', StringFormat='{}{0} ms'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="3" Spacing="2">
-                                    <TextBlock Text="CONFIDENZA" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <TextBlock Text="{Binding SelectedDecision.Confidence, FallbackValue='-', TargetNullValue='-', StringFormat='{}{0:P0}'}" FontSize="14" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                    <TextBlock Text="CONFIDENZA" FontSize="9" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock Text="{Binding SelectedDecision.Confidence, FallbackValue='-', TargetNullValue='-', StringFormat='{}{0:P0}'}" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
 
-                        <!-- Real-Time LLM Streaming Raw Output Terminal -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                            <StackPanel Spacing="10">
+                        <!-- Section: Real-Time LLM Streaming Raw Output Terminal -->
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="8">
                                 <DockPanel>
                                     <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                                         <Button Content="🔴 Torna al Live" Command="{Binding ViewLiveStreamCommand}"
                                                 IsVisible="{Binding IsViewingHistoricalRaw}"
                                                 Background="{DynamicResource AccentBrush}" Foreground="#091015"
-                                                FontWeight="Bold" FontSize="11" Padding="8,4"/>
+                                                FontWeight="Bold" FontSize="10" Padding="8,3" CornerRadius="4"/>
                                         <CheckBox IsChecked="{Binding AutoScrollEnabled}" Content="Auto-scroll"
-                                                  Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"/>
+                                                  Foreground="{DynamicResource TextSecondaryBrush}" FontSize="10" VerticalAlignment="Center"/>
                                         <Button Content="📋 Copia" Command="{Binding CopyRawOutputCommand}"
                                                 Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="11" Padding="8,4"/>
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="10" Padding="8,3" CornerRadius="4"/>
                                         <Button Content="🗑️ Pulisci" Command="{Binding ClearRawOutputCommand}"
                                                 Background="{DynamicResource Surface1Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
-                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="11" Padding="8,4"/>
+                                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="10" Padding="8,3" CornerRadius="4"/>
                                     </StackPanel>
 
                                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                        <TextBlock Text="📡 RAW OUTPUT MODELLO LLM" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                        <TextBlock Text="📡 RAW OUTPUT MODELLO LLM" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
                                         <Border Background="{DynamicResource Surface1Brush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding StreamStateBadge}" FontWeight="Bold" FontSize="10" Foreground="{Binding StreamStateColor}"/>
+                                            <TextBlock Text="{Binding StreamStateBadge}" FontWeight="Bold" FontSize="9" Foreground="{Binding StreamStateColor}"/>
                                         </Border>
                                     </StackPanel>
                                 </DockPanel>
@@ -139,139 +217,140 @@
                                 <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}"
                                         BorderThickness="1" CornerRadius="4" Padding="8,4">
                                     <DockPanel>
-                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12">
-                                            <TextBlock Text="{Binding StreamTokensCount, StringFormat='Tokens: {0}'}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextPrimaryBrush}"/>
-                                            <TextBlock Text="{Binding StreamTokensPerSecond, StringFormat='Velocità: {0:F1} t/s'}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource SuccessBrush}"/>
-                                            <TextBlock Text="{Binding StreamElapsedMs, StringFormat='Latenza: {0} ms'}" FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="10">
+                                            <TextBlock Text="{Binding StreamTokensCount, StringFormat='Tokens: {0}'}" FontSize="10" FontFamily="Consolas, monospace" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                            <TextBlock Text="{Binding StreamTokensPerSecond, StringFormat='Velocità: {0:F1} t/s'}" FontSize="10" FontFamily="Consolas, monospace" Foreground="{DynamicResource SuccessBrush}"/>
+                                            <TextBlock Text="{Binding StreamElapsedMs, StringFormat='Latenza: {0} ms'}" FontSize="10" FontFamily="Consolas, monospace" Foreground="{DynamicResource SecondaryLightBrush}"/>
                                         </StackPanel>
-                                        <TextBlock Text="{Binding ActiveStreamProviderBanner}" FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding ActiveStreamProviderBanner}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" TextTrimming="CharacterEllipsis"/>
                                     </DockPanel>
                                 </Border>
 
-                                <!-- Selectable Monospace Output Console -->
+                                <!-- Monospace Output Console -->
                                 <Border Background="#0D1117" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="4">
                                     <TextBox x:Name="RawOutputTextBox"
                                              Text="{Binding DisplayedRawOutput}"
                                              FontFamily="Consolas, 'Cascadia Code', monospace"
-                                             FontSize="12"
+                                             FontSize="11"
                                              Foreground="#58A6FF"
                                              Background="Transparent"
                                              BorderThickness="0"
                                              IsReadOnly="True"
                                              TextWrapping="Wrap"
                                              AcceptsReturn="True"
-                                             MinHeight="140"
-                                             MaxHeight="260"
-                                             Padding="10,8"/>
+                                             MinHeight="110"
+                                             MaxHeight="200"
+                                             Padding="8,6"/>
                                 </Border>
                             </StackPanel>
                         </Border>
 
                         <!-- Card 1: Visual Screen Interpretation -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                            <StackPanel Spacing="6">
-                                <DockPanel>
-                                    <TextBlock Text="🖼️ COSA VEDE IL MODELLO A SCHERMO (OSSERVAZIONE)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
-                                </DockPanel>
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="🖼️ COSA VEDE IL MODELLO A SCHERMO (OSSERVAZIONE)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
                                 <TextBlock Text="{Binding SelectedDecision.ObservationSummary, FallbackValue='In attesa di dati...', TargetNullValue='In attesa di dati...'}"
-                                           FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                           FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Card 2: Tactical Objective -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                            <StackPanel Spacing="6">
-                                <TextBlock Text="🎯 OBIETTIVO TATTICO DELL'AGENTE" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="🎯 OBIETTIVO TATTICO DELL'AGENTE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
                                 <TextBlock Text="{Binding SelectedDecision.Objective, FallbackValue='In attesa di dati...', TargetNullValue='In attesa di dati...'}"
-                                           FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                           FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Card 3: Action & Physical Parameters -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                            <StackPanel Spacing="8">
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="6">
                                 <DockPanel>
-                                    <TextBlock Text="⚡ AZIONE SCELTA &amp; PARAMETRI FISICI" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                    <TextBlock Text="⚡ AZIONE SCELTA &amp; PARAMETRI FISICI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource PrimaryLightBrush}"/>
                                     <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="4" Padding="6,2">
-                                        <TextBlock Text="{Binding SelectedDecision.ActionType, FallbackValue='-', TargetNullValue='-'}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                        <TextBlock Text="{Binding SelectedDecision.ActionType, FallbackValue='-', TargetNullValue='-'}" FontWeight="Bold" FontSize="10" Foreground="{DynamicResource PrimaryLightBrush}"/>
                                     </Border>
                                 </DockPanel>
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Text="Parametri gesture:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="0" Text="Parametri gesture:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding SelectedDecision.ParametersSummary, FallbackValue='-', TargetNullValue='-'}"
-                                               FontFamily="Consolas, monospace" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                               FontSize="11" FontFamily="Consolas, monospace" FontWeight="Bold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Text="Motivazione sintetica:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="0" Text="Motivazione:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding SelectedDecision.DecisionSummary, FallbackValue='-', TargetNullValue='-'}"
-                                               Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                               FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
 
                         <!-- Card 4: Controlled Synthetic Explanation -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                            <StackPanel Spacing="6">
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="4">
                                 <DockPanel>
-                                    <TextBlock Text="💡 SPIEGAZIONE SINTETICA DELL'AI (NO HIDDEN COT)" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
-                                    <TextBlock DockPanel.Dock="Right" Text="Audit di sicurezza: conforme" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="💡 SPIEGAZIONE SINTETICA DELL'AI (NO HIDDEN COT)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="Audit di sicurezza: conforme" FontSize="9" Foreground="{DynamicResource TextDisabledBrush}"/>
                                 </DockPanel>
                                 <TextBlock Text="{Binding SelectedDecision.SyntheticExplanation, FallbackValue='In attesa di dati...', TargetNullValue='In attesa di dati...'}"
-                                           FontSize="13" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
+                                           FontSize="12" Foreground="{DynamicResource TextPrimaryBrush}" TextWrapping="Wrap"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Card 5: Safety Policy & Validation Status -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14">
-                            <StackPanel Spacing="8">
-                                <DockPanel>
-                                    <TextBlock Text="🛡️ POLITICA DI SICUREZZA &amp; PIPELINE VALIDAZIONE" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
-                                </DockPanel>
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="12">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="🛡️ POLITICA DI SICUREZZA &amp; PIPELINE VALIDAZIONE" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource WarningBrush}"/>
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Text="Conformità Policy:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="0" Text="Conformità Policy:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding SelectedDecision.PolicyStatus, FallbackValue='-', TargetNullValue='-'}"
-                                               FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*">
-                                    <TextBlock Grid.Column="0" Text="Esito Validazione:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="0" Text="Esito Validazione:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding SelectedDecision.ValidationPassed, FallbackValue='-', TargetNullValue='-', StringFormat='Passata: {0}'}"
-                                               FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
+                                               FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource SuccessBrush}"/>
                                 </Grid>
                                 <Grid ColumnDefinitions="Auto,*" IsVisible="{Binding SelectedDecision.ActionExecuted}">
-                                    <TextBlock Grid.Column="0" Text="Esito ADB:" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
+                                    <TextBlock Grid.Column="0" Text="Esito ADB:" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}" Margin="0,0,10,0"/>
                                     <TextBlock Grid.Column="1" Text="{Binding SelectedDecision.ExecutionResult, FallbackValue='-', TargetNullValue='-'}"
-                                               FontFamily="Consolas, monospace" Foreground="{DynamicResource AccentBrush}"/>
+                                               FontSize="11" FontFamily="Consolas, monospace" Foreground="{DynamicResource AccentBrush}"/>
                                 </Grid>
                             </StackPanel>
                         </Border>
 
-                        <!-- Card 6: Screenshot Frame Preview & Visual Gesture Overlay -->
-                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="14"
-                                IsVisible="{Binding SelectedScreenshotBitmap, Converter={x:Static ObjectConverters.IsNotNull}}">
-                            <StackPanel Spacing="8">
+                        <!-- Collapsible Recent Decisions History (bounded to max 10) -->
+                        <Expander IsExpanded="False" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}"
+                                  BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Expander.Header>
                                 <DockPanel>
-                                    <TextBlock Text="📸 ANTEPRIMA FRAME &amp; OVERLAY GESTO" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                    <TextBlock DockPanel.Dock="Right" Text="Marker visivo evidenziato su screenshot" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}"/>
+                                    <TextBlock Text="📜 CRONOLOGIA DECISIONI RECENTI (MAX 10)" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="{Binding Decisions.Count, StringFormat='Elementi: {0}'}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" Margin="10,0,0,0"/>
                                 </DockPanel>
+                            </Expander.Header>
 
-                                <!-- Gesture HUD Indicator Banner -->
-                                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource PrimaryLightBrush}"
-                                        BorderThickness="1" CornerRadius="6" Padding="10,6" Margin="0,0,0,4"
-                                        IsVisible="{Binding HasVisualGesture}">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <Border Grid.Column="0" Background="{DynamicResource PrimaryLightBrush}" CornerRadius="4" Padding="6,2" Margin="0,0,10,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding GestureHudTitle}" FontWeight="Bold" FontSize="11" Foreground="#FFFFFF"/>
+                            <ListBox ItemsSource="{Binding Decisions}" SelectedItem="{Binding SelectedDecision}"
+                                     Background="Transparent" BorderThickness="0" MaxHeight="220" Margin="0,8,0,0">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate x:DataType="models:AiDecisionDetails">
+                                        <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}"
+                                                BorderThickness="1" CornerRadius="4" Padding="8,6" Margin="0,0,0,6">
+                                            <Grid ColumnDefinitions="Auto,*,Auto">
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="6" Margin="0,0,10,0">
+                                                    <TextBlock Text="{Binding CycleNumber, StringFormat='Ciclo #{0}'}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                                    <TextBlock Text="{Binding Timestamp, StringFormat='Ora: {0:HH:mm:ss}'}" FontSize="10" Foreground="{DynamicResource TextDisabledBrush}" VerticalAlignment="Center"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding ActionType}" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
+                                                <Border Grid.Column="2" Background="{DynamicResource Surface2Brush}" CornerRadius="3" Padding="4,1">
+                                                    <TextBlock Text="{Binding Confidence, StringFormat='{}{0:P0}'}" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SuccessBrush}"/>
+                                                </Border>
+                                            </Grid>
                                         </Border>
-                                        <TextBlock Grid.Column="1" Text="{Binding GestureHudDetails}" FontSize="12" FontFamily="Consolas, monospace" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </Border>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Expander>
 
-                                <Border BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" ClipToBounds="True">
-                                    <Image Source="{Binding SelectedScreenshotBitmap}" MaxHeight="320" Stretch="Uniform"/>
-                                </Border>
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </ScrollViewer>
             </Border>

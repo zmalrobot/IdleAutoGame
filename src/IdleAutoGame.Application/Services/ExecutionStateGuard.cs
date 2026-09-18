@@ -281,3 +281,4 @@ public sealed class ExecutionStateGuard : IExecutionStateGuard
         return Task.CompletedTask;
     }
 }
+

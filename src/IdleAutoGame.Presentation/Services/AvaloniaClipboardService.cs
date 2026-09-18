@@ -54,4 +54,27 @@ public sealed class AvaloniaClipboardService : IClipboardService
         }
         return null;
     }
+
+    /// <inheritdoc />
+    public async Task SetImageAsync(byte[] imageBytes)
+    {
+        if (imageBytes == null || imageBytes.Length == 0) return;
+
+        try
+        {
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                var window = desktop.Windows.Count > 0 ? (desktop.Windows[^1] ?? desktop.MainWindow) : desktop.MainWindow;
+                var clipboard = window?.Clipboard ?? desktop.MainWindow?.Clipboard;
+                if (clipboard != null)
+                {
+                    await clipboard.SetTextAsync($"data:image/png;base64,{Convert.ToBase64String(imageBytes)}").ConfigureAwait(false);
+                }
+            }
+        }
+        catch
+        {
+            // Headless or platform clipboard failure suppressed gracefully
+        }
+    }
 }

@@ -3,7 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using IdleAutoGame.Core.Enums;
@@ -426,14 +428,74 @@ public static class ScreenCaptureRunner
             var diagVm = mainVm.Dashboard.AiDecisionDetails;
             diagVm.ClearHistory();
 
-            // Create a small placeholder base64 screenshot for the inspector
-            string placeholderBase64 = string.Empty;
+            // Generate a realistic game screen render for the live screenshot viewport
+            byte[] liveScreenshotBytes = Array.Empty<byte>();
             try
             {
+                var gameCanvas = new Border
+                {
+                    Width = 540,
+                    Height = 960,
+                    Background = new SolidColorBrush(Color.Parse("#121820")),
+                    Child = new Grid
+                    {
+                        RowDefinitions = new RowDefinitions("Auto,*,Auto"),
+                        Children =
+                        {
+                            new Border
+                            {
+                                Background = new SolidColorBrush(Color.Parse("#1B222D")),
+                                Padding = new Thickness(16, 12),
+                                Child = new DockPanel
+                                {
+                                    Children =
+                                    {
+                                        new TextBlock { Text = "Stage 14,820", Foreground = Brushes.Gold, FontWeight = FontWeight.Bold, FontSize = 14 },
+                                        new TextBlock { Text = "Tap Titans 2", Foreground = Brushes.LightGray, FontSize = 12, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right }
+                                    }
+                                }
+                            },
+                            new StackPanel
+                            {
+                                [Grid.RowProperty] = 1,
+                                VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
+                                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
+                                Spacing = 14,
+                                Children =
+                                {
+                                    new TextBlock { Text = "⚔️ TITAN BOSS", Foreground = Brushes.Crimson, FontWeight = FontWeight.ExtraBold, FontSize = 24, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center },
+                                    new TextBlock { Text = "Salute Titano: 45%", Foreground = Brushes.White, FontSize = 14, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center },
+                                    new Border
+                                    {
+                                        Width = 320, Height = 16, Background = new SolidColorBrush(Color.Parse("#3D1418")), CornerRadius = new CornerRadius(8),
+                                        Child = new Border { Width = 144, Height = 16, Background = Brushes.Red, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left, CornerRadius = new CornerRadius(8) }
+                                    },
+                                    new TextBlock { Text = "⏱️ 12.4s rimanenti", Foreground = Brushes.Orange, FontWeight = FontWeight.SemiBold, FontSize = 13, HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center },
+                                    new Border
+                                    {
+                                        Background = new SolidColorBrush(Color.Parse("#202B38")), CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 8), Margin = new Thickness(0, 20, 0, 0),
+                                        Child = new TextBlock { Text = "Zona Impatto: (540, 1280)", Foreground = Brushes.Cyan, FontSize = 12, FontFamily = "Consolas, monospace" }
+                                    }
+                                }
+                            },
+                            new Border
+                            {
+                                [Grid.RowProperty] = 2,
+                                Background = new SolidColorBrush(Color.Parse("#161D26")),
+                                Padding = new Thickness(14, 10),
+                                Child = new TextBlock { Text = "Abilità: [Heavenly Strike ⚡] [Shadow Clone] [War Cry]", Foreground = Brushes.LightSkyBlue, FontSize = 11 }
+                            }
+                        }
+                    }
+                };
+                gameCanvas.Measure(new Size(540, 960));
+                gameCanvas.Arrange(new Rect(0, 0, 540, 960));
+
                 using var placeholderRtb = new RenderTargetBitmap(new PixelSize(540, 960), new Vector(96, 96));
+                placeholderRtb.Render(gameCanvas);
                 using var ms = new MemoryStream();
                 placeholderRtb.Save(ms);
-                placeholderBase64 = Convert.ToBase64String(ms.ToArray());
+                liveScreenshotBytes = ms.ToArray();
             }
             catch
             {
@@ -502,7 +564,7 @@ public static class ScreenCaptureRunner
                 LatencyMs = 142,
                 TargetX = 540,
                 TargetY = 1280,
-                ScreenshotBase64 = placeholderBase64,
+                Count = 10,
                 RawResponse = "{\n  \"action\": \"tap\",\n  \"parameters\": {\n    \"x\": 540.0,\n    \"y\": 1280.0,\n    \"count\": 10,\n    \"interval_ms\": 50\n  },\n  \"confidence\": 0.96,\n  \"game_state\": \"boss_fight\",\n  \"observation_summary\": \"Titan Core esposto con barra vita al 45%.\",\n  \"objective\": \"Attacco rapido sul Titan Core.\",\n  \"explanation\": \"Sequenza rapida di 10 colpi coordinati.\"\n}"
             });
 
@@ -522,18 +584,32 @@ public static class ScreenCaptureRunner
             });
             diagVm.FlushBufferToUi();
 
+            // Provide real-time latest screenshot to the diagnostic window
+            if (liveScreenshotBytes.Length > 0)
+            {
+                diagVm.OnScreenshotCaptured(null, new ScreenshotData
+                {
+                    ImageBytes = liveScreenshotBytes,
+                    Width = 1080,
+                    Height = 2400,
+                    CycleNumber = 142,
+                    DeviceSerial = "emulator-5554 (Pixel 7 Pro)",
+                    CapturedAt = DateTimeOffset.UtcNow
+                });
+            }
+
             var diagWindow = new AiDecisionDetailsWindow
             {
                 DataContext = diagVm,
-                Width = 1050,
-                Height = 680
+                Width = 1260,
+                Height = 840
             };
 
             diagWindow.Show();
             await Task.Delay(500);
 
-            var dWidth = (int)Math.Max(1050, diagWindow.Bounds.Width);
-            var dHeight = (int)Math.Max(680, diagWindow.Bounds.Height);
+            var dWidth = (int)Math.Max(1260, diagWindow.Bounds.Width);
+            var dHeight = (int)Math.Max(840, diagWindow.Bounds.Height);
             using (var rtbDiag = new RenderTargetBitmap(new PixelSize(dWidth, dHeight), new Vector(96, 96)))
             {
                 rtbDiag.Render(diagWindow);

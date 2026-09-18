@@ -54,3 +54,4 @@ public sealed record ExecutionOperationResult
             Message = message
         };
 }
+

@@ -17,5 +17,11 @@ public interface IClipboardService
     /// Asynchronously retrieves text from the system clipboard.
     /// </summary>
     Task<string?> GetTextAsync();
+
+    /// <summary>
+    /// Asynchronously copies image bytes (PNG) to the system clipboard.
+    /// </summary>
+    /// <param name="imageBytes">The raw image byte array.</param>
+    Task SetImageAsync(byte[] imageBytes);
 }
 

@@ -95,3 +95,4 @@ public sealed record GameplaySessionSnapshot
     /// </summary>
     public LlmSettings LlmSettings { get; init; } = new();
 }
+

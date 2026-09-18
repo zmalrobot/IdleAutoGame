@@ -22,3 +22,4 @@ public enum SettingMutability
     /// </summary>
     RestartRequired
 }
+

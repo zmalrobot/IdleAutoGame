@@ -12,6 +12,7 @@ using CommunityToolkit.Mvvm.Input;
 using IdleAutoGame.Application.Engine;
 using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Enums;
+using IdleAutoGame.Core.Events;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Presentation.Services;
@@ -23,7 +24,7 @@ namespace IdleAutoGame.Presentation.ViewModels;
 /// Provides deep visibility into visual screen interpretations, tactical objectives,
 /// and live token-by-token streaming of the model's raw LLM output.
 /// </summary>
-public partial class AiDecisionDetailsViewModel : ViewModelBase
+public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
 {
     private readonly IAutomationEngine _engine;
     private readonly IConfigurationService _configService;
@@ -33,14 +34,49 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
     private readonly object _streamLock = new();
     private bool _flushPending;
 
+    private ScreenshotData? _latestScreenshot;
+    private readonly object _screenshotSyncLock = new();
+    private int _latestScreenshotCycleNumber = -1;
+
     [ObservableProperty]
     private ObservableCollection<AiDecisionDetails> _decisions = new();
 
     [ObservableProperty]
     private AiDecisionDetails? _selectedDecision;
 
+    private Bitmap? _latestScreenshotBitmap;
+    public Bitmap? LatestScreenshotBitmap
+    {
+        get => _latestScreenshotBitmap;
+        private set => SetProperty(ref _latestScreenshotBitmap, value);
+    }
+
     [ObservableProperty]
-    private Bitmap? _selectedScreenshotBitmap;
+    private string _latestScreenshotStatus = "Nessuno screenshot disponibile";
+
+    [ObservableProperty]
+    private string _latestScreenshotTimestamp = "-";
+
+    [ObservableProperty]
+    private string _latestScreenshotResolution = "-";
+
+    [ObservableProperty]
+    private string _latestScreenshotDevice = "-";
+
+    [ObservableProperty]
+    private string _latestScreenshotCycle = "-";
+
+    [ObservableProperty]
+    private bool _hasScreenshot;
+
+    [ObservableProperty]
+    private bool _isZoom100Percent;
+
+    [ObservableProperty]
+    private Stretch _screenshotStretchMode = Stretch.Uniform;
+
+    [ObservableProperty]
+    private string _screenshotStatusBadgeColor = "#8B949E";
 
     [ObservableProperty]
     private bool _autoFollowLatest = true;
@@ -140,7 +176,6 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
     partial void OnSelectedDecisionChanged(AiDecisionDetails? value)
     {
         UpdateGestureHud(value);
-        UpdateScreenshotBitmap(value?.ScreenshotBase64, value);
         IsViewingHistoricalRaw = value != null && !AutoFollowLatest;
         OnPropertyChanged(nameof(DisplayedRawOutput));
     }
@@ -162,17 +197,28 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayedRawOutput));
     }
 
+    private readonly Func<Stream, Bitmap>? _bitmapFactory;
+
     public AiDecisionDetailsViewModel(
         IAutomationEngine engine,
         IConfigurationService configService,
-        IClipboardService? clipboardService = null)
+        IClipboardService? clipboardService = null,
+        Func<Stream, Bitmap>? bitmapFactory = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _clipboardService = clipboardService ?? new AvaloniaClipboardService();
+        _bitmapFactory = bitmapFactory;
 
         _engine.CycleCompleted += OnCycleCompleted;
         _engine.LlmChunkReceived += OnLlmChunkReceived;
+        _engine.ScreenshotCaptured += OnScreenshotCaptured;
+        _engine.StateChanged += OnStateChanged;
+
+        if (_engine.LatestScreenshot != null)
+        {
+            OnScreenshotCaptured(_engine, _engine.LatestScreenshot);
+        }
     }
 
     internal void OnLlmChunkReceived(object? sender, LlmOutputChunk chunk)
@@ -264,24 +310,22 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
         }
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (global::Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
     private void TriggerImmediateUiFlush()
     {
         _flushPending = false;
-        try
-        {
-            if (Dispatcher.UIThread.CheckAccess())
-            {
-                FlushBufferToUi();
-            }
-            else
-            {
-                Dispatcher.UIThread.Post(FlushBufferToUi);
-            }
-        }
-        catch
-        {
-            FlushBufferToUi();
-        }
+        RunOnUi(FlushBufferToUi);
     }
 
     internal void FlushBufferToUi()
@@ -378,12 +422,6 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
             ? action.DecisionSummary
             : (action?.Explanation ?? "Azione selezionata dal modello");
 
-        string base64Image = string.Empty;
-        if (cycle.Screenshot?.ImageBytes != null && cycle.Screenshot.ImageBytes.Length > 0)
-        {
-            base64Image = Convert.ToBase64String(cycle.Screenshot.ImageBytes);
-        }
-
         string policyStatus = action?.Category switch
         {
             ActionCategory.PremiumCurrency => "Verifica Policy: Richiesta Valuta Premium (Sottoposta a controllo)",
@@ -419,21 +457,11 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
             Distance = p?.Distance,
             Text = p?.Text,
             KeyCode = p?.KeyCode?.ToString() ?? (p?.KeyCodes != null ? string.Join(", ", p.KeyCodes) : null),
-            ScreenshotBase64 = base64Image,
+            ScreenshotBase64 = null,
             RawResponse = cycle.RawResponse
         };
 
-        try
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                AddDecision(detail);
-            });
-        }
-        catch
-        {
-            AddDecision(detail);
-        }
+        RunOnUi(() => AddDecision(detail));
     }
 
     public void AddDecision(AiDecisionDetails detail)
@@ -468,7 +496,6 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
     {
         Decisions.Clear();
         SelectedDecision = null;
-        SelectedScreenshotBitmap = null;
         HasVisualGesture = false;
         GestureHudTitle = null;
         GestureHudDetails = null;
@@ -525,33 +552,38 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
             return;
         }
 
+        static string FmtCoord(double? val) => val.HasValue
+            ? (val.Value > 1.0 ? $"{val.Value:F0}" : $"{val.Value:P1}")
+            : "-";
+
         switch (d.ActionType)
         {
             case "Tap":
             case "MultiTap":
                 HasVisualGesture = d.TargetX.HasValue && d.TargetY.HasValue;
-                GestureHudTitle = d.Count > 1 ? $"🎯 MULTI-TAP ({d.Count}×)" : "🎯 TAP";
-                GestureHudDetails = $"Coord: ({d.TargetX:P1}, {d.TargetY:P1}) | Ripetizioni: {d.Count}";
+                int count = Math.Max(1, d.Count);
+                GestureHudTitle = count > 1 ? $"🎯 MULTI-TAP ({count}×)" : "🎯 TAP";
+                GestureHudDetails = $"Coord: ({FmtCoord(d.TargetX)}, {FmtCoord(d.TargetY)}) | Ripetizioni: {count}";
                 break;
             case "DoubleTap":
                 HasVisualGesture = d.TargetX.HasValue && d.TargetY.HasValue;
                 GestureHudTitle = "🎯 DOPPIO TAP";
-                GestureHudDetails = $"Coord: ({d.TargetX:P1}, {d.TargetY:P1})";
+                GestureHudDetails = $"Coord: ({FmtCoord(d.TargetX)}, {FmtCoord(d.TargetY)})";
                 break;
             case "LongPress":
                 HasVisualGesture = d.TargetX.HasValue && d.TargetY.HasValue;
                 GestureHudTitle = "⏱️ PRESSIONE PROLUNGATA";
-                GestureHudDetails = $"Coord: ({d.TargetX:P1}, {d.TargetY:P1}) | Durata: {d.DurationMs ?? 1000}ms";
+                GestureHudDetails = $"Coord: ({FmtCoord(d.TargetX)}, {FmtCoord(d.TargetY)}) | Durata: {d.DurationMs ?? 1000}ms";
                 break;
             case "Swipe":
                 HasVisualGesture = d.TargetX.HasValue && d.TargetY.HasValue;
                 GestureHudTitle = "➔ SWIPE RAPIDO";
-                GestureHudDetails = $"Inizio: ({d.TargetX:P1}, {d.TargetY:P1}) ➔ Fine: ({d.TargetEndX:P1}, {d.TargetEndY:P1}) | Durata: {d.DurationMs ?? 300}ms";
+                GestureHudDetails = $"Inizio: ({FmtCoord(d.TargetX)}, {FmtCoord(d.TargetY)}) ➔ Fine: ({FmtCoord(d.TargetEndX)}, {FmtCoord(d.TargetEndY)}) | Durata: {d.DurationMs ?? 300}ms";
                 break;
             case "Drag":
                 HasVisualGesture = d.TargetX.HasValue && d.TargetY.HasValue;
                 GestureHudTitle = "✥ TRASCINAMENTO (DRAG)";
-                GestureHudDetails = $"Origine: ({d.TargetX:P1}, {d.TargetY:P1}) ➔ Destinazione: ({d.TargetEndX:P1}, {d.TargetEndY:P1}) | Durata: {d.DurationMs ?? 1000}ms";
+                GestureHudDetails = $"Origine: ({FmtCoord(d.TargetX)}, {FmtCoord(d.TargetY)}) ➔ Destinazione: ({FmtCoord(d.TargetEndX)}, {FmtCoord(d.TargetEndY)}) | Durata: {d.DurationMs ?? 1000}ms";
                 break;
             case "Scroll":
                 HasVisualGesture = true;
@@ -577,84 +609,189 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase
         }
     }
 
-    private void UpdateScreenshotBitmap(string? base64, AiDecisionDetails? decision)
+    internal void OnScreenshotCaptured(object? sender, ScreenshotData screenshot)
     {
-        if (string.IsNullOrWhiteSpace(base64))
+        if (screenshot == null || screenshot.ImageBytes == null || screenshot.ImageBytes.Length == 0)
         {
-            SelectedScreenshotBitmap = null;
+            void SetError()
+            {
+                LatestScreenshotStatus = "Errore: Frame screenshot vuoto o non valido";
+                ScreenshotStatusBadgeColor = "#F85149";
+            }
+            RunOnUi(SetError);
             return;
         }
 
+        // Monotonic sequence guard: drop superseded out-of-order screenshots
+        lock (_screenshotSyncLock)
+        {
+            if (screenshot.CycleNumber > 0 && screenshot.CycleNumber < _latestScreenshotCycleNumber)
+            {
+                return;
+            }
+            _latestScreenshotCycleNumber = screenshot.CycleNumber;
+            _latestScreenshot = screenshot;
+        }
+
+        Bitmap? newBitmap;
         try
         {
-            var bytes = Convert.FromBase64String(base64);
-            using var ms = new MemoryStream(bytes);
-            var baseBitmap = new Bitmap(ms);
-
-            if (decision != null && (decision.TargetX.HasValue || decision.TargetEndX.HasValue))
-            {
-                try
-                {
-                    var annotated = CreateAnnotatedBitmap(baseBitmap, decision);
-                    if (annotated != null)
-                    {
-                        SelectedScreenshotBitmap = annotated;
-                        return;
-                    }
-                }
-                catch
-                {
-                    // Fallback to raw bitmap if drawing context fails (e.g. headless)
-                }
-            }
-
-            SelectedScreenshotBitmap = baseBitmap;
+            using var ms = new MemoryStream(screenshot.ImageBytes);
+            newBitmap = _bitmapFactory != null ? _bitmapFactory(ms) : new Bitmap(ms);
         }
-        catch
+        catch (Exception ex)
         {
-            SelectedScreenshotBitmap = null;
+            void SetDecodeError()
+            {
+                LatestScreenshotStatus = $"Errore decodifica immagine: {ex.Message}";
+                ScreenshotStatusBadgeColor = "#F85149";
+            }
+            RunOnUi(SetDecodeError);
+            return;
+        }
+
+        void ApplyScreenshot()
+        {
+            var oldBitmap = _latestScreenshotBitmap;
+            LatestScreenshotBitmap = newBitmap;
+            // Immediate disposal of previous native Skia/Avalonia bitmap resource
+            try { oldBitmap?.Dispose(); } catch { /* Defensively ignore disposal errors */ }
+
+            LatestScreenshotTimestamp = screenshot.CapturedAt.ToLocalTime().ToString("HH:mm:ss.fff");
+            LatestScreenshotResolution = $"{screenshot.Width} × {screenshot.Height}";
+            LatestScreenshotDevice = !string.IsNullOrWhiteSpace(screenshot.DeviceSerial) ? screenshot.DeviceSerial : "Dispositivo attivo";
+            LatestScreenshotCycle = screenshot.CycleNumber > 0 ? $"Ciclo #{screenshot.CycleNumber}" : "Ciclo iniziale";
+            LatestScreenshotStatus = "Disponibile";
+            ScreenshotStatusBadgeColor = "#2EA043";
+            HasScreenshot = true;
+        }
+
+        RunOnUi(ApplyScreenshot);
+    }
+
+    internal void OnStateChanged(object? sender, AutomationStateChangedEvent e)
+    {
+        void UpdateState()
+        {
+            switch (e.CurrentState)
+            {
+                case AutomationState.Observing:
+                    if (!HasScreenshot)
+                    {
+                        LatestScreenshotStatus = "Acquisizione frame da ADB in corso...";
+                        ScreenshotStatusBadgeColor = "#E3B341";
+                    }
+                    break;
+                case AutomationState.Paused:
+                case AutomationState.ActivityLost:
+                case AutomationState.PolicyBlocked:
+                    if (HasScreenshot)
+                    {
+                        LatestScreenshotStatus = "In pausa (ultimo frame mantenuto)";
+                        ScreenshotStatusBadgeColor = "#D29922";
+                    }
+                    break;
+                case AutomationState.Stopped:
+                    ClearScreenshotResources();
+                    break;
+            }
+        }
+
+        RunOnUi(UpdateState);
+    }
+
+    public void ClearScreenshotResources()
+    {
+        lock (_screenshotSyncLock)
+        {
+            _latestScreenshot = null;
+            _latestScreenshotCycleNumber = -1;
+        }
+
+        var oldBitmap = _latestScreenshotBitmap;
+        LatestScreenshotBitmap = null;
+        try { oldBitmap?.Dispose(); } catch { /* Defensively ignore disposal errors */ }
+
+        HasScreenshot = false;
+        LatestScreenshotStatus = "Nessuno screenshot disponibile";
+        LatestScreenshotTimestamp = "-";
+        LatestScreenshotResolution = "-";
+        LatestScreenshotDevice = "-";
+        LatestScreenshotCycle = "-";
+        ScreenshotStatusBadgeColor = "#8B949E";
+    }
+
+    [RelayCommand]
+    public void ToggleZoomMode()
+    {
+        IsZoom100Percent = !IsZoom100Percent;
+        ScreenshotStretchMode = IsZoom100Percent ? Stretch.None : Stretch.Uniform;
+    }
+
+    [RelayCommand]
+    public async Task CopyScreenshotAsync()
+    {
+        byte[]? bytes;
+        lock (_screenshotSyncLock)
+        {
+            bytes = _latestScreenshot?.ImageBytes;
+        }
+
+        if (bytes != null && bytes.Length > 0)
+        {
+            await _clipboardService.SetImageAsync(bytes).ConfigureAwait(false);
         }
     }
 
-    private static Bitmap? CreateAnnotatedBitmap(Bitmap source, AiDecisionDetails decision)
+    [RelayCommand]
+    public async Task SaveScreenshotAsAsync()
     {
-        int width = source.PixelSize.Width;
-        int height = source.PixelSize.Height;
-        if (width <= 0 || height <= 0) return null;
-
-        var rtb = new RenderTargetBitmap(new PixelSize(width, height), new Vector(96, 96));
-        using (var ctx = rtb.CreateDrawingContext())
+        byte[]? bytes;
+        lock (_screenshotSyncLock)
         {
-            ctx.DrawImage(source, new Rect(0, 0, width, height));
+            bytes = _latestScreenshot?.ImageBytes;
+        }
 
-            var strokePen = new Pen(new SolidColorBrush(Color.FromArgb(240, 255, 60, 60)), 4);
-            var circlePen = new Pen(new SolidColorBrush(Color.FromArgb(220, 255, 215, 0)), 3);
+        if (bytes == null || bytes.Length == 0) return;
 
-            if (decision.TargetX.HasValue && decision.TargetY.HasValue)
+        try
+        {
+            if (global::Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
             {
-                double px = decision.TargetX.Value * width;
-                double py = decision.TargetY.Value * height;
-
-                if (decision.TargetEndX.HasValue && decision.TargetEndY.HasValue)
+                var topLevel = desktop.Windows.Count > 0 ? Avalonia.Controls.TopLevel.GetTopLevel(desktop.Windows[^1]) : null;
+                if (topLevel != null)
                 {
-                    double endPx = decision.TargetEndX.Value * width;
-                    double endPy = decision.TargetEndY.Value * height;
+                    var file = await topLevel.StorageProvider.SaveFilePickerAsync(new Avalonia.Platform.Storage.FilePickerSaveOptions
+                    {
+                        Title = "Salva Ultimo Screenshot Dispositivo",
+                        DefaultExtension = "png",
+                        SuggestedFileName = $"screenshot_{DateTime.Now:yyyyMMdd_HHmmss}.png",
+                        FileTypeChoices = new[]
+                        {
+                            new Avalonia.Platform.Storage.FilePickerFileType("Immagine PNG") { Patterns = new[] { "*.png" } }
+                        }
+                    });
 
-                    var vectorPen = new Pen(new SolidColorBrush(Color.FromArgb(230, 0, 230, 118)), 5);
-                    ctx.DrawLine(vectorPen, new Point(px, py), new Point(endPx, endPy));
-                    ctx.DrawEllipse(new SolidColorBrush(Color.FromArgb(220, 0, 230, 118)), null, new Point(px, py), 12, 12);
-                    ctx.DrawEllipse(null, new Pen(new SolidColorBrush(Color.FromArgb(240, 255, 82, 82)), 4), new Point(endPx, endPy), 16, 16);
-                }
-                else
-                {
-                    double radius = (decision.ActionType == "DoubleTap") ? 28 : (decision.ActionType == "LongPress" ? 36 : 22);
-                    ctx.DrawEllipse(null, circlePen, new Point(px, py), radius, radius);
-                    ctx.DrawEllipse(new SolidColorBrush(Color.FromArgb(240, 255, 60, 60)), null, new Point(px, py), 6, 6);
-                    ctx.DrawLine(strokePen, new Point(px - radius - 8, py), new Point(px + radius + 8, py));
-                    ctx.DrawLine(strokePen, new Point(px, py - radius - 8), new Point(px, py + radius + 8));
+                    if (file != null)
+                    {
+                        await using var stream = await file.OpenWriteAsync();
+                        await stream.WriteAsync(bytes);
+                    }
                 }
             }
         }
-        return rtb;
+        catch
+        {
+            // Dialog cancellation or IO access errors gracefully handled
+        }
+    }
+
+    public void Dispose()
+    {
+        _engine.CycleCompleted -= OnCycleCompleted;
+        _engine.LlmChunkReceived -= OnLlmChunkReceived;
+        _engine.ScreenshotCaptured -= OnScreenshotCaptured;
+        _engine.StateChanged -= OnStateChanged;
+        ClearScreenshotResources();
     }
 }

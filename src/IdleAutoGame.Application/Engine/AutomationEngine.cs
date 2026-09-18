@@ -73,6 +73,15 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
     /// <inheritdoc />
     public AutomationSession? CurrentSession => _sessionRecorder.CurrentSession;
 
+    private ScreenshotData? _latestScreenshot;
+    private readonly object _screenshotLock = new();
+
+    /// <inheritdoc />
+    public ScreenshotData? LatestScreenshot
+    {
+        get { lock (_screenshotLock) return _latestScreenshot; }
+    }
+
     /// <inheritdoc />
     public event EventHandler<AutomationStateChangedEvent>? StateChanged;
 
@@ -84,6 +93,9 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
     /// <inheritdoc />
     public event EventHandler<LlmOutputChunk>? LlmChunkReceived;
+
+    /// <inheritdoc />
+    public event EventHandler<ScreenshotData>? ScreenshotCaptured;
 
     /// <summary>
     /// Initializes a new instance of <see cref="AutomationEngine"/> with dynamic provider and configuration resolution.
@@ -376,6 +388,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             State = AutomationState.Stopped;
         }
 
+        lock (_screenshotLock)
+        {
+            _latestScreenshot = null;
+        }
+
         if (_executionGuard != null)
         {
             await _executionGuard.ReleaseLockAsync().ConfigureAwait(false);
@@ -429,6 +446,11 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             _consecutiveUnknownStates = 0;
             _pauseReason = "Arresto di emergenza completato. Sistema in sicurezza.";
             State = AutomationState.Stopped;
+        }
+
+        lock (_screenshotLock)
+        {
+            _latestScreenshot = null;
         }
 
         if (_executionGuard != null)
@@ -560,6 +582,13 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         await HandleErrorPolicyAsync("Screenshot capture failed", cycleCt).ConfigureAwait(false);
                         continue;
                     }
+
+                    screenshot = screenshot with { CycleNumber = cycleNumber };
+                    lock (_screenshotLock)
+                    {
+                        _latestScreenshot = screenshot;
+                    }
+                    ScreenshotCaptured?.Invoke(this, screenshot);
 
                     // 2. Analyzing: Multi-modal LLM Inference
                     if (!TrySetOperationalState(AutomationState.Analyzing)) continue;
@@ -717,7 +746,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         {
                             CycleNumber = cycleNumber,
                             StartedAt = DateTimeOffset.UtcNow - cycleStopwatch.Elapsed,
-                            Screenshot = screenshot,
+                            Screenshot = screenshot != null ? screenshot with { ImageBytes = Array.Empty<byte>() } : null,
                             PromptSent = $"Cycle #{cycleNumber}",
                             RawResponse = rawResponse,
                             Action = parsedAction,
@@ -891,6 +920,10 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         if (_executionGuard != null && _executionGuard.IsExecutionLocked)
         {
             try { _executionGuard.ReleaseLockAsync().GetAwaiter().GetResult(); } catch { }
+        }
+        lock (_screenshotLock)
+        {
+            _latestScreenshot = null;
         }
     }
 

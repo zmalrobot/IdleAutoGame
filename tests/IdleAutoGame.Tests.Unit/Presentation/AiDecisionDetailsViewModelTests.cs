@@ -1,8 +1,15 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using Avalonia.Media;
+using Avalonia.Media.Imaging;
 using FluentAssertions;
 using IdleAutoGame.Application.Engine;
 using IdleAutoGame.Application.Registry;
 using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Enums;
+using IdleAutoGame.Core.Events;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Games.TapTitans2;
 using IdleAutoGame.Presentation.ViewModels;
@@ -101,7 +108,7 @@ public class AiDecisionDetailsViewModelTests
 
         vm.Decisions.Should().BeEmpty();
         vm.SelectedDecision.Should().BeNull();
-        vm.SelectedScreenshotBitmap.Should().BeNull();
+        vm.LatestScreenshotBitmap.Should().BeNull();
     }
 
     [Fact]
@@ -319,6 +326,258 @@ public class AiDecisionDetailsViewModelTests
         // Must NOT contain the outdated chunk
         vm.StreamingRawOutput.Should().Be("Cycle2_Chunk1");
         vm.StreamingRawOutput.Should().NotContain("LateOutdatedData");
+    }
+
+    [Fact]
+    public void InitialState_HasNoScreenshot_AndShowsPlaceholder()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+
+        vm.HasScreenshot.Should().BeFalse();
+        vm.LatestScreenshotBitmap.Should().BeNull();
+        vm.LatestScreenshotStatus.Should().Be("Nessuno screenshot disponibile");
+        vm.LatestScreenshotTimestamp.Should().Be("-");
+        vm.LatestScreenshotResolution.Should().Be("-");
+        vm.LatestScreenshotDevice.Should().Be("-");
+        vm.LatestScreenshotCycle.Should().Be("-");
+        vm.ScreenshotStretchMode.Should().Be(Stretch.Uniform);
+        vm.IsZoom100Percent.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ToggleZoomMode_TogglesStretchModeAndFlag()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+        vm.IsZoom100Percent.Should().BeFalse();
+        vm.ScreenshotStretchMode.Should().Be(Stretch.Uniform);
+
+        vm.ToggleZoomModeCommand.Execute(null);
+        vm.IsZoom100Percent.Should().BeTrue();
+        vm.ScreenshotStretchMode.Should().Be(Stretch.None);
+
+        vm.ToggleZoomModeCommand.Execute(null);
+        vm.IsZoom100Percent.Should().BeFalse();
+        vm.ScreenshotStretchMode.Should().Be(Stretch.Uniform);
+    }
+
+    [Fact]
+    public void ScreenshotCaptured_WithEmptyOrNullBytes_SetsErrorStatus()
+    {
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService);
+
+        vm.OnScreenshotCaptured(this, new ScreenshotData
+        {
+            ImageBytes = Array.Empty<byte>(),
+            Width = 1080,
+            Height = 1920
+        });
+
+        vm.HasScreenshot.Should().BeFalse();
+        vm.LatestScreenshotStatus.Should().Contain("vuoto o non valido");
+        vm.LatestScreenshotBitmap.Should().BeNull();
+    }
+
+    [Fact]
+    public void ScreenshotCaptured_UpdatesProperties_AndReplacesPreviousBitmap()
+    {
+        var b1 = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+        var b2 = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+
+        int factoryCall = 0;
+        var vm = new AiDecisionDetailsViewModel(
+            _engine,
+            _configService,
+            bitmapFactory: s =>
+            {
+                factoryCall++;
+                return factoryCall == 1 ? b1 : b2;
+            });
+
+        var screenshot1 = new ScreenshotData
+        {
+            ImageBytes = [0x89, 0x50, 0x4E, 0x47],
+            Width = 1080,
+            Height = 2400,
+            CycleNumber = 1,
+            DeviceSerial = "emulator-5554",
+            CapturedAt = new DateTimeOffset(2026, 9, 18, 14, 30, 0, TimeSpan.Zero)
+        };
+
+        vm.OnScreenshotCaptured(this, screenshot1);
+
+        vm.HasScreenshot.Should().BeTrue();
+        vm.LatestScreenshotBitmap.Should().BeSameAs(b1);
+        vm.LatestScreenshotResolution.Should().Be("1080 × 2400");
+        vm.LatestScreenshotDevice.Should().Be("emulator-5554");
+        vm.LatestScreenshotCycle.Should().Be("Ciclo #1");
+        vm.LatestScreenshotStatus.Should().Be("Disponibile");
+
+        // Now capture second screenshot: must replace b1 with b2
+        var screenshot2 = new ScreenshotData
+        {
+            ImageBytes = [0x89, 0x50, 0x4E, 0x47, 0x01],
+            Width = 1440,
+            Height = 2560,
+            CycleNumber = 2,
+            DeviceSerial = "emulator-5554",
+            CapturedAt = new DateTimeOffset(2026, 9, 18, 14, 30, 2, TimeSpan.Zero)
+        };
+
+        vm.OnScreenshotCaptured(this, screenshot2);
+
+        vm.LatestScreenshotBitmap.Should().BeSameAs(b2);
+        vm.LatestScreenshotResolution.Should().Be("1440 × 2560");
+        vm.LatestScreenshotCycle.Should().Be("Ciclo #2");
+    }
+
+    [Fact]
+    public void LateArrivingScreenshot_OutOfOrder_IsDiscarded()
+    {
+        var b10 = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+        var b8 = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+
+        int factoryCall = 0;
+        var vm = new AiDecisionDetailsViewModel(
+            _engine,
+            _configService,
+            bitmapFactory: s =>
+            {
+                factoryCall++;
+                return factoryCall == 1 ? b10 : b8;
+            });
+
+        // Cycle 10 arrives
+        vm.OnScreenshotCaptured(this, new ScreenshotData
+        {
+            ImageBytes = [0x01],
+            Width = 1080,
+            Height = 1920,
+            CycleNumber = 10,
+            DeviceSerial = "dev-1"
+        });
+
+        vm.LatestScreenshotCycle.Should().Be("Ciclo #10");
+        vm.LatestScreenshotBitmap.Should().BeSameAs(b10);
+
+        // Belated cycle 8 arrives out of order
+        vm.OnScreenshotCaptured(this, new ScreenshotData
+        {
+            ImageBytes = [0x02],
+            Width = 1080,
+            Height = 1920,
+            CycleNumber = 8,
+            DeviceSerial = "dev-1"
+        });
+
+        // Cycle 8 MUST be dropped; cycle 10 remains
+        vm.LatestScreenshotCycle.Should().Be("Ciclo #10");
+        vm.LatestScreenshotBitmap.Should().BeSameAs(b10);
+    }
+
+    [Fact]
+    public void StateChanged_Paused_RetainsScreenshotWithPausedStatus()
+    {
+        var b = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+        var vm = new AiDecisionDetailsViewModel(
+            _engine,
+            _configService,
+            bitmapFactory: s => b);
+
+        vm.OnScreenshotCaptured(this, new ScreenshotData
+        {
+            ImageBytes = [0x01],
+            Width = 1080,
+            Height = 1920,
+            CycleNumber = 1
+        });
+
+        vm.HasScreenshot.Should().BeTrue();
+
+        vm.OnStateChanged(this, new AutomationStateChangedEvent(AutomationState.Observing, AutomationState.Paused, "User pause"));
+
+        vm.HasScreenshot.Should().BeTrue();
+        vm.LatestScreenshotBitmap.Should().BeSameAs(b);
+        vm.LatestScreenshotStatus.Should().Be("In pausa (ultimo frame mantenuto)");
+    }
+
+    [Fact]
+    public void StateChanged_Stopped_ClearsScreenshotResources()
+    {
+        var b = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+        var vm = new AiDecisionDetailsViewModel(
+            _engine,
+            _configService,
+            bitmapFactory: s => b);
+
+        vm.OnScreenshotCaptured(this, new ScreenshotData
+        {
+            ImageBytes = [0x01],
+            Width = 1080,
+            Height = 1920,
+            CycleNumber = 1
+        });
+
+        vm.HasScreenshot.Should().BeTrue();
+
+        vm.OnStateChanged(this, new AutomationStateChangedEvent(AutomationState.Observing, AutomationState.Stopped, "Session stopped"));
+
+        vm.HasScreenshot.Should().BeFalse();
+        vm.LatestScreenshotBitmap.Should().BeNull();
+        vm.LatestScreenshotStatus.Should().Be("Nessuno screenshot disponibile");
+    }
+
+    [Fact]
+    public async Task CopyScreenshotCommand_CopiesImageBytesToClipboard()
+    {
+        var clipboard = new FakeClipboardService();
+        var b = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+        var vm = new AiDecisionDetailsViewModel(
+            _engine,
+            _configService,
+            clipboardService: clipboard,
+            bitmapFactory: s => b);
+
+        byte[] rawImageBytes = [0x89, 0x50, 0x4E, 0x47, 0xAA, 0xBB, 0xCC];
+
+        vm.OnScreenshotCaptured(this, new ScreenshotData
+        {
+            ImageBytes = rawImageBytes,
+            Width = 1080,
+            Height = 1920,
+            CycleNumber = 3
+        });
+
+        await vm.CopyScreenshotAsync();
+
+        clipboard.ImageBytes.Should().NotBeNull();
+        clipboard.ImageBytes.Should().Equal(rawImageBytes);
+    }
+
+    [Fact]
+    public void MemoryLeak_StressTest_500ConsecutiveScreenshots_MaintainsSingleFrame()
+    {
+        var b = (Bitmap)RuntimeHelpers.GetUninitializedObject(typeof(Bitmap));
+        var vm = new AiDecisionDetailsViewModel(
+            _engine,
+            _configService,
+            bitmapFactory: s => b);
+
+        for (int i = 1; i <= 500; i++)
+        {
+            vm.OnScreenshotCaptured(this, new ScreenshotData
+            {
+                ImageBytes = [0x01, (byte)(i % 255)],
+                Width = 1080,
+                Height = 1920,
+                CycleNumber = i,
+                DeviceSerial = "emulator-5554"
+            });
+        }
+
+        // Only 1 frame active, latest cycle is 500
+        vm.HasScreenshot.Should().BeTrue();
+        vm.LatestScreenshotCycle.Should().Be("Ciclo #500");
+        vm.LatestScreenshotBitmap.Should().BeSameAs(b);
     }
 
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository

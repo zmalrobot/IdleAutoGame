@@ -25,6 +25,11 @@ public interface IAutomationEngine
     AutomationSession? CurrentSession { get; }
 
     /// <summary>
+    /// Gets the most recent screenshot captured from the active device, or null if none is available.
+    /// </summary>
+    ScreenshotData? LatestScreenshot { get; }
+
+    /// <summary>
     /// Event emitted when the engine transitions between operational states.
     /// </summary>
     event EventHandler<AutomationStateChangedEvent>? StateChanged;
@@ -43,6 +48,12 @@ public interface IAutomationEngine
     /// Event emitted when a raw streaming token chunk or lifecycle state update is received from the LLM during inference.
     /// </summary>
     event EventHandler<LlmOutputChunk>? LlmChunkReceived;
+
+    /// <summary>
+    /// Event emitted immediately after a fresh screenshot is captured from the active device during the automation loop.
+    /// Only the single latest screenshot is retained.
+    /// </summary>
+    event EventHandler<ScreenshotData>? ScreenshotCaptured;
 
     /// <summary>
     /// Starts the autonomous execution loop.

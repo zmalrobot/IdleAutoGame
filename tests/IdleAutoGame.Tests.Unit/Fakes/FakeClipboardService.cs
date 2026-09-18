@@ -17,5 +17,13 @@ public class FakeClipboardService : IClipboardService
     {
         return Task.FromResult(Text);
     }
+
+    public byte[]? ImageBytes { get; set; }
+
+    public Task SetImageAsync(byte[] imageBytes)
+    {
+        ImageBytes = imageBytes;
+        return Task.CompletedTask;
+    }
 }
 

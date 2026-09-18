@@ -254,7 +254,21 @@
                             </DockPanel>
                         </Border>
 
-                        <Button Content="🔍 Diagnostica Decisione AI &amp; Streaming Raw" Command="{Binding OpenAiDecisionDetailsCommand}"
+                        <!-- Device Screenshot Indicator Banner -->
+                        <Border Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}" BorderThickness="1" CornerRadius="6" Padding="10,6"
+                                IsVisible="{Binding AiDecisionDetails.HasScreenshot}">
+                            <DockPanel>
+                                <Border DockPanel.Dock="Right" Background="{DynamicResource Surface1Brush}" CornerRadius="4" Padding="6,2">
+                                    <TextBlock Text="{Binding AiDecisionDetails.LatestScreenshotResolution}" FontSize="10" FontFamily="Consolas, monospace" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                </Border>
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <TextBlock Text="📸" FontSize="11"/>
+                                    <TextBlock Text="Ultimo frame acquisito" FontSize="11" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+
+                        <Button Content="🔍 Dettaglio Esecuzione in Tempo Reale" Command="{Binding OpenAiDecisionDetailsCommand}"
                                 Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource PrimaryLightBrush}"
                                 BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
