@@ -91,19 +91,22 @@ public static class ActionPolicyValidator
     private static bool IsPremiumOrShopConstraint(GameConstraint constraint)
     {
         var id = constraint.Id.ToUpperInvariant();
-        return id.Contains("SHOP") || id.Contains("STORE") || id.Contains("DIAMOND") || id.Contains("GEM") || id.Contains("PREMIUM");
+        return id.Contains("SHOP") || id.Contains("STORE") || id.Contains("DIAMOND") || id.Contains("GEM") ||
+               id.Contains("PREMIUM") || id.Contains("PROMO") || id.Contains("OFFER") || id.Contains("BUNDLE");
     }
 
     private static bool IsShopConstraint(GameConstraint constraint)
     {
         var id = constraint.Id.ToUpperInvariant();
-        return id.Contains("SHOP") || id.Contains("STORE") || id.Contains("PURCHASE");
+        return id.Contains("SHOP") || id.Contains("STORE") || id.Contains("PURCHASE") ||
+               id.Contains("PROMO") || id.Contains("OFFER") || id.Contains("BUNDLE");
     }
 
     private static bool IsPremiumConstraint(GameConstraint constraint)
     {
         var id = constraint.Id.ToUpperInvariant();
-        return id.Contains("DIAMOND") || id.Contains("GEM") || id.Contains("PREMIUM");
+        return id.Contains("DIAMOND") || id.Contains("GEM") || id.Contains("PREMIUM") ||
+               id.Contains("PROMO") || id.Contains("OFFER") || id.Contains("BUNDLE");
     }
 
     private static bool IsActionWithinConstraint(GameAction action, GameConstraint constraint)
@@ -111,12 +114,12 @@ public static class ActionPolicyValidator
         if (constraint.Parameters is not NormalizedRect rect) return false;
         var p = action.Parameters;
 
-        if (action.Action is ActionType.Tap or ActionType.LongPress)
+        if (action.Action is ActionType.Tap or ActionType.MultiTap or ActionType.DoubleTap or ActionType.LongPress)
         {
             return p.X.HasValue && p.Y.HasValue && rect.Contains(p.X.Value, p.Y.Value);
         }
 
-        if (action.Action is ActionType.Swipe)
+        if (action.Action is ActionType.Swipe or ActionType.Drag)
         {
             bool startHit = p.X.HasValue && p.Y.HasValue && rect.Contains(p.X.Value, p.Y.Value);
             bool endHit = p.EndX.HasValue && p.EndY.HasValue && rect.Contains(p.EndX.Value, p.EndY.Value);

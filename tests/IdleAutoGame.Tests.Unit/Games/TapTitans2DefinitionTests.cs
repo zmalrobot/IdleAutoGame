@@ -25,19 +25,33 @@ public class TapTitans2DefinitionTests
     }
 
     [Fact]
-    public void ForbiddenShopConstraints_CoverTopRightAndBottomRight()
+    public void ForbiddenShopConstraints_CoverPromoOfferAndBottomShop_AndLeaveBossButtonFree()
     {
         var game = new TapTitans2Definition();
         var constraints = game.Constraints.Where(c => c.Type == ConstraintType.ForbiddenRegion).ToList();
 
         constraints.Should().HaveCount(2);
 
-        // Top right shop icon check
-        var topShop = constraints.First(c => c.Id.Contains("TOP"));
-        topShop.Parameters.Should().BeOfType<NormalizedRect>();
-        var rectTop = (NormalizedRect)topShop.Parameters!;
-        rectTop.Contains(0.9, 0.05).Should().BeTrue(); // inside shop
-        rectTop.Contains(0.5, 0.5).Should().BeFalse(); // gameplay center area
+        // Verify Boss Button at top-right (X ≈ 0.88, Y ≈ 0.11) is NOT blocked by any constraint
+        foreach (var c in constraints)
+        {
+            var rect = (NormalizedRect)c.Parameters!;
+            rect.Contains(0.88, 0.11).Should().BeFalse($"Boss button must not be blocked by constraint {c.Id}");
+        }
+
+        // Verify Floating Promo Offer (X ≈ 0.92, Y ≈ 0.29) is blocked
+        var promo = constraints.First(c => c.Id.Contains("PROMO"));
+        promo.Parameters.Should().BeOfType<NormalizedRect>();
+        var rectPromo = (NormalizedRect)promo.Parameters!;
+        rectPromo.Contains(0.92, 0.29).Should().BeTrue("Floating promo bundle offer should be inside forbidden region");
+        rectPromo.Contains(0.5, 0.5).Should().BeFalse("Gameplay center area should not be blocked");
+
+        // Verify Bottom Shop Tab (X ≈ 0.90, Y ≈ 0.95) is blocked
+        var bottomShop = constraints.First(c => c.Id.Contains("BOTTOM"));
+        bottomShop.Parameters.Should().BeOfType<NormalizedRect>();
+        var rectBottom = (NormalizedRect)bottomShop.Parameters!;
+        rectBottom.Contains(0.90, 0.95).Should().BeTrue("Bottom shop tab should be inside forbidden region");
+        rectBottom.Contains(0.08, 0.95).Should().BeFalse("Sword master tab should not be blocked");
     }
 }
 

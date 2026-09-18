@@ -458,17 +458,25 @@ public sealed class TapTitans2Definition : IGameDefinition
         Never continue farming or fighting while a blocking popup is present.
 
         ==================================================
-        16. SCREEN REGIONS
+        16. SCREEN REGIONS & COORDINATE MAPPING
         ==================================================
 
         TOP STATUS / BOSS HEADER
         Y = 0.00 - 0.14
 
         Contains:
-        - stage,
-        - gold,
-        - boss information,
-        - boss-start / boss-leave control.
+        - stage indicator (top-center),
+        - gold and monster health (top-center/left),
+        - boss control button at TOP-RIGHT (X ≈ 0.88, Y ≈ 0.11):
+          * "COMBATTI IL BOSS" when boss is available to start,
+          * "ABBANDONA LA BATTAGLIA" when boss is active.
+        This top-right button is a CORE COMBAT CONTROL, NOT a shop.
+
+        FLOATING PROMOTIONAL OFFER (FORBIDDEN)
+        X = 0.86 - 1.00
+        Y = 0.26 - 0.34
+        Contains the floating bundle offer with diamond and "%" discount badge.
+        NEVER tap this floating icon.
 
         MAIN COMBAT ARENA
         X = 0.15 - 0.85
@@ -611,7 +619,7 @@ public sealed class TapTitans2Definition : IGameDefinition
         - Diamonds,
         - purchases,
         - Shop,
-        - top-right currency,
+        - promotional bundle offer on right edge,
 
         require very high visual confidence before tapping.
 
@@ -839,10 +847,10 @@ public sealed class TapTitans2Definition : IGameDefinition
     public IReadOnlyList<GameConstraint> Constraints { get; } =
     [
         new GameConstraint(
-            Id: "TT2-FORBIDDEN-SHOP-TOP",
-            Description: "Top-right diamond store icon is forbidden to prevent accidental premium currency spending.",
+            Id: "TT2-FORBIDDEN-PROMO-OFFER",
+            Description: "Floating promotional bundle offer on right edge is forbidden to prevent accidental real-money purchases.",
             Type: ConstraintType.ForbiddenRegion,
-            Parameters: new NormalizedRect(0.75, 0.0, 0.25, 0.12)),
+            Parameters: new NormalizedRect(0.85, 0.26, 0.15, 0.08)),
 
         new GameConstraint(
             Id: "TT2-FORBIDDEN-SHOP-BOTTOM",

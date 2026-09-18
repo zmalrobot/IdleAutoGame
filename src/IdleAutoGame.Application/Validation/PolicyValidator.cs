@@ -74,22 +74,22 @@ public static class PolicyValidator
 
         var p = action.Parameters;
 
-        if (action.Action is ActionType.Tap or ActionType.LongPress)
+        if (action.Action is ActionType.Tap or ActionType.MultiTap or ActionType.DoubleTap or ActionType.LongPress)
         {
             if (p.X.HasValue && p.Y.HasValue && rect.Contains(p.X.Value, p.Y.Value))
             {
                 result.AddError($"Policy violation [{constraint.Id}]: Action at ({p.X.Value:F2}, {p.Y.Value:F2}) is within forbidden region. {constraint.Description}");
             }
         }
-        else if (action.Action is ActionType.Swipe)
+        else if (action.Action is ActionType.Swipe or ActionType.Drag)
         {
             if (p.X.HasValue && p.Y.HasValue && rect.Contains(p.X.Value, p.Y.Value))
             {
-                result.AddError($"Policy violation [{constraint.Id}]: Swipe start ({p.X.Value:F2}, {p.Y.Value:F2}) is within forbidden region. {constraint.Description}");
+                result.AddError($"Policy violation [{constraint.Id}]: {action.Action} start ({p.X.Value:F2}, {p.Y.Value:F2}) is within forbidden region. {constraint.Description}");
             }
             if (p.EndX.HasValue && p.EndY.HasValue && rect.Contains(p.EndX.Value, p.EndY.Value))
             {
-                result.AddError($"Policy violation [{constraint.Id}]: Swipe end ({p.EndX.Value:F2}, {p.EndY.Value:F2}) is within forbidden region. {constraint.Description}");
+                result.AddError($"Policy violation [{constraint.Id}]: {action.Action} end ({p.EndX.Value:F2}, {p.EndY.Value:F2}) is within forbidden region. {constraint.Description}");
             }
         }
     }

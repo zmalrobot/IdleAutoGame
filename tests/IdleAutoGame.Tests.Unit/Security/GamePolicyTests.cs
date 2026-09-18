@@ -143,28 +143,58 @@ public class GamePolicyTests
         result.Errors.Should().Contain(e => e.Contains("Action explanation indicates intent to perform credit/real-money purchase"));
     }
 
-    [Fact]
-    public void SpatialCheck_BlocksForbiddenShopRegion_WhenPurchasesDisabled()
+    [Theory]
+    [InlineData(ActionType.Tap)]
+    [InlineData(ActionType.MultiTap)]
+    [InlineData(ActionType.DoubleTap)]
+    [InlineData(ActionType.LongPress)]
+    public void SpatialCheck_BlocksForbiddenShopRegion_ForTouchActionTypes_WhenPurchasesDisabled(ActionType actionType)
     {
         var constraint = new GameConstraint(
-            Id: "TT2-FORBIDDEN-SHOP-TOP",
+            Id: "TT2-FORBIDDEN-SHOP-BOTTOM",
             Description: "Shop region",
             Type: ConstraintType.ForbiddenRegion,
-            Parameters: new NormalizedRect(0.8, 0.0, 0.2, 0.2));
+            Parameters: new NormalizedRect(0.8, 0.9, 0.2, 0.1));
 
         var action = new GameAction
         {
-            Action = ActionType.Tap,
+            Action = actionType,
             Category = ActionCategory.Normal,
-            Explanation = "Normal gameplay tap",
-            Parameters = new ActionParameters { X = 0.9, Y = 0.1 }
+            Explanation = "Normal gameplay touch",
+            Parameters = new ActionParameters { X = 0.9, Y = 0.95, Count = 5 }
         };
 
         var policy = new GamePolicy { AllowPremiumCurrency = false, AllowCreditPurchases = false };
         var result = ActionPolicyValidator.Validate(action, policy, [constraint]);
 
         result.IsValid.Should().BeFalse();
-        result.Errors.Should().Contain(e => e.Contains("TT2-FORBIDDEN-SHOP-TOP"));
+        result.Errors.Should().Contain(e => e.Contains("TT2-FORBIDDEN-SHOP-BOTTOM"));
+    }
+
+    [Theory]
+    [InlineData(ActionType.Swipe)]
+    [InlineData(ActionType.Drag)]
+    public void SpatialCheck_BlocksForbiddenShopRegion_ForGestures_WhenPurchasesDisabled(ActionType actionType)
+    {
+        var constraint = new GameConstraint(
+            Id: "TT2-FORBIDDEN-PROMO-OFFER",
+            Description: "Promo offer region",
+            Type: ConstraintType.ForbiddenRegion,
+            Parameters: new NormalizedRect(0.85, 0.26, 0.15, 0.08));
+
+        var action = new GameAction
+        {
+            Action = actionType,
+            Category = ActionCategory.Normal,
+            Explanation = "Gesture intersecting promo",
+            Parameters = new ActionParameters { X = 0.90, Y = 0.28, EndX = 0.5, EndY = 0.5 }
+        };
+
+        var policy = new GamePolicy { AllowPremiumCurrency = false, AllowCreditPurchases = false };
+        var result = ActionPolicyValidator.Validate(action, policy, [constraint]);
+
+        result.IsValid.Should().BeFalse();
+        result.Errors.Should().Contain(e => e.Contains("TT2-FORBIDDEN-PROMO-OFFER"));
     }
 
     [Fact]

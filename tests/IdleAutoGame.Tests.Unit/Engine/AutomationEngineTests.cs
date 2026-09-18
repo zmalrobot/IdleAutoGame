@@ -110,15 +110,15 @@ public class AutomationEngineTests
     {
         using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
 
-        // LLM proposes tapping top-right shop button (X: 0.9, Y: 0.05)
+        // LLM proposes tapping bottom-right shop tab (X: 0.90, Y: 0.95)
         _llmProvider.NextResponses.Enqueue(new LlmResponse
         {
             IsSuccess = true,
             ParsedAction = new GameAction
             {
                 Action = ActionType.Tap,
-                Parameters = new ActionParameters { X = 0.9, Y = 0.05 },
-                Explanation = "Tap shop diamond store",
+                Parameters = new ActionParameters { X = 0.90, Y = 0.95 },
+                Explanation = "Tap bottom shop tab",
                 Confidence = 0.9,
                 GameState = GameStateAssessment.Normal
             }
