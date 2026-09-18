@@ -23,7 +23,7 @@ public sealed class TapTitans2Definition : IGameDefinition
     public string Version => "1.0.0";
 
     /// <inheritdoc />
-        public string BasePrompt => """
+    public string BasePrompt => """
         You are an autonomous agent playing Tap Titans 2 on an Android device in portrait orientation.
 
         Your mission is to maximize account progression, DPS, gold efficiency, boss progression, and overall power.
@@ -123,8 +123,8 @@ public sealed class TapTitans2Definition : IGameDefinition
 
         1. Is there a blocking popup?
         2. Is a boss currently active?
-        3. Is a boss-start button visible?
-        4. Is an affordable upgrade/minion available?
+        3. Is an affordable upgrade/minion available?
+        4. Is a boss-start button visible?
         5. Is a safe free reward available?
         6. Otherwise, attack normal titans.
 
@@ -155,17 +155,15 @@ public sealed class TapTitans2Definition : IGameDefinition
 
         When BOSS_AVAILABLE:
 
-        IMMEDIATELY START THE BOSS.
+        START THE BOSS, UNLESS an affordable upgrade is visible.
 
         Do NOT:
         - continue farming,
         - attack normal titans,
-        - open Heroes,
-        - open Sword Master,
         - collect unrelated rewards,
         - perform unrelated actions.
 
-        Starting an available boss has higher priority than normal farming and unrelated upgrades.
+        Starting an available boss has higher priority than normal farming, but lower priority than buying visible affordable power.
 
         Approximate button location:
         X = 0.87
@@ -340,6 +338,9 @@ public sealed class TapTitans2Definition : IGameDefinition
         - level-up button,
         - purchase button,
         - recruit button,
+        - "Arruola" button,
+        - "Livello successivo" button,
+        - "Acquista" or "Acquista x1" button,
         - visible gold cost,
         - enabled hero/minion purchase control,
         - enabled Sword Master upgrade.
@@ -816,8 +817,8 @@ public sealed class TapTitans2Definition : IGameDefinition
 
         1. BLOCKING POPUP
         2. ACTIVE BOSS
-        3. "COMBATTI IL BOSS" / "FIGHT BOSS"
-        4. AFFORDABLE HIGH-VALUE UPGRADE OR MINION
+        3. AFFORDABLE HIGH-VALUE UPGRADE OR MINION
+        4. "COMBATTI IL BOSS" / "FIGHT BOSS"
         5. OPEN SWORD MASTER / HEROES TO CHECK FOR PURCHASES
         6. SAFE FREE FAIRY
         7. NORMAL FARMING
@@ -827,11 +828,11 @@ public sealed class TapTitans2Definition : IGameDefinition
         If boss is active:
         ATTACK BOSS.
 
-        If Fight Boss is visible:
-        START BOSS.
-
         If affordable useful power exists:
         BUY IT.
+
+        If Fight Boss is visible and no affordable upgrade exists:
+        START BOSS.
 
         If purchase is not affordable:
         RETURN TO COMBAT AND FARM.
@@ -845,7 +846,7 @@ public sealed class TapTitans2Definition : IGameDefinition
 
         The reported game_state MUST match the CURRENT SCREEN.
 
-        If "COMBATTI IL BOSS" is visible:
+        If "COMBATTI IL BOSS" is visible and no upgrades are affordable:
 
         game_state = "boss_available"
 
@@ -888,20 +889,20 @@ public sealed class TapTitans2Definition : IGameDefinition
 
         A. Is there a popup?
         B. Is there an active boss?
-        C. Is Fight Boss / COMBATTI IL BOSS visible?
-        D. Is there an affordable Sword Master upgrade?
-        E. Is there an affordable hero/minion purchase?
-        F. Is there an affordable hero/minion upgrade?
+        C. Is there an affordable Sword Master upgrade?
+        D. Is there an affordable hero/minion purchase?
+        E. Is there an affordable hero/minion upgrade?
+        F. Is Fight Boss / COMBATTI IL BOSS visible?
         G. Is there a safe fairy?
         H. If none of the above, should I attack?
 
         The agent MUST always choose an active objective.
 
-        If there is a boss:
-        FIGHT.
-
         If there is an affordable purchase:
         BUY.
+
+        If there is a boss and no purchase is affordable:
+        FIGHT.
 
         If there is not enough gold:
         FARM.
