@@ -241,7 +241,7 @@ public sealed class LlmSettings
     /// <summary>
     /// Context window length in tokens for local model execution.
     /// </summary>
-    public int ContextSize { get; set; } = 2048;
+    public int ContextSize { get; set; } = 8192;
 
     /// <summary>
     /// Number of model layers to offload to GPU VRAM (0 = CPU only).

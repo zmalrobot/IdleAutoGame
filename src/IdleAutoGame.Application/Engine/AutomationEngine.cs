@@ -821,7 +821,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             ct.ThrowIfCancellationRequested();
             var provider = _llmProviderFactory();
             LlmResponse? streamResponse = null;
-
+            var attemptStopwatch = Stopwatch.StartNew();
             try
             {
                 await foreach (var chunk in provider.StreamAnalyzeAsync(request, ct).ConfigureAwait(false))
@@ -840,10 +840,16 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             }
             catch (Exception ex)
             {
+                attemptStopwatch.Stop();
+                string errorDetail = ex.Message.Contains("NoKvSlot", StringComparison.OrdinalIgnoreCase)
+                    ? $"Dimensione contesto LLM insufficiente (NoKvSlot). Il prompt supera la memoria KV cache allocata. Aumentare il 'Context Size' nelle impostazioni ad almeno 8192 o 16384 token."
+                    : ex.Message;
+
                 streamResponse = new LlmResponse
                 {
                     IsSuccess = false,
-                    Error = $"Streaming inference failed: {ex.Message}"
+                    Error = $"Streaming inference failed: {errorDetail}",
+                    LatencyMs = attemptStopwatch.ElapsedMilliseconds
                 };
             }
 

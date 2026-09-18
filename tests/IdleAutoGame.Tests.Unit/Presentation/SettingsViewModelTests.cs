@@ -33,7 +33,7 @@ public class SettingsViewModelTests
         _viewModel.LlmProvider.Should().Be("llama.cpp");
         _viewModel.LlmEndpoint.Should().Be("http://localhost:8080");
         _viewModel.ObservationIntervalSeconds.Should().Be(2.0);
-        _viewModel.ContextSize.Should().Be(2048);
+        _viewModel.ContextSize.Should().Be(8192);
         _viewModel.ThreadCount.Should().BeGreaterThanOrEqualTo(1);
     }
 
