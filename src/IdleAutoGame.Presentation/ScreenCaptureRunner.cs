@@ -124,7 +124,7 @@ public static class ScreenCaptureRunner
             // 2b: Remote Mode
             mainVm.Models.IsLocalMode = false;
             mainVm.Models.Endpoint = "https://api.openai.com/v1";
-            mainVm.Models.ApiKey = "sk-live-simulated-key-42";
+            mainVm.Models.ApiKey = "PLACEHOLDER_DEMO_API_KEY";
             mainVm.Models.SelectedRemoteItem = mainVm.Models.AvailableRemoteModels.FirstOrDefault();
             await Capture("screen2b_model_selection_remote.png");
 

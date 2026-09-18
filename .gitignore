@@ -1,42 +1,131 @@
-## .NET Core / C#
+# ==============================================================================
+# IdleAutoGame - Git Ignore Configuration
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. .NET & C# Build Outputs
+# ------------------------------------------------------------------------------
 [Bb]in/
 [Oo]bj/
 [Aa]rtifacts/
-dist/
+[Pp]ublish/
+[Dd]ist/
+TestResults/
+coverage/
+*.trx
+*.coverage
+*.coveragexml
 
-## User-specific files
-*.rsuser
-*.suo
+# ------------------------------------------------------------------------------
+# 2. User & Project Local Files
+# ------------------------------------------------------------------------------
 *.user
+*.userprefs
 *.userosscache
+*.suo
 *.sln.docstates
+*.rsuser
+*.ntvs*
+*.njsproj
 
-## IDEs and editors
+# ------------------------------------------------------------------------------
+# 3. IDEs and Editors
+# ------------------------------------------------------------------------------
+# Visual Studio
+.vs/
+*.sln.iml
+
+# JetBrains Rider
+.idea/
+*.idea/
+cmake-build-*/
+
+# Visual Studio Code
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 !.vscode/extensions.json
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln.docstates
 
-## Database & Local Runtime Data
-data.db
-data.db-shm
-data.db-wal
-data.db-journal
+# ------------------------------------------------------------------------------
+# 4. Runtime, Databases & Logging
+# ------------------------------------------------------------------------------
 *.log
+*.log.*
+logs/
+crashdumps/
+*.dmp
+*.dump
 
-## Native builds and local models
-native/
+# Local SQLite databases & journals
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+data.db*
+
+# Local runtime appsettings overrides
+appsettings.Local.json
+appsettings.*.Local.json
+
+# ------------------------------------------------------------------------------
+# 5. LLM Models & Heavy Weights (DO NOT COMMIT)
+# ------------------------------------------------------------------------------
+*.gguf
+*.bin
+*.safetensors
+*.onnx
+*.pt
+*.pth
+*.ckpt
+*.model
 models/
+model_cache/
+downloads/
 
-## OS Generated
+# ------------------------------------------------------------------------------
+# 6. Native Build Intermediates & Submodule Clones
+# ------------------------------------------------------------------------------
+native/build-fallback/
+native/runtimes/
+native/llama.cpp/
+native/*.a
+native/*.so
+native/*.dylib
+native/*.dll
+
+# ------------------------------------------------------------------------------
+# 7. Secrets & Environment Files
+# ------------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.secret
+secrets/
+*.pfx
+*.p12
+*.key
+*.pem
+*.certificate
+
+# ------------------------------------------------------------------------------
+# 8. OS Generated Files
+# ------------------------------------------------------------------------------
+# Linux
+*~
+*.swp
+*.swo
+
+# macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
 Thumbs.db
 ehthumbs.db
 desktop.ini
-
+$RECYCLE.BIN/

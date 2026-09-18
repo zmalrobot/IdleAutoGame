@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.0.0)'
+        required: true
+        default: '1.0.0'
+      prerelease:
+        description: 'Publish as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-package:
+    name: Build & Package (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            rid: linux-x64
+            archive_name: IdleAutoGame-${{ github.event.inputs.version }}-linux-x64.tar.gz
+          - os: ubuntu-latest
+            rid: linux-arm64
+            archive_name: IdleAutoGame-${{ github.event.inputs.version }}-linux-arm64.tar.gz
+          - os: windows-latest
+            rid: win-x64
+            archive_name: IdleAutoGame-${{ github.event.inputs.version }}-win-x64.zip
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Display .NET SDK Version
+        run: dotnet --info
+
+      - name: Restore dependencies
+        run: dotnet restore IdleAutoGame.slnx -r ${{ matrix.rid }}
+
+      - name: Run unit tests (Host architecture only)
+        if: matrix.rid == 'linux-x64' || matrix.rid == 'win-x64'
+        run: dotnet test tests/IdleAutoGame.Tests.Unit/IdleAutoGame.Tests.Unit.csproj -c Release --no-restore
+
+      - name: Publish presentation application
+        run: >
+          dotnet publish src/IdleAutoGame.Presentation/IdleAutoGame.Presentation.csproj
+          -c Release
+          -r ${{ matrix.rid }}
+          --self-contained false
+          -p:Version=${{ github.event.inputs.version }}
+          -p:AssemblyVersion=${{ github.event.inputs.version }}.0
+          -p:FileVersion=${{ github.event.inputs.version }}.0
+          -p:InformationalVersion=${{ github.event.inputs.version }}
+          -o publish/${{ matrix.rid }}
+
+      - name: Create archive (Linux tar.gz)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p dist
+          tar -czf dist/${{ matrix.archive_name }} -C publish/${{ matrix.rid }} .
+
+      - name: Create archive (Windows zip)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Compress-Archive -Path publish/${{ matrix.rid }}/* -DestinationPath dist/${{ matrix.archive_name }}
+
+      - name: Upload artifact to job
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.rid }}
+          path: dist/${{ matrix.archive_name }}
+          if-no-files-found: error
+          retention-days: 5
+
+  publish-release:
+    name: Create GitHub Release
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          path: release-packages
+          pattern: package-*
+          merge-multiple: true
+
+      - name: List downloaded packages
+        run: |
+          echo "Release artifacts to publish:"
+          ls -la release-packages/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: IdleAutoGame v${{ github.event.inputs.version }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: release-packages/*
+          body: |
+            ## IdleAutoGame v${{ github.event.inputs.version }}
+            
+            > [!WARNING]
+            > **Experimental Software**: This codebase was generated primarily via LLMs to evaluate automated AI gameplay automation and multimodal vision reasoning. It is provided for research and experimental purposes only.
+            
+            ### Release Artifacts
+            - **Linux x64**: `IdleAutoGame-${{ github.event.inputs.version }}-linux-x64.tar.gz`
+            - **Linux ARM64**: `IdleAutoGame-${{ github.event.inputs.version }}-linux-arm64.tar.gz`
+            - **Windows x64**: `IdleAutoGame-${{ github.event.inputs.version }}-win-x64.zip`
+            
+            ### Prerequisites
+            - .NET 10 Runtime installed on the host.
+            - Android device or emulator with ADB enabled (USB debugging or Wi-Fi ADB).
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+

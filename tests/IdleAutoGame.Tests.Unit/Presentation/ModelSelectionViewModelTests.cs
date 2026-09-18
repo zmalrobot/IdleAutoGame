@@ -104,7 +104,7 @@ public class ModelSelectionViewModelTests
 
         vm.IsLocalMode = false;
         vm.Endpoint = "https://api.openai.com/v1";
-        vm.ApiKey = "sk-secret-test";
+        vm.ApiKey = "TEST_MOCK_API_KEY";
         vm.SelectedRemoteItem = vm.AvailableRemoteModels.FirstOrDefault();
 
         await vm.SaveSelectionAsync();
@@ -112,7 +112,7 @@ public class ModelSelectionViewModelTests
         vm.StatusMessage.Should().Contain("activated");
         await _configService.Received(1).UpdateSettingsAsync(Arg.Is<AppSettings>(s =>
             s.Llm.Endpoint == "https://api.openai.com/v1" &&
-            s.Llm.ApiKey == "sk-secret-test"));
+            s.Llm.ApiKey == "TEST_MOCK_API_KEY"));
     }
 
     [Fact]
