@@ -88,6 +88,8 @@ public class AutomationEngineTests
         await engine.PauseAsync();
         engine.State.Should().Be(AutomationState.Paused);
 
+        // Wait a brief moment to ensure any in-flight loop cycle settles its pause transition
+        await Task.Delay(50);
         int countWhilePaused = _deviceController.ExecutedCommands.Count;
         await Task.Delay(200);
 

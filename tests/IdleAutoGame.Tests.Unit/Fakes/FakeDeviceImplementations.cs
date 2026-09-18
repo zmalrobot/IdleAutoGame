@@ -49,7 +49,7 @@ public class FakeDeviceDiscovery : IDeviceDiscovery
 public class FakeDeviceController : IDeviceController
 {
     public List<string> ExecutedCommands { get; } = new();
-    public byte[] DummyScreenshotBytes { get; set; } = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+    public byte[] DummyScreenshotBytes { get; set; } = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=");
     public Resolution ScreenResolution { get; set; } = new(1080, 2400);
     public int ScreenDensity { get; set; } = 440;
 

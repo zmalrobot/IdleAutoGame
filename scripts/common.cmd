@@ -48,7 +48,7 @@ rem 2. Check for .NET 10 SDK
 set "FOUND_10_SDK="
 for /f "tokens=*" %%a in ('dotnet --list-sdks 2^>nul') do (
     echo %%a | findstr /R "^10\." >nul 2>&1
-    if !ERRORLEVEL! equ 0 set "FOUND_10_SDK=%%a"
+    if not errorlevel 1 set "FOUND_10_SDK=%%a"
 )
 
 if "%FOUND_10_SDK%"=="" (
