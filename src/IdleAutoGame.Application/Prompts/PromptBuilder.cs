@@ -198,7 +198,7 @@ public static class PromptBuilder
         }
 
         sb.AppendLine();
-        sb.AppendLine("Inspect the attached game screenshot and output your next GameAction in JSON.");
+        sb.AppendLine("Inspect the attached game screenshot and output your decision as a single valid JSON object following the schema (action, parameters, game_state, observation_summary, explanation).");
 
         return sb.ToString().TrimEnd();
     }

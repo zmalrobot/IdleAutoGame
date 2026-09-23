@@ -6,6 +6,7 @@ using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using LLama;
+using LLama.Abstractions;
 using LLama.Common;
 using LLama.Native;
 using LLama.Sampling;
@@ -55,8 +56,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     private readonly SemaphoreSlim _inferenceLock = new(1, 1);
     private readonly IGpuDeviceDetector _gpuDetector;
     private readonly IModelMemoryEstimator _memoryEstimator;
+    private readonly IModelManager? _modelManager;
     private LLamaWeights? _weights;
-    private StatelessExecutor? _executor;
+    private MtmdWeights? _clipModel;
+    private LLamaContext? _context;
+    private ILLamaExecutor? _executor;
     private ModelParams? _modelParams;
     private string? _currentModelPath;
     private bool _disposed;
@@ -126,12 +130,15 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     /// </summary>
     /// <param name="gpuDetector">Optional GPU device detector.</param>
     /// <param name="memoryEstimator">Optional model memory estimator.</param>
+    /// <param name="modelManager">Optional model manager for resolving multimodal projector assets.</param>
     public LocalLlamaProvider(
         IGpuDeviceDetector? gpuDetector = null,
-        IModelMemoryEstimator? memoryEstimator = null)
+        IModelMemoryEstimator? memoryEstimator = null,
+        IModelManager? modelManager = null)
     {
         _gpuDetector = gpuDetector ?? new Gpu.VulkanGpuDeviceDetector();
         _memoryEstimator = memoryEstimator ?? new Gpu.ModelMemoryEstimator();
+        _modelManager = modelManager;
     }
 
     private void SetStatus(LlmLifecyclePhase phase, string message, long elapsedMs = 0, double progress = 0.0)
@@ -153,6 +160,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     /// Gets a value indicating whether a model is currently loaded in memory and ready.
     /// </summary>
     public bool IsModelLoaded => _weights != null && _executor != null;
+
+    /// <summary>
+    /// Gets a value indicating whether a multimodal vision projector (mmproj) is currently loaded.
+    /// </summary>
+    public bool IsMultimodalLoaded => _clipModel != null;
 
     /// <summary>
     /// Gets the duration of the last model load operation in milliseconds.
@@ -531,9 +543,45 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             // Inspect native llama.cpp logs to verify actual layer offloading
             ParseOffloadedLayersFromLogs(initialLogCount, targetGpu, targetGpuLayers);
 
-            var executor = new StatelessExecutor(weights, parameters);
+            // Check for multimodal projector (mmproj)
+            var mmprojPath = ResolveMmprojPath(modelPath, settings.SelectedModelId);
+            MtmdWeights? clipModel = null;
+            LLamaContext? context = null;
+            ILLamaExecutor executor;
+
+            if (!string.IsNullOrEmpty(mmprojPath) && File.Exists(mmprojPath))
+            {
+                try
+                {
+                    SetStatus(LlmLifecyclePhase.LoadingWeights, $"Caricamento proiettore visivo multimodale ({Path.GetFileName(mmprojPath)})...");
+                    var mtmdParams = new MtmdContextParams
+                    {
+                        UseGpu = targetGpuLayers > 0,
+                        NThreads = Math.Max(1, settings.ThreadCount)
+                    };
+
+                    clipModel = await Task.Run(() => MtmdWeights.LoadFromFile(mmprojPath, weights, mtmdParams), ct).ConfigureAwait(false);
+                    context = weights.CreateContext(parameters);
+                    executor = new InteractiveExecutor(context, clipModel, null);
+                }
+                catch (Exception ex)
+                {
+                    clipModel?.Dispose();
+                    clipModel = null;
+                    context?.Dispose();
+                    context = null;
+                    executor = new StatelessExecutor(weights, parameters);
+                    SetStatus(LlmLifecyclePhase.LoadingWeights, $"Avviso: Impossibile caricare proiettore visivo ({ex.Message}), fallback solo testo.");
+                }
+            }
+            else
+            {
+                executor = new StatelessExecutor(weights, parameters);
+            }
 
             _weights = weights;
+            _clipModel = clipModel;
+            _context = context;
             _executor = executor;
             _modelParams = parameters;
             _currentModelPath = modelPath;
@@ -548,6 +596,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 ExecutionBackend.VulkanGpuPartial => $"CPU + GPU Vulkan Parziale ({ActualOffloadedLayers}/{TotalModelLayers} layers - {ActiveGpuDeviceName})",
                 _ => "CPU"
             };
+
+            if (_clipModel != null)
+            {
+                backendDesc += " + Vision (mmproj)";
+            }
 
             SetStatus(LlmLifecyclePhase.Ready, $"Modello caricato in {LastLoadTimeMs} ms [{backendDesc}] (in attesa di warmup).", LastLoadTimeMs, 1.0);
         }
@@ -632,6 +685,70 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
     }
 
+    private string? ResolveMmprojPath(string modelPath, string? selectedModelId)
+    {
+        if (_modelManager != null && !string.IsNullOrWhiteSpace(selectedModelId))
+        {
+            try
+            {
+                var mgrPath = _modelManager.GetMmprojFilePath(selectedModelId);
+                if (File.Exists(mgrPath))
+                {
+                    return mgrPath;
+                }
+            }
+            catch
+            {
+                // Fall back to filesystem search
+            }
+        }
+
+        var dir = Path.GetDirectoryName(modelPath);
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            return null;
+        }
+
+        var baseName = Path.GetFileNameWithoutExtension(modelPath);
+
+        var candidates = new[]
+        {
+            Path.Combine(dir, $"mmproj-{baseName}-f16.gguf"),
+            Path.Combine(dir, $"mmproj-{baseName}.gguf"),
+            Path.Combine(dir, $"{baseName}-mmproj.gguf"),
+            Path.Combine(dir, "mmproj.gguf")
+        };
+
+        foreach (var c in candidates)
+        {
+            if (File.Exists(c)) return c;
+        }
+
+        try
+        {
+            var files = Directory.GetFiles(dir, "mmproj-*.gguf");
+            foreach (var f in files)
+            {
+                var fName = Path.GetFileName(f);
+                if (baseName.Contains("gemma-4", StringComparison.OrdinalIgnoreCase) && fName.Contains("gemma-4", StringComparison.OrdinalIgnoreCase))
+                    return f;
+                if (baseName.Contains("qwen", StringComparison.OrdinalIgnoreCase) && fName.Contains("qwen", StringComparison.OrdinalIgnoreCase))
+                    return f;
+            }
+
+            if (files.Length == 1)
+            {
+                return files[0];
+            }
+        }
+        catch
+        {
+            // Directory search best effort
+        }
+
+        return null;
+    }
+
     /// <summary>
     /// Releases the active model weights and context from memory.
     /// </summary>
@@ -651,12 +768,28 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
     private void UnloadInternal()
     {
+        if (_clipModel != null)
+        {
+            _clipModel.Dispose();
+            _clipModel = null;
+        }
+
+        if (_context != null)
+        {
+            _context.Dispose();
+            _context = null;
+        }
+
         if (_weights != null)
         {
             _weights.Dispose();
             _weights = null;
         }
 
+        if (_executor is IDisposable d)
+        {
+            d.Dispose();
+        }
         _executor = null;
         _modelParams = null;
         _currentModelPath = null;
@@ -733,6 +866,17 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
         finally
         {
+            if (_context != null)
+            {
+                try
+                {
+                    _context.NativeHandle.MemoryClear();
+                }
+                catch
+                {
+                    // Best effort cache reset
+                }
+            }
             _inferenceLock.Release();
         }
     }
@@ -784,12 +928,38 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         try
         {
             ct.ThrowIfCancellationRequested();
+            string imageMarker = string.Empty;
+
+            if (_clipModel != null && !string.IsNullOrWhiteSpace(request.ScreenshotBase64) && _executor is StatefulExecutorBase statefulExec)
+            {
+                try
+                {
+                    var imageBytes = Convert.FromBase64String(request.ScreenshotBase64);
+                    if (imageBytes.Length > 0)
+                    {
+                        var mediaEmbed = _clipModel.LoadMedia(imageBytes);
+                        statefulExec.Embeds.Add(mediaEmbed);
+                        imageMarker = _clipModel.NativeHandle.SupportVision()
+                            ? "<media>"
+                            : (NativeApi.MtmdDefaultMarker() ?? "<image>");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    SetStatus(LlmLifecyclePhase.Inferring, $"Avviso: Elaborazione screenshot non riuscita ({ex.Message}), esecuzione solo testo...");
+                }
+            }
+
             var promptBuilder = new StringBuilder();
             promptBuilder.AppendLine("<|im_start|>system");
             promptBuilder.AppendLine(request.SystemPrompt);
             promptBuilder.AppendLine("Respond strictly with valid JSON conforming to the requested GameAction schema.");
             promptBuilder.AppendLine("<|im_end|>");
             promptBuilder.AppendLine("<|im_start|>user");
+            if (!string.IsNullOrEmpty(imageMarker))
+            {
+                promptBuilder.AppendLine(imageMarker);
+            }
             promptBuilder.AppendLine(request.UserPrompt);
             promptBuilder.AppendLine("<|im_end|>");
             promptBuilder.AppendLine("<|im_start|>assistant");
@@ -888,6 +1058,21 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
         finally
         {
+            if (_context != null)
+            {
+                try
+                {
+                    _context.NativeHandle.MemoryClear();
+                }
+                catch
+                {
+                    // Best effort memory clear
+                }
+            }
+            if (_executor is StatefulExecutorBase sExec)
+            {
+                sExec.Embeds.Clear();
+            }
             _inferenceLock.Release();
         }
     }
@@ -922,7 +1107,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     {
         return Task.FromResult(new ModelCapabilities
         {
-            SupportsVision = true,
+            SupportsVision = _clipModel != null || !IsModelLoaded,
             SupportsJsonSchema = true,
             SupportsStreaming = true,
             MaxContextTokens = _modelParams?.ContextSize.HasValue == true ? (int)_modelParams.ContextSize.Value : 4096
