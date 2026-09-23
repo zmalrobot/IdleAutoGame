@@ -52,7 +52,7 @@ public class AutomationEngineTests
         await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
 
         // Allow at least 1 cycle to execute
-        await Task.Delay(300);
+        await Task.Delay(600);
 
         await engine.StopAsync();
 

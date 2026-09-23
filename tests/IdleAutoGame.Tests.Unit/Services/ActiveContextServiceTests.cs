@@ -168,6 +168,24 @@ public class ActiveContextServiceTests
         _service.ActiveGame.DetectionStatus.Should().Contain("com.google.android.youtube");
     }
 
+    [Fact]
+    public async Task UnloadActiveModelAsync_ResetsActiveModelContextAndRaisesEvent()
+    {
+        await _service.SetActiveModelAsync("qwen3-vl-8b-instruct", "LLamaSharp");
+        _service.ActiveModel.ModelId.Should().Be("qwen3-vl-8b-instruct");
+
+        bool eventRaised = false;
+        _service.ContextChanged += (_, _) => eventRaised = true;
+
+        await _service.UnloadActiveModelAsync();
+
+        _service.ActiveModel.ModelId.Should().Be("None");
+        _service.ActiveModel.DisplayName.Should().Be("Nessun modello");
+        _service.ActiveModel.Status.Should().Be("Non caricato");
+        _service.ActiveModel.IsReady.Should().BeFalse();
+        eventRaised.Should().BeTrue();
+    }
+
     private sealed class InMemorySettingsRepo : ISettingsRepository
     {
         private AppSettings _s = new();

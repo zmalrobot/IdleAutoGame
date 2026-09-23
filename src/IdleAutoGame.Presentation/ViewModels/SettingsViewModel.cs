@@ -19,9 +19,13 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IExecutionStateGuard? _guard;
     private readonly IGpuDeviceDetector _gpuDetector;
     private readonly IModelMemoryEstimator _memoryEstimator;
+    private readonly IActiveContextService? _activeContext;
 
     [ObservableProperty]
     private bool _isExecutionLocked;
+
+    [ObservableProperty]
+    private bool _isModelLoadedInMemory;
 
     [ObservableProperty]
     private int _selectedTabIndex = 0;
@@ -266,7 +270,8 @@ public partial class SettingsViewModel : ViewModelBase
         LocalLlamaProvider localProvider,
         IExecutionStateGuard? guard = null,
         IGpuDeviceDetector? gpuDetector = null,
-        IModelMemoryEstimator? memoryEstimator = null)
+        IModelMemoryEstimator? memoryEstimator = null,
+        IActiveContextService? activeContext = null)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
@@ -275,6 +280,7 @@ public partial class SettingsViewModel : ViewModelBase
         _guard = guard;
         _gpuDetector = gpuDetector ?? new VulkanGpuDeviceDetector();
         _memoryEstimator = memoryEstimator ?? new ModelMemoryEstimator();
+        _activeContext = activeContext;
 
         if (_guard != null)
         {
@@ -290,7 +296,26 @@ public partial class SettingsViewModel : ViewModelBase
 
         _modelManager.ModelStatusChanged += (_, _) => _ = RefreshLocalModelsAsync();
 
+        if (_activeContext != null)
+        {
+            _activeContext.ContextChanged += (_, _) =>
+            {
+                Avalonia.Threading.Dispatcher.UIThread.Post(UpdateLoadedModelState);
+            };
+        }
+
+        _localProvider.StatusChanged += (_, _) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(UpdateLoadedModelState);
+        };
+
+        UpdateLoadedModelState();
         LoadFromCurrent();
+    }
+
+    private void UpdateLoadedModelState()
+    {
+        IsModelLoadedInMemory = _localProvider.IsModelLoaded;
     }
 
     [RelayCommand]
@@ -554,7 +579,19 @@ public partial class SettingsViewModel : ViewModelBase
             return;
         }
 
+        if (_localProvider.IsModelLoaded && !string.Equals(_localProvider.LoadedModelPath, _modelManager.GetModelFilePath(model.Id), StringComparison.OrdinalIgnoreCase))
+        {
+            StatusMessage = $"Impossibile attivare '{model.DisplayName}': un altro modello è attualmente caricato in memoria. Scarica prima il modello attivo dalla RAM.";
+            return;
+        }
+
         var current = _configService.Current;
+        var prevActiveId = current.Llm.SelectedModelId;
+        if (!string.IsNullOrEmpty(prevActiveId) && !string.Equals(prevActiveId, model.Id, StringComparison.OrdinalIgnoreCase))
+        {
+            _modelManager.MarkModelInUse(prevActiveId, false);
+        }
+
         current.Llm.SelectedModelId = model.Id;
         current.Llm.Provider = "LLamaSharp";
 
@@ -567,8 +604,13 @@ public partial class SettingsViewModel : ViewModelBase
             _modelManager.MarkModelInUse(model.Id, true);
 
             await _configService.UpdateSettingsAsync(current);
+            if (_activeContext != null)
+            {
+                await _activeContext.SetActiveModelAsync(model.Id, "LLamaSharp");
+            }
             StatusMessage = $"Model '{model.DisplayName}' is now active and loaded.";
             await RefreshLocalModelsAsync();
+            UpdateLoadedModelState();
         }
         catch (PlatformNotSupportedException ex)
         {
@@ -579,9 +621,14 @@ public partial class SettingsViewModel : ViewModelBase
             }
             _modelManager.MarkModelInUse(model.Id, true);
             await _configService.UpdateSettingsAsync(current);
+            if (_activeContext != null)
+            {
+                await _activeContext.SetActiveModelAsync(model.Id, "llama.cpp", current.Llm.Endpoint);
+            }
             LlmProvider = "llama.cpp";
             StatusMessage = $"Model saved! In-process LLamaSharp unsupported on this CPU ({ex.Message}). Configured llama.cpp server mode ({current.Llm.Endpoint}).";
             await RefreshLocalModelsAsync();
+            UpdateLoadedModelState();
         }
         catch (Exception ex)
         {
@@ -592,8 +639,13 @@ public partial class SettingsViewModel : ViewModelBase
     [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task UnloadActiveModelAsync()
     {
-        var activeId = _configService.Current.Llm.SelectedModelId;
-        if (_guard != null && _guard.IsExecutionLocked && !string.IsNullOrEmpty(activeId))
+        var activeId = _activeContext?.ActiveModel.ModelId;
+        if (string.IsNullOrEmpty(activeId) || activeId == "None")
+        {
+            activeId = _configService.Current.Llm.SelectedModelId;
+        }
+
+        if (_guard != null && _guard.IsExecutionLocked && !string.IsNullOrEmpty(activeId) && activeId != "None")
         {
             var check = _guard.CanUnloadModel(activeId);
             if (!check.IsAllowed)
@@ -606,12 +658,17 @@ public partial class SettingsViewModel : ViewModelBase
         try
         {
             await _localProvider.UnloadModelAsync();
-            if (!string.IsNullOrEmpty(activeId))
+            if (!string.IsNullOrEmpty(activeId) && activeId != "None")
             {
                 _modelManager.MarkModelInUse(activeId, false);
             }
+            if (_activeContext != null)
+            {
+                await _activeContext.UnloadActiveModelAsync();
+            }
             StatusMessage = "Active model was unloaded from memory.";
             await RefreshLocalModelsAsync();
+            UpdateLoadedModelState();
         }
         catch (Exception ex)
         {

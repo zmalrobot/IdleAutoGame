@@ -4,6 +4,7 @@ using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Infrastructure.Llm;
 using IdleAutoGame.Presentation.ViewModels;
+using IdleAutoGame.Tests.Unit.Fakes;
 using NSubstitute;
 using Xunit;
 
@@ -167,6 +168,25 @@ public class SettingsViewModelTests
                 File.Delete(tempFile);
             }
         }
+    }
+
+    [Fact]
+    public async Task UnloadActiveModelAsync_UnloadsModelAndUpdatesStatus()
+    {
+        var settings = _configService.Current;
+        settings.Llm.SelectedModelId = "active-test-model";
+        await _configService.UpdateSettingsAsync(settings);
+
+        var fakeContext = new FakeActiveContextService(_configService);
+        await fakeContext.SetActiveModelAsync("active-test-model", "LLamaSharp");
+
+        var vm = new SettingsViewModel(_configService, _modelManager, _hardwareDetector, _localProvider, activeContext: fakeContext);
+
+        await vm.UnloadActiveModelAsync();
+
+        _modelManager.Received(1).MarkModelInUse("active-test-model", false);
+        fakeContext.ActiveModel.ModelId.Should().Be("None");
+        vm.StatusMessage.Should().Contain("unloaded");
     }
 
     private class InMemorySettingsRepo : ISettingsRepository

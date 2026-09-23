@@ -228,6 +228,7 @@
                                     <DockPanel Margin="0,4,0,0">
                                         <Button DockPanel.Dock="Right" Content="Scarica Modello Attivo dalla RAM"
                                                 Command="{Binding UnloadActiveModelCommand}"
+                                                IsEnabled="{Binding IsModelLoadedInMemory}"
                                                 Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="10,4" FontSize="12"/>
                                         <TextBlock Text="Libera tutta la memoria RAM/VRAM allocata." Foreground="{DynamicResource TextDisabledBrush}" FontSize="12" VerticalAlignment="Center"/>
                                     </DockPanel>
@@ -278,6 +279,7 @@
                                                             <Button Content="Attiva"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).SelectActiveModelCommand}"
                                                                     CommandParameter="{Binding}"
+                                                                    IsEnabled="{Binding !$parent[UserControl].((vm:SettingsViewModel)DataContext).IsModelLoadedInMemory}"
                                                                     Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontSize="11" Padding="8,4"/>
                                                             <Button Content="Elimina"
                                                                     Command="{Binding $parent[UserControl].((vm:SettingsViewModel)DataContext).DeleteModelCommand}"

@@ -65,6 +65,13 @@ public class FakeActiveContextService : IActiveContextService
         return Task.CompletedTask;
     }
 
+    public Task UnloadActiveModelAsync(CancellationToken ct = default)
+    {
+        ActiveModel = new ActiveModelContext("None", "Nessun modello", "None", "Non caricato", false);
+        RaiseChanged();
+        return Task.CompletedTask;
+    }
+
     public Task SetActiveGameAsync(string gameId, CancellationToken ct = default)
     {
         ActiveGame = new ActiveGameContext(gameId, gameId, "com.gamehivecorp.taptitans2", [], "In primo piano", true);

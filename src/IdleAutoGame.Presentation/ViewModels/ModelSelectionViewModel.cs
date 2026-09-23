@@ -14,6 +14,8 @@ public sealed partial class LocalModelDisplayItem : ObservableObject
     public LocalModel Model { get; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanActivate))]
+    [NotifyPropertyChangedFor(nameof(CanUnload))]
     private bool _isActive;
 
     [ObservableProperty]
@@ -23,7 +25,12 @@ public sealed partial class LocalModelDisplayItem : ObservableObject
     private string _compatibilityReason;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanActivate))]
+    [NotifyPropertyChangedFor(nameof(CanUnload))]
     private bool _isInstalled;
+
+    public bool CanActivate => IsInstalled && !IsActive;
+    public bool CanUnload => IsInstalled && IsActive;
 
     [ObservableProperty]
     private bool _isDownloading;
@@ -149,6 +156,9 @@ public partial class ModelSelectionViewModel : ViewModelBase
     private string _statusMessage = "Seleziona un modello AI da attivare.";
 
     [ObservableProperty]
+    private bool _isModelLoadedInMemory;
+
+    [ObservableProperty]
     private bool _isBusy;
 
     public ModelSelectionViewModel(
@@ -183,6 +193,10 @@ public partial class ModelSelectionViewModel : ViewModelBase
         _modelManager.DownloadProgressChanged += OnDownloadProgressChanged;
         _modelManager.ModelStatusChanged += OnModelStatusChanged;
         _activeContext.ContextChanged += OnActiveContextChanged;
+        _localProvider.StatusChanged += (_, _) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(SyncFromActiveContext);
+        };
 
         SyncFromActiveContext();
     }
@@ -200,6 +214,7 @@ public partial class ModelSelectionViewModel : ViewModelBase
         ActiveModelStatus = active.Status;
         ActiveModelId = active.ModelId;
         HasActiveModel = !string.IsNullOrWhiteSpace(active.ModelId) && active.ModelId != "None";
+        IsModelLoadedInMemory = _localProvider.IsModelLoaded;
 
         foreach (var item in RecommendedLocalModels)
         {
@@ -355,9 +370,51 @@ public partial class ModelSelectionViewModel : ViewModelBase
     }
 
     [RelayCommand(AllowConcurrentExecutions = false)]
+    public async Task UnloadActiveModelAsync()
+    {
+        var activeId = ActiveModelId;
+        if (_guard != null && _guard.IsExecutionLocked && !string.IsNullOrEmpty(activeId) && activeId != "None")
+        {
+            var check = _guard.CanUnloadModel(activeId);
+            if (!check.IsAllowed)
+            {
+                StatusMessage = check.Message;
+                return;
+            }
+        }
+
+        IsBusy = true;
+        StatusMessage = "Scaricamento modello attivo dalla memoria RAM/VRAM in corso...";
+        try
+        {
+            await _localProvider.UnloadModelAsync();
+            if (!string.IsNullOrEmpty(activeId) && activeId != "None")
+            {
+                _modelManager.MarkModelInUse(activeId, false);
+            }
+            await _activeContext.UnloadActiveModelAsync();
+            StatusMessage = "Modello scaricato con successo dalla memoria. È ora possibile selezionare e caricare un nuovo modello.";
+            SyncFromActiveContext();
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Impossibile scaricare il modello: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    [RelayCommand(AllowConcurrentExecutions = false)]
     public async Task SetActiveLocalModelItemAsync(LocalModelDisplayItem? item)
     {
         if (item == null) return;
+        if (_localProvider.IsModelLoaded && !item.IsActive)
+        {
+            StatusMessage = $"Impossibile attivare '{item.Model.DisplayName}': il modello '{ActiveModelDisplayName}' è attualmente caricato in memoria. Scarica prima il modello attivo dalla RAM.";
+            return;
+        }
         SelectedLocalModel = item;
         await SaveSelectionAsync();
     }
@@ -393,6 +450,12 @@ public partial class ModelSelectionViewModel : ViewModelBase
                 }
             }
 
+            if (_localProvider.IsModelLoaded && !string.Equals(_localProvider.LoadedModelPath, _modelManager.GetModelFilePath(SelectedLocalModel.Model.Id), StringComparison.OrdinalIgnoreCase))
+            {
+                StatusMessage = $"Impossibile attivare '{SelectedLocalModel.Model.DisplayName}': il modello '{ActiveModelDisplayName}' è attualmente caricato in memoria. Scarica prima il modello attivo dalla RAM.";
+                return;
+            }
+
             if (!SelectedLocalModel.IsCompatible)
             {
                 StatusMessage = $"Attivazione bloccata: modello incompatibile con questo PC (Selection blocked: Incompatible - {SelectedLocalModel.CompatibilityReason}).";
@@ -403,6 +466,12 @@ public partial class ModelSelectionViewModel : ViewModelBase
             {
                 StatusMessage = $"Il modello '{SelectedLocalModel.Model.DisplayName}' non è ancora installato (is not installed). Scaricalo prima di attivarlo.";
                 return;
+            }
+
+            var prevActiveId = current.Llm.SelectedModelId;
+            if (!string.IsNullOrEmpty(prevActiveId) && !string.Equals(prevActiveId, SelectedLocalModel.Model.Id, StringComparison.OrdinalIgnoreCase))
+            {
+                _modelManager.MarkModelInUse(prevActiveId, false);
             }
 
             current.Llm.SelectedModelId = SelectedLocalModel.Model.Id;

@@ -127,9 +127,14 @@
                                             <Button Content="Attiva Modello"
                                                     Command="{Binding $parent[UserControl].((vm:ModelSelectionViewModel)DataContext).SetActiveLocalModelItemCommand}"
                                                     CommandParameter="{Binding}"
-                                                    IsVisible="{Binding IsInstalled}"
-                                                    IsEnabled="{Binding !IsActive}"
+                                                    IsVisible="{Binding CanActivate}"
+                                                    IsEnabled="{Binding !$parent[UserControl].((vm:ModelSelectionViewModel)DataContext).IsModelLoadedInMemory}"
                                                     Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="10,4" FontSize="12"/>
+
+                                            <Button Content="Scarica dalla RAM"
+                                                    Command="{Binding $parent[UserControl].((vm:ModelSelectionViewModel)DataContext).UnloadActiveModelCommand}"
+                                                    IsVisible="{Binding CanUnload}"
+                                                    Background="{DynamicResource ErrorBrush}" Foreground="#091015" FontWeight="Bold" Padding="10,4" FontSize="12"/>
                                         </StackPanel>
                                     </StackPanel>
 

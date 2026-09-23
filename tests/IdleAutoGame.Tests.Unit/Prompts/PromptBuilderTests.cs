@@ -19,7 +19,7 @@ public class PromptBuilderTests
 
         prompt.Should().Contain("SYSTEM CONSTRAINTS");
         prompt.Should().Contain("Tap Titans 2");
-        prompt.Should().Contain("SCREEN REGIONS");
+        prompt.Should().Contain("VISUAL INTERPRETATION");
         prompt.Should().Contain("Always save gold for clan boss.");
         // AllowedActions now includes the full extended set
         prompt.Should().Contain("Allowed action primitives:");
@@ -28,8 +28,8 @@ public class PromptBuilderTests
         prompt.Should().Contain("Swipe");
         prompt.Should().Contain("Back");
         // New schema section must be present
-        prompt.Should().Contain("\"multi_tap\":");
-        prompt.Should().Contain("\"scroll\":");
+        prompt.Should().Contain("multi_tap:");
+        prompt.Should().Contain("scroll:");
     }
 
     [Fact]
@@ -86,12 +86,12 @@ public class PromptBuilderTests
 
         var prompt = PromptBuilder.BuildSystemPrompt(game, genericSystemPrompt: emptyPrompt);
 
-        prompt.Should().Contain("### 1. YOUR PURPOSE & ROLE");
-        prompt.Should().Contain("### 2. DECISION HIERARCHY & SCREEN REASONING");
-        prompt.Should().Contain("### 3. RESPONSE CONTRACT (STRICT JSON ONLY)");
-        prompt.Should().Contain("### 4. AVAILABLE ACTIONS & PARAMETERS");
-        prompt.Should().Contain("### 5. EXAMPLES OF VALID ACTIONS");
-        prompt.Should().Contain("### 6. CONTEXT & DATA PROVIDED TO YOU");
+        prompt.Should().Contain("1. ROLE AND PRIMARY OBJECTIVE");
+        prompt.Should().Contain("2. SCREENSHOT-FIRST VISUAL GROUNDING");
+        prompt.Should().Contain("3. NEVER ACT ON STALE VISUAL INFORMATION");
+        prompt.Should().Contain("4. CORE PRIORITY HIERARCHY");
+        prompt.Should().Contain("18. JSON OUTPUT CONTRACT");
+        prompt.Should().Contain("19. ACTION-SPECIFIC PARAMETERS");
     }
 
     [Fact]
@@ -99,19 +99,19 @@ public class PromptBuilderTests
     {
         var prompt = LlmSettings.DefaultGenericSystemPrompt;
 
-        prompt.Should().Contain("\"tap\":");
-        prompt.Should().Contain("\"multi_tap\":");
-        prompt.Should().Contain("\"double_tap\":");
-        prompt.Should().Contain("\"long_press\":");
-        prompt.Should().Contain("\"swipe\":");
-        prompt.Should().Contain("\"drag\":");
-        prompt.Should().Contain("\"scroll\":");
-        prompt.Should().Contain("\"text_input\":");
-        prompt.Should().Contain("\"key_press\":");
-        prompt.Should().Contain("\"key_sequence\":");
-        prompt.Should().Contain("\"back\":");
-        prompt.Should().Contain("\"wait\":");
-        prompt.Should().Contain("\"do_nothing\":");
+        prompt.Should().Contain("tap:");
+        prompt.Should().Contain("multi_tap:");
+        prompt.Should().Contain("double_tap:");
+        prompt.Should().Contain("long_press:");
+        prompt.Should().Contain("swipe:");
+        prompt.Should().Contain("drag:");
+        prompt.Should().Contain("scroll:");
+        prompt.Should().Contain("text_input:");
+        prompt.Should().Contain("key_press:");
+        prompt.Should().Contain("key_sequence:");
+        prompt.Should().Contain("back:");
+        prompt.Should().Contain("wait:");
+        prompt.Should().Contain("do_nothing:");
 
         prompt.Should().Contain("observation_summary");
         prompt.Should().Contain("objective");

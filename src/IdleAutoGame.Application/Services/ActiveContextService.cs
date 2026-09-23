@@ -320,6 +320,29 @@ public sealed class ActiveContextService : IActiveContextService
     }
 
     /// <inheritdoc />
+    public async Task UnloadActiveModelAsync(CancellationToken ct = default)
+    {
+        var activeId = ActiveModel.ModelId;
+        if (_guard != null && !string.IsNullOrWhiteSpace(activeId) && activeId != "None")
+        {
+            var check = _guard.CanUnloadModel(activeId);
+            if (!check.IsAllowed)
+            {
+                throw new InvalidOperationException(check.Message);
+            }
+        }
+
+        ActiveModel = new ActiveModelContext(
+            "None",
+            "Nessun modello",
+            "None",
+            "Non caricato",
+            false);
+
+        RaiseContextChanged();
+    }
+
+    /// <inheritdoc />
     public async Task SetActiveGameAsync(string gameId, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(gameId);

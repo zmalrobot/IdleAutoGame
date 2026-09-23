@@ -63,6 +63,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
     private ILLamaExecutor? _executor;
     private ModelParams? _modelParams;
     private string? _currentModelPath;
+    private string? _currentModelId;
+    private CancellationTokenSource? _activeInferenceCts;
     private bool _disposed;
 
     /// <summary>
@@ -430,7 +432,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 return;
             }
 
-            // Unload prior model if loaded
+            // Stop any active inference and unload prior model completely before loading
+            StopActiveInferenceInternal();
             UnloadInternal();
 
             var stopwatch = Stopwatch.StartNew();
@@ -585,6 +588,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             _executor = executor;
             _modelParams = parameters;
             _currentModelPath = modelPath;
+            _currentModelId = settings.SelectedModelId ?? Path.GetFileNameWithoutExtension(modelPath);
             IsWarmedUp = false;
 
             stopwatch.Stop();
@@ -749,12 +753,28 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         return null;
     }
 
+    private void StopActiveInferenceInternal()
+    {
+        try
+        {
+            if (_activeInferenceCts != null && !_activeInferenceCts.IsCancellationRequested)
+            {
+                _activeInferenceCts.Cancel();
+            }
+        }
+        catch
+        {
+            // Ignore cancellation exceptions
+        }
+    }
+
     /// <summary>
     /// Releases the active model weights and context from memory.
     /// </summary>
     public async Task UnloadModelAsync()
     {
         SetStatus(LlmLifecyclePhase.Unloading, "Rilascio memoria del modello locale...");
+        StopActiveInferenceInternal();
         await _inferenceLock.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -768,6 +788,12 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
     private void UnloadInternal()
     {
+        StopActiveInferenceInternal();
+        _activeInferenceCts?.Dispose();
+        _activeInferenceCts = null;
+
+        var prevModelId = _currentModelId;
+
         if (_clipModel != null)
         {
             _clipModel.Dispose();
@@ -793,6 +819,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         _executor = null;
         _modelParams = null;
         _currentModelPath = null;
+        _currentModelId = null;
         IsWarmedUp = false;
         LastWarmupError = null;
 
@@ -803,8 +830,23 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         ActiveGpuDeviceName = null;
         LastMemoryEstimate = null;
 
-        // Hint GC to collect unmanaged memory wrappers
-        GC.Collect(2, GCCollectionMode.Optimized, false);
+        if (_modelManager != null && !string.IsNullOrWhiteSpace(prevModelId))
+        {
+            try
+            {
+                _modelManager.MarkModelInUse(prevModelId, false);
+            }
+            catch
+            {
+                // Best effort sync
+            }
+        }
+
+        // Force GC to collect unmanaged memory wrappers and wait for native finalizers
+        GC.Collect(2, GCCollectionMode.Forced, true);
+        GC.WaitForPendingFinalizers();
+        GC.Collect(2, GCCollectionMode.Forced, true);
+
         SetStatus(LlmLifecyclePhase.Unloaded, "Nessun modello caricato in memoria.");
     }
 
@@ -825,7 +867,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         await _inferenceLock.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            ct.ThrowIfCancellationRequested();
+            _activeInferenceCts?.Dispose();
+            _activeInferenceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var linkedCt = _activeInferenceCts.Token;
+
+            linkedCt.ThrowIfCancellationRequested();
             SetStatus(LlmLifecyclePhase.WarmingUp, "Warmup in corso: invio prompt di prova ('Hello') per attivazione GPU/CPU pipeline...");
 
             var sampling = new DefaultSamplingPipeline
@@ -840,7 +886,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 SamplingPipeline = sampling
             };
 
-            await foreach (var _ in _executor.InferAsync("Hello", inferenceParams, ct).ConfigureAwait(false))
+            await foreach (var _ in _executor.InferAsync("Hello", inferenceParams, linkedCt).ConfigureAwait(false))
             {
                 break;
             }
@@ -866,6 +912,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
         finally
         {
+            _activeInferenceCts?.Dispose();
+            _activeInferenceCts = null;
             if (_context != null)
             {
                 try
@@ -927,7 +975,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
         try
         {
-            ct.ThrowIfCancellationRequested();
+            _activeInferenceCts?.Dispose();
+            _activeInferenceCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            var linkedCt = _activeInferenceCts.Token;
+
+            linkedCt.ThrowIfCancellationRequested();
             string imageMarker = string.Empty;
 
             if (_clipModel != null && !string.IsNullOrWhiteSpace(request.ScreenshotBase64) && _executor is StatefulExecutorBase statefulExec)
@@ -990,8 +1042,9 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 ElapsedMs = totalStopwatch.ElapsedMilliseconds
             };
 
-            await foreach (var text in _executor.InferAsync(prompt, inferenceParams, ct).ConfigureAwait(false))
+            await foreach (var text in _executor.InferAsync(prompt, inferenceParams, linkedCt).ConfigureAwait(false))
             {
+                linkedCt.ThrowIfCancellationRequested();
                 if (isFirstToken)
                 {
                     firstTokenStopwatch.Stop();
@@ -1058,6 +1111,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
         finally
         {
+            _activeInferenceCts?.Dispose();
+            _activeInferenceCts = null;
             if (_context != null)
             {
                 try

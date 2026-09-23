@@ -139,6 +139,11 @@ public interface IActiveContextService
     Task SetActiveModelAsync(string modelId, string provider, string? endpoint = null, string? apiKey = null, CancellationToken ct = default);
 
     /// <summary>
+    /// Resets the active AI model profile to unloaded state and persists settings.
+    /// </summary>
+    Task UnloadActiveModelAsync(CancellationToken ct = default);
+
+    /// <summary>
     /// Sets the active game profile and persists the choice.
     /// </summary>
     Task SetActiveGameAsync(string gameId, CancellationToken ct = default);
