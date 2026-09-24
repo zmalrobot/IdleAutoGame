@@ -189,6 +189,59 @@ public class SettingsViewModelTests
         vm.StatusMessage.Should().Contain("unloaded");
     }
 
+    [Fact]
+    public void MicroPrompts_LoadedProperly_WithCategoriesAndFiltering()
+    {
+        _viewModel.AllMicroPrompts.Should().HaveCount(20); // 10 Generic + 10 TT2
+        _viewModel.TotalMicroPromptsCount.Should().Be(20);
+        _viewModel.ModifiedMicroPromptsCount.Should().Be(0);
+
+        // Filter by Generico
+        _viewModel.SelectedPromptCategory = "Generico";
+        _viewModel.FilteredMicroPrompts.Should().HaveCount(10);
+        _viewModel.FilteredMicroPrompts.Should().OnlyContain(p => p.Category == "Generico");
+
+        // Filter by Tap Titans 2
+        _viewModel.SelectedPromptCategory = "Tap Titans 2";
+        _viewModel.FilteredMicroPrompts.Should().HaveCount(10);
+        _viewModel.FilteredMicroPrompts.Should().OnlyContain(p => p.Category == "Tap Titans 2");
+
+        // Search text
+        _viewModel.SelectedPromptCategory = "Tutti";
+        _viewModel.PromptSearchText = "boss";
+        _viewModel.FilteredMicroPrompts.Should().NotBeEmpty();
+        _viewModel.FilteredMicroPrompts.Should().Contain(p => p.Key == "tt2_boss");
+    }
+
+    [Fact]
+    public async Task MicroPrompts_CanBeModifiedAndSaved_AndLoadedBack()
+    {
+        var targetPrompt = _viewModel.AllMicroPrompts.First(p => p.Key == "generic_core");
+        targetPrompt.Content = "MODIFIED_CORE_PROMPT_CONTENT";
+        targetPrompt.IsModified.Should().BeTrue();
+        _viewModel.ModifiedMicroPromptsCount.Should().Be(1);
+
+        await _viewModel.SaveSettingsAsync();
+
+        var saved = _configService.Current.Llm.CustomMicroPrompts;
+        saved.Should().ContainKey("generic_core");
+        saved["generic_core"].Should().Be("MODIFIED_CORE_PROMPT_CONTENT");
+
+        // New VM created with saved config
+        var newVm = new SettingsViewModel(_configService, _modelManager, _hardwareDetector, _localProvider);
+        var loadedTarget = newVm.AllMicroPrompts.First(p => p.Key == "generic_core");
+        loadedTarget.Content.Should().Be("MODIFIED_CORE_PROMPT_CONTENT");
+        loadedTarget.IsModified.Should().BeTrue();
+
+        // Reset target
+        newVm.SelectedMicroPrompt = loadedTarget;
+        newVm.ResetSelectedMicroPrompt();
+        loadedTarget.IsModified.Should().BeFalse();
+        await newVm.SaveSettingsAsync();
+
+        _configService.Current.Llm.CustomMicroPrompts.Should().NotContainKey("generic_core");
+    }
+
     private class InMemorySettingsRepo : ISettingsRepository
     {
         private AppSettings _s = new();

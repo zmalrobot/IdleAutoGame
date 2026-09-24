@@ -85,6 +85,9 @@ public sealed class AppSettings
                 UseMemoryMapping = Llm.UseMemoryMapping,
                 UseMemoryLock = Llm.UseMemoryLock,
                 GenericSystemPrompt = Llm.GenericSystemPrompt ?? LlmSettings.DefaultGenericSystemPrompt,
+                CustomMicroPrompts = Llm.CustomMicroPrompts != null
+                    ? new Dictionary<string, string>(Llm.CustomMicroPrompts, StringComparer.OrdinalIgnoreCase)
+                    : new(StringComparer.OrdinalIgnoreCase),
                 Gpu = Llm.Gpu != null ? Llm.Gpu.Clone() : new GpuSettings()
             } : new LlmSettings(),
             Automation = Automation != null ? new AutomationSettings
@@ -1321,6 +1324,12 @@ public sealed class LlmSettings
     /// If null or whitespace, <see cref="DefaultGenericSystemPrompt"/> is used.
     /// </summary>
     public string GenericSystemPrompt { get; set; } = DefaultGenericSystemPrompt;
+
+    /// <summary>
+    /// Customized micro-prompts indexed by their unique module key.
+    /// Overrides default modular micro-prompt definitions.
+    /// </summary>
+    public Dictionary<string, string> CustomMicroPrompts { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>

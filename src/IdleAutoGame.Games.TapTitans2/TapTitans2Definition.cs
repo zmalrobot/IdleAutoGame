@@ -14,6 +14,9 @@ public sealed class TapTitans2Definition : IModularGameDefinition
     public IReadOnlyDictionary<string, string> MicroPrompts => Prompts.TapTitans2MicroPrompts.All;
 
     /// <inheritdoc />
+    public IReadOnlyList<IdleAutoGame.Core.Prompts.MicroPromptDefinition> MicroPromptDefinitions => Prompts.TapTitans2MicroPrompts.Definitions;
+
+    /// <inheritdoc />
     public string Id => "tap-titans-2";
 
     /// <inheritdoc />

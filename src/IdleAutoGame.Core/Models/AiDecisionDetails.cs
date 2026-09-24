@@ -147,5 +147,15 @@ public sealed record AiDecisionDetails
     /// Gets the raw model completion string returned during this decision cycle.
     /// </summary>
     public string RawResponse { get; init; } = string.Empty;
+
+    /// <summary>
+    /// Gets the modular or composite system prompt sent to the LLM.
+    /// </summary>
+    public string? SystemPrompt { get; init; }
+
+    /// <summary>
+    /// Gets the structured user prompt payload sent to the LLM.
+    /// </summary>
+    public string? UserPrompt { get; init; }
 }
 

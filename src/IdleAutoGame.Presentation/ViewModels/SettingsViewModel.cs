@@ -5,8 +5,11 @@ using IdleAutoGame.Application.Services;
 using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
+using IdleAutoGame.Core.Prompts;
+using IdleAutoGame.Games.TapTitans2.Prompts;
 using IdleAutoGame.Infrastructure.Llm;
 using IdleAutoGame.Infrastructure.Llm.Gpu;
+using IdleAutoGame.Presentation.Services;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
@@ -20,6 +23,7 @@ public partial class SettingsViewModel : ViewModelBase
     private readonly IGpuDeviceDetector _gpuDetector;
     private readonly IModelMemoryEstimator _memoryEstimator;
     private readonly IActiveContextService? _activeContext;
+    private readonly IClipboardService _clipboardService;
 
     [ObservableProperty]
     private bool _isExecutionLocked;
@@ -263,6 +267,72 @@ public partial class SettingsViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusMessage = "Settings loaded.";
 
+    [ObservableProperty]
+    private ObservableCollection<MicroPromptEditorItemViewModel> _allMicroPrompts = new();
+
+    [ObservableProperty]
+    private ObservableCollection<MicroPromptEditorItemViewModel> _filteredMicroPrompts = new();
+
+    [ObservableProperty]
+    private MicroPromptEditorItemViewModel? _selectedMicroPrompt;
+
+    [ObservableProperty]
+    private string _selectedPromptCategory = "Tutti";
+
+    [ObservableProperty]
+    private string _selectedPromptGroup = "Tutti";
+
+    [ObservableProperty]
+    private string _promptSearchText = string.Empty;
+
+    public IReadOnlyList<string> PromptCategories { get; private set; } = new[] { "Tutti", "Generico", "Tap Titans 2" };
+
+    public IReadOnlyList<string> PromptGroups { get; private set; } = new[] { "Tutti" };
+
+    public int TotalMicroPromptsCount => AllMicroPrompts.Count;
+
+    public int ModifiedMicroPromptsCount => AllMicroPrompts.Count(p => p.IsModified);
+
+    partial void OnSelectedPromptCategoryChanged(string value) => ApplyPromptFilter();
+    partial void OnSelectedPromptGroupChanged(string value) => ApplyPromptFilter();
+    partial void OnPromptSearchTextChanged(string value) => ApplyPromptFilter();
+
+    private void ApplyPromptFilter()
+    {
+        var filtered = AllMicroPrompts.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(SelectedPromptCategory) && !SelectedPromptCategory.Equals("Tutti", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(p => string.Equals(p.Category, SelectedPromptCategory, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(SelectedPromptGroup) && !SelectedPromptGroup.Equals("Tutti", StringComparison.OrdinalIgnoreCase))
+        {
+            filtered = filtered.Where(p => string.Equals(p.Group, SelectedPromptGroup, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(PromptSearchText))
+        {
+            var search = PromptSearchText.Trim();
+            filtered = filtered.Where(p =>
+                p.Key.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.Description.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                p.Content.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        FilteredMicroPrompts.Clear();
+        foreach (var item in filtered)
+        {
+            FilteredMicroPrompts.Add(item);
+        }
+
+        if (SelectedMicroPrompt == null || !FilteredMicroPrompts.Contains(SelectedMicroPrompt))
+        {
+            SelectedMicroPrompt = FilteredMicroPrompts.FirstOrDefault();
+        }
+    }
+
     public SettingsViewModel(
         IConfigurationService configService,
         IModelManager modelManager,
@@ -271,7 +341,8 @@ public partial class SettingsViewModel : ViewModelBase
         IExecutionStateGuard? guard = null,
         IGpuDeviceDetector? gpuDetector = null,
         IModelMemoryEstimator? memoryEstimator = null,
-        IActiveContextService? activeContext = null)
+        IActiveContextService? activeContext = null,
+        IClipboardService? clipboardService = null)
     {
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
         _modelManager = modelManager ?? throw new ArgumentNullException(nameof(modelManager));
@@ -281,6 +352,7 @@ public partial class SettingsViewModel : ViewModelBase
         _gpuDetector = gpuDetector ?? new VulkanGpuDeviceDetector();
         _memoryEstimator = memoryEstimator ?? new ModelMemoryEstimator();
         _activeContext = activeContext;
+        _clipboardService = clipboardService ?? new AvaloniaClipboardService();
 
         if (_guard != null)
         {
@@ -402,6 +474,8 @@ public partial class SettingsViewModel : ViewModelBase
         ShowRawResponse = s.Ui.ShowRawResponse;
         MaxVisibleRawOutputCharacters = s.Ui.MaxVisibleRawOutputCharacters;
         StreamingUiUpdateIntervalMs = s.Ui.StreamingUiUpdateIntervalMs;
+
+        LoadMicroPrompts(s.Llm.CustomMicroPrompts);
 
         _ = RefreshLocalModelsAsync();
     }
@@ -757,6 +831,15 @@ public partial class SettingsViewModel : ViewModelBase
         s.Ui.MaxVisibleRawOutputCharacters = MaxVisibleRawOutputCharacters;
         s.Ui.StreamingUiUpdateIntervalMs = StreamingUiUpdateIntervalMs;
 
+        s.Llm.CustomMicroPrompts.Clear();
+        foreach (var p in AllMicroPrompts)
+        {
+            if (p.IsModified)
+            {
+                s.Llm.CustomMicroPrompts[p.Key] = p.Content;
+            }
+        }
+
         var validation = await _configService.UpdateSettingsAsync(s);
         if (validation.IsValid)
         {
@@ -765,6 +848,83 @@ public partial class SettingsViewModel : ViewModelBase
         else
         {
             StatusMessage = $"Validation failed: {string.Join("; ", validation.Errors)}";
+        }
+    }
+
+    private void LoadMicroPrompts(IReadOnlyDictionary<string, string>? customPrompts)
+    {
+        AllMicroPrompts.Clear();
+
+        var definitions = new List<MicroPromptDefinition>();
+        definitions.AddRange(GenericMicroPrompts.Definitions);
+        definitions.AddRange(TapTitans2MicroPrompts.Definitions);
+
+        var groups = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { "Tutti" };
+
+        foreach (var def in definitions)
+        {
+            string? custom = null;
+            if (customPrompts != null && customPrompts.TryGetValue(def.Key, out var c) && !string.IsNullOrWhiteSpace(c))
+            {
+                custom = c;
+            }
+
+            var item = new MicroPromptEditorItemViewModel(
+                key: def.Key,
+                name: def.Name,
+                category: def.Category,
+                group: def.Group,
+                description: def.Description,
+                defaultContent: def.DefaultContent,
+                customContent: custom);
+
+            item.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(MicroPromptEditorItemViewModel.IsModified))
+                {
+                    OnPropertyChanged(nameof(ModifiedMicroPromptsCount));
+                }
+            };
+
+            AllMicroPrompts.Add(item);
+            groups.Add(def.Group);
+        }
+
+        PromptGroups = groups.ToList();
+        OnPropertyChanged(nameof(PromptGroups));
+        OnPropertyChanged(nameof(TotalMicroPromptsCount));
+        OnPropertyChanged(nameof(ModifiedMicroPromptsCount));
+
+        ApplyPromptFilter();
+        SelectedMicroPrompt = FilteredMicroPrompts.FirstOrDefault();
+    }
+
+    [RelayCommand]
+    public void ResetSelectedMicroPrompt()
+    {
+        SelectedMicroPrompt?.ResetToDefault();
+        OnPropertyChanged(nameof(ModifiedMicroPromptsCount));
+        StatusMessage = $"Prompt '{SelectedMicroPrompt?.Name}' ripristinato al default.";
+    }
+
+    [RelayCommand]
+    public void ResetAllMicroPrompts()
+    {
+        foreach (var p in AllMicroPrompts)
+        {
+            p.ResetToDefault();
+        }
+        OnPropertyChanged(nameof(ModifiedMicroPromptsCount));
+        StatusMessage = "Tutti i micro-prompt sono stati ripristinati al default.";
+    }
+
+    [RelayCommand]
+    public async Task CopySelectedMicroPromptAsync()
+    {
+        if (SelectedMicroPrompt != null && !string.IsNullOrWhiteSpace(SelectedMicroPrompt.Content))
+        {
+            await _clipboardService.SetTextAsync(SelectedMicroPrompt.Content).ConfigureAwait(false);
+            StatusMessage = $"Prompt '{SelectedMicroPrompt.Name}' copiato negli appunti.";
         }
     }
 

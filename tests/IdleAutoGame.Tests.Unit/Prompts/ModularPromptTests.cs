@@ -270,4 +270,82 @@ public class ModularPromptTests
         modules["TT2_UI_RULES"].Should().Contain("Guarda Un Video");
         modules["TT2_UI_RULES"].Should().Contain("Raccogli!");
     }
+
+    [Fact]
+    public void MicroPromptDefinitions_ContainsAllGenericAndGameSpecificDefinitionsWithMetadata()
+    {
+        var genericDefs = GenericMicroPrompts.Definitions;
+        genericDefs.Should().HaveCount(10);
+        foreach (var def in genericDefs)
+        {
+            def.Key.Should().NotBeNullOrWhiteSpace();
+            def.Name.Should().NotBeNullOrWhiteSpace();
+            def.Category.Should().Be("Generico");
+            def.Group.Should().NotBeNullOrWhiteSpace();
+            def.Description.Should().NotBeNullOrWhiteSpace();
+            def.DefaultContent.Should().NotBeNullOrWhiteSpace();
+        }
+
+        var tt2Defs = TapTitans2MicroPrompts.Definitions;
+        tt2Defs.Should().HaveCount(10);
+        foreach (var def in tt2Defs)
+        {
+            def.Key.Should().NotBeNullOrWhiteSpace();
+            def.Name.Should().NotBeNullOrWhiteSpace();
+            def.Category.Should().Be("Tap Titans 2");
+            def.Group.Should().NotBeNullOrWhiteSpace();
+            def.Description.Should().NotBeNullOrWhiteSpace();
+            def.DefaultContent.Should().NotBeNullOrWhiteSpace();
+        }
+
+        var game = new TapTitans2Definition();
+        game.MicroPromptDefinitions.Should().HaveCount(10);
+    }
+
+    [Fact]
+    public void BuildModularSystemPrompt_AppliesCustomMicroPromptOverrides()
+    {
+        var game = new TapTitans2Definition();
+        var sessionState = new SessionState { InitializationComplete = true, UpgradeCheckDue = false };
+        var custom = new Dictionary<string, string>
+        {
+            ["generic_core"] = "CUSTOM_GENERIC_CORE_INSTRUCTION: Sei un bot personalizzato per test.",
+            ["tt2_boss"] = "CUSTOM_TT2_BOSS_INSTRUCTION: Attacca il boss con tap ultrarapidi personalizzati."
+        };
+
+        var prompt = PromptBuilder.BuildModularSystemPrompt(game, sessionState, customPrompts: custom);
+
+        prompt.Should().Contain("CUSTOM_GENERIC_CORE_INSTRUCTION: Sei un bot personalizzato per test.");
+        prompt.Should().Contain("CUSTOM_TT2_BOSS_INSTRUCTION: Attacca il boss con tap ultrarapidi personalizzati.");
+        // Unmodified modules should still retain their default content
+        prompt.Should().Contain("NEVER interact with Android OS");
+        prompt.Should().Contain("Mano di Mida");
+    }
+
+    [Fact]
+    public void MicroPromptEditorItemViewModel_ModificationsAndCalculations_WorkProperly()
+    {
+        var item = new IdleAutoGame.Presentation.ViewModels.MicroPromptEditorItemViewModel(
+            key: "test_key",
+            name: "Test Name",
+            category: "Generico",
+            group: "Sistema & Sicurezza",
+            description: "Test description",
+            defaultContent: "Default content 12345");
+
+        item.IsModified.Should().BeFalse();
+        item.StatusBadge.Should().Be("Predefinito");
+        item.CharCount.Should().Be("Default content 12345".Length);
+        item.EstimatedTokens.Should().Be((int)Math.Ceiling("Default content 12345".Length / 4.0));
+
+        // Modify content
+        item.Content = "New modified content for test prompt";
+        item.IsModified.Should().BeTrue();
+        item.StatusBadge.Should().Be("Personalizzato");
+
+        // Reset to default
+        item.ResetToDefault();
+        item.IsModified.Should().BeFalse();
+        item.Content.Should().Be("Default content 12345");
+    }
 }

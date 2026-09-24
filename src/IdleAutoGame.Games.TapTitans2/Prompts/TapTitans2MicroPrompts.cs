@@ -237,5 +237,102 @@ public static class TapTitans2MicroPrompts
         ["tt2_ui_rules"] = UiRules,
         ["tt2_forbidden_areas"] = ForbiddenAreas
     };
+
+    /// <summary>
+    /// Catalogo completo dei metadati descrittivi per ciascun micro-prompt di Tap Titans 2.
+    /// </summary>
+    public static readonly IReadOnlyList<IdleAutoGame.Core.Prompts.MicroPromptDefinition> Definitions = new List<IdleAutoGame.Core.Prompts.MicroPromptDefinition>
+    {
+        new()
+        {
+            Key = "tt2_initialization",
+            Name = "Inizializzazione Startup Obbligatoria",
+            Category = "Tap Titans 2",
+            Group = "Fase Iniziale & Controlli",
+            Description = "Sequenza obbligatoria all'avvio: apertura e ispezione Maestro Spada ed Eroi prima di qualsiasi farming.",
+            DefaultContent = Initialization
+        },
+        new()
+        {
+            Key = "tt2_upgrade_trigger",
+            Name = "Trigger Controllo Upgrade",
+            Category = "Tap Titans 2",
+            Group = "Fase Iniziale & Controlli",
+            Description = "Condizioni per avviare il controllo upgrade (boss sconfitto, timeout, badge rosso, surge oro, 4+ burst).",
+            DefaultContent = UpgradeTrigger
+        },
+        new()
+        {
+            Key = "tt2_upgrade_check",
+            Name = "Controllo Upgrade Maestro Spada",
+            Category = "Tap Titans 2",
+            Group = "Progressione & Potenziamenti",
+            Description = "Apertura tab Maestro Spada, lettura oro, acquisto 'Livello successivo' e potenziamento Incantesimi.",
+            DefaultContent = UpgradeCheck
+        },
+        new()
+        {
+            Key = "tt2_hero_upgrade",
+            Name = "Potenziamento & Arruolamento Eroi",
+            Category = "Tap Titans 2",
+            Group = "Progressione & Potenziamenti",
+            Description = "Apertura tab Eroi, acquisto 'Arruola' (Lv 0) e 'Livello successivo' (Lv >= 1), con scrolling controllato.",
+            DefaultContent = HeroUpgrade
+        },
+        new()
+        {
+            Key = "tt2_boss",
+            Name = "Combattimento Boss & Divieto Ritirata",
+            Category = "Tap Titans 2",
+            Group = "Combattimento & Abilità",
+            Description = "Ingaggio con 'COMBATTI IL BOSS', attacchi rapidi e divieto assoluto di toccare 'ABBANDONA LA BATTAGLIA'.",
+            DefaultContent = Boss
+        },
+        new()
+        {
+            Key = "tt2_skills",
+            Name = "Gestione Incantesimi & Abilità",
+            Category = "Tap Titans 2",
+            Group = "Combattimento & Abilità",
+            Description = "Riconoscimento prontezza abilità, attivazione di massa nei boss e priorità a Mano di Mida e Clone d'ombra.",
+            DefaultContent = Skills
+        },
+        new()
+        {
+            Key = "tt2_farming",
+            Name = "Farming Normale su Titani",
+            Category = "Tap Titans 2",
+            Group = "Combattimento & Abilità",
+            Description = "Burst controllati (8-12 tap) nell'arena di combattimento con osservazione immediata dopo ogni sequenza.",
+            DefaultContent = Farming
+        },
+        new()
+        {
+            Key = "tt2_fairy",
+            Name = "Raccolta Fate Volanti",
+            Category = "Tap Titans 2",
+            Group = "Interfaccia & Ricompense",
+            Description = "Tocca fate volanti, raccoglie ricompense gratuite ('Raccogli!') e rifiuta offerte video o a diamanti.",
+            DefaultContent = Fairy
+        },
+        new()
+        {
+            Key = "tt2_ui_rules",
+            Name = "Regole Visive Controlli TT2",
+            Category = "Tap Titans 2",
+            Group = "Interfaccia & Ricompense",
+            Description = "Distingue controlli cliccabili ('Arruola', 'Livello successivo') da testi di avanzamento o badge.",
+            DefaultContent = UiRules
+        },
+        new()
+        {
+            Key = "tt2_forbidden_areas",
+            Name = "Aree Schermo Vietate (Anti-Shop)",
+            Category = "Tap Titans 2",
+            Group = "Interfaccia & Ricompense",
+            Description = "Coordinate normalizzate per escludere tocchi accidentali su bundle promozionali e tab Negozio.",
+            DefaultContent = ForbiddenAreas
+        }
+    };
 }
 

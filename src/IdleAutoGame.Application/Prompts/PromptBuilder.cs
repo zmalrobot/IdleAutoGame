@@ -163,14 +163,25 @@ public static class PromptBuilder
         string? persistentInstructions = null,
         IEnumerable<UserOverride>? userOverrides = null,
         GamePolicy? policy = null,
-        string? genericSystemPrompt = null)
+        string? genericSystemPrompt = null,
+        IReadOnlyDictionary<string, string>? customPrompts = null)
     {
         ArgumentNullException.ThrowIfNull(game);
+
+        string Resolve(string key, string fallback)
+        {
+            if (customPrompts != null && customPrompts.TryGetValue(key, out var customVal) && !string.IsNullOrWhiteSpace(customVal))
+            {
+                return customVal.Trim();
+            }
+            return fallback.Trim();
+        }
 
         var sb = new StringBuilder();
 
         // 1. Generic Foundation Micro-Prompts
-        if (!string.IsNullOrWhiteSpace(genericSystemPrompt))
+        if (!string.IsNullOrWhiteSpace(genericSystemPrompt) &&
+            !string.Equals(genericSystemPrompt.Trim(), LlmSettings.DefaultGenericSystemPrompt.Trim(), StringComparison.Ordinal))
         {
             sb.AppendLine("### 1. SYSTEM CONSTRAINTS & ROLE INSTRUCTIONS");
             sb.AppendLine(genericSystemPrompt.Trim());
@@ -179,15 +190,15 @@ public static class PromptBuilder
         else
         {
             sb.AppendLine("### 1. SYSTEM CORE & SAFETY");
-            sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.Core);
+            sb.AppendLine(Resolve("generic_core", IdleAutoGame.Core.Prompts.GenericMicroPrompts.Core));
             sb.AppendLine();
-            sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.Safety);
+            sb.AppendLine(Resolve("generic_safety", IdleAutoGame.Core.Prompts.GenericMicroPrompts.Safety));
             sb.AppendLine();
-            sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.VisualGrounding);
+            sb.AppendLine(Resolve("generic_visual_grounding", IdleAutoGame.Core.Prompts.GenericMicroPrompts.VisualGrounding));
             sb.AppendLine();
-            sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.PurchasePolicy);
+            sb.AppendLine(Resolve("generic_purchase_policy", IdleAutoGame.Core.Prompts.GenericMicroPrompts.PurchasePolicy));
             sb.AppendLine();
-            sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.ActionExecutor);
+            sb.AppendLine(Resolve("generic_action_executor", IdleAutoGame.Core.Prompts.GenericMicroPrompts.ActionExecutor));
             sb.AppendLine();
         }
 
@@ -213,7 +224,7 @@ public static class PromptBuilder
             if (sessionState.StuckCount >= 2)
             {
                 sb.AppendLine(">>> ACTIVE STRATEGY: RECOVERY / ANTI-STUCK <<<");
-                sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.AntiStuck);
+                sb.AppendLine(Resolve("generic_anti_stuck", IdleAutoGame.Core.Prompts.GenericMicroPrompts.AntiStuck));
                 sb.AppendLine();
             }
             else if (!sessionState.InitializationComplete)
@@ -221,12 +232,12 @@ public static class PromptBuilder
                 sb.AppendLine(">>> ACTIVE STRATEGY: MANDATORY STARTUP INITIALIZATION <<<");
                 if (modular.MicroPrompts.TryGetValue("tt2_initialization", out var initP))
                 {
-                    sb.AppendLine(initP);
+                    sb.AppendLine(Resolve("tt2_initialization", initP));
                     sb.AppendLine();
                 }
                 if (modular.MicroPrompts.TryGetValue("tt2_upgrade_check", out var upCheckP))
                 {
-                    sb.AppendLine(upCheckP);
+                    sb.AppendLine(Resolve("tt2_upgrade_check", upCheckP));
                     sb.AppendLine();
                 }
             }
@@ -235,15 +246,15 @@ public static class PromptBuilder
                 sb.AppendLine(">>> ACTIVE STRATEGY: UPGRADE & HERO PROGRESSION <<<");
                 if (modular.MicroPrompts.TryGetValue("tt2_upgrade_check", out var upCheckP))
                 {
-                    sb.AppendLine(upCheckP);
+                    sb.AppendLine(Resolve("tt2_upgrade_check", upCheckP));
                     sb.AppendLine();
                 }
                 if (modular.MicroPrompts.TryGetValue("tt2_hero_upgrade", out var heroP))
                 {
-                    sb.AppendLine(heroP);
+                    sb.AppendLine(Resolve("tt2_hero_upgrade", heroP));
                     sb.AppendLine();
                 }
-                sb.AppendLine(IdleAutoGame.Core.Prompts.GenericMicroPrompts.ResourceCheck);
+                sb.AppendLine(Resolve("generic_resource_check", IdleAutoGame.Core.Prompts.GenericMicroPrompts.ResourceCheck));
                 sb.AppendLine();
             }
             else
@@ -251,39 +262,39 @@ public static class PromptBuilder
                 sb.AppendLine(">>> ACTIVE STRATEGY: COMBAT, BOSS & NORMAL FARMING <<<");
                 if (modular.MicroPrompts.TryGetValue("tt2_farming", out var farmP))
                 {
-                    sb.AppendLine(farmP);
+                    sb.AppendLine(Resolve("tt2_farming", farmP));
                     sb.AppendLine();
                 }
                 if (modular.MicroPrompts.TryGetValue("tt2_upgrade_trigger", out var triggerP))
                 {
-                    sb.AppendLine(triggerP);
+                    sb.AppendLine(Resolve("tt2_upgrade_trigger", triggerP));
                     sb.AppendLine();
                 }
                 if (modular.MicroPrompts.TryGetValue("tt2_boss", out var bossP))
                 {
-                    sb.AppendLine(bossP);
+                    sb.AppendLine(Resolve("tt2_boss", bossP));
                     sb.AppendLine();
                 }
                 if (modular.MicroPrompts.TryGetValue("tt2_skills", out var skillsP))
                 {
-                    sb.AppendLine(skillsP);
+                    sb.AppendLine(Resolve("tt2_skills", skillsP));
                     sb.AppendLine();
                 }
                 if (modular.MicroPrompts.TryGetValue("tt2_fairy", out var fairyP))
                 {
-                    sb.AppendLine(fairyP);
+                    sb.AppendLine(Resolve("tt2_fairy", fairyP));
                     sb.AppendLine();
                 }
             }
 
             if (modular.MicroPrompts.TryGetValue("tt2_ui_rules", out var uiRulesP))
             {
-                sb.AppendLine(uiRulesP);
+                sb.AppendLine(Resolve("tt2_ui_rules", uiRulesP));
                 sb.AppendLine();
             }
             if (modular.MicroPrompts.TryGetValue("tt2_forbidden_areas", out var forbiddenP))
             {
-                sb.AppendLine(forbiddenP);
+                sb.AppendLine(Resolve("tt2_forbidden_areas", forbiddenP));
                 sb.AppendLine();
             }
         }

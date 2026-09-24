@@ -579,6 +579,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                 bool actionExecuted = false;
                 string? executionResult = null;
                 long llmLatencyMs = 0;
+                string? systemPromptSent = null;
+                string? userPromptSent = null;
 
                 // Create per-cycle linked cancellation token source for dynamic invalidation
                 using var cycleCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
@@ -630,7 +632,9 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         persistentInstructions: null,
                         userOverrides: currentOverrides,
                         policy: activePolicy,
-                        genericSystemPrompt: _settings.Llm.GenericSystemPrompt);
+                        genericSystemPrompt: _settings.Llm.GenericSystemPrompt,
+                        customPrompts: _settings.Llm.CustomMicroPrompts);
+                    systemPromptSent = systemPrompt;
 
                     var userPrompt = PromptBuilder.BuildUserPrompt(
                         cycleNumber,
@@ -640,6 +644,7 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                         stateSnapshot,
                         activePolicy.AllowPremiumCurrency,
                         activePolicy.AllowCreditPurchases);
+                    userPromptSent = userPrompt;
                     var llmRequest = new LlmRequest
                     {
                         ScreenshotBase64 = base64Image,
@@ -811,6 +816,8 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                             StartedAt = DateTimeOffset.UtcNow - cycleStopwatch.Elapsed,
                             Screenshot = screenshot != null ? screenshot with { ImageBytes = Array.Empty<byte>() } : null,
                             PromptSent = $"Cycle #{cycleNumber}",
+                            SystemPromptSent = systemPromptSent,
+                            UserPromptSent = userPromptSent,
                             RawResponse = rawResponse,
                             Action = parsedAction,
                             ValidationPassed = validationPassed,

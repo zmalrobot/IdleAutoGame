@@ -580,6 +580,45 @@ public class AiDecisionDetailsViewModelTests
         vm.LatestScreenshotBitmap.Should().BeSameAs(b);
     }
 
+    [Fact]
+    public async Task CycleCompleted_CapturesSystemAndUserPrompts_InDecisionDetails()
+    {
+        var clipboard = new FakeClipboardService();
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService, clipboard);
+
+        var cycle = new CycleRecord
+        {
+            CycleNumber = 42,
+            StartedAt = DateTime.UtcNow,
+            Action = new GameAction
+            {
+                Action = ActionType.Tap,
+                Explanation = "Test tap on boss"
+            },
+            SystemPromptSent = "TEST_SYSTEM_PROMPT_SENT_XYZ",
+            UserPromptSent = "TEST_USER_PROMPT_SENT_ABC",
+            ValidationPassed = true
+        };
+
+        var onCycleCompleted = typeof(AiDecisionDetailsViewModel)
+            .GetMethod("OnCycleCompleted", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        onCycleCompleted?.Invoke(vm, [_engine, cycle]);
+
+        vm.Decisions.Should().NotBeEmpty();
+        var decision = vm.Decisions[0];
+        decision.CycleNumber.Should().Be(42);
+        decision.SystemPrompt.Should().Be("TEST_SYSTEM_PROMPT_SENT_XYZ");
+        decision.UserPrompt.Should().Be("TEST_USER_PROMPT_SENT_ABC");
+
+        vm.SelectedDecision = decision;
+
+        await vm.CopySystemPromptAsync();
+        clipboard.Text.Should().Be("TEST_SYSTEM_PROMPT_SENT_XYZ");
+
+        await vm.CopyUserPromptAsync();
+        clipboard.Text.Should().Be("TEST_USER_PROMPT_SENT_ABC");
+    }
+
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
     {
         private AppSettings _s;

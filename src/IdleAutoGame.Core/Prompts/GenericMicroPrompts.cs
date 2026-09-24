@@ -245,5 +245,103 @@ public static class GenericMicroPrompts
         ["generic_resource_check"] = ResourceCheck,
         ["generic_purchase_policy"] = PurchasePolicy
     };
+
+    /// <summary>
+    /// Catalogo completo dei metadati descrittivi per ciascun micro-prompt generico.
+    /// Utilizzato dalla UI per mostrare e configurare i moduli.
+    /// </summary>
+    public static readonly IReadOnlyList<MicroPromptDefinition> Definitions = new List<MicroPromptDefinition>
+    {
+        new()
+        {
+            Key = "generic_core",
+            Name = "Core & Ruolo Agente",
+            Category = "Generico",
+            Group = "Sistema & Sicurezza",
+            Description = "Definisce il ruolo fondamentale dell'agente autonomo Android, il ciclo continuo OBSERVE-ACT e lo screenshot come unica fonte di verità.",
+            DefaultContent = Core
+        },
+        new()
+        {
+            Key = "generic_safety",
+            Name = "Sicurezza Sistema & Dialog",
+            Category = "Generico",
+            Group = "Sistema & Sicurezza",
+            Description = "Impedisce qualsiasi interazione con la barra di sistema Android, impostazioni OS o dialog non correlati al gioco.",
+            DefaultContent = Safety
+        },
+        new()
+        {
+            Key = "generic_visual_grounding",
+            Name = "Visual Grounding & Coordinate",
+            Category = "Generico",
+            Group = "Percezione Visiva",
+            Description = "Obbliga il calcolo geometrico del centro del bersaglio in coordinate normalizzate (0.0 - 1.0) senza coordinate hard-coded.",
+            DefaultContent = VisualGrounding
+        },
+        new()
+        {
+            Key = "generic_state_classifier",
+            Name = "Classificatore Stato di Gioco",
+            Category = "Generico",
+            Group = "Percezione Visiva",
+            Description = "Classifica lo stato visivo corrente (normal, boss_fight, menu, dialog, loading, reward, ad, shop, unknown) senza assumere strategie.",
+            DefaultContent = StateClassifier
+        },
+        new()
+        {
+            Key = "generic_priority",
+            Name = "Gerarchia Priorità Azioni",
+            Category = "Generico",
+            Group = "Strategia & Regole",
+            Description = "Definisce l'ordine di priorità decisionale generale (Safety/Dialog > Time-Critical > Progression > Upgrades > Rewards > Normal Activity > Wait).",
+            DefaultContent = Priority
+        },
+        new()
+        {
+            Key = "generic_action_executor",
+            Name = "Esecuzione Singola Azione",
+            Category = "Generico",
+            Group = "Esecuzione & Controllo",
+            Description = "Trasforma una decisione tattica in esattamente una singola azione fisica o di sistema conforme allo schema JSON di esecuzione.",
+            DefaultContent = ActionExecutor
+        },
+        new()
+        {
+            Key = "generic_action_verifier",
+            Name = "Verifica Esito Post-Azione",
+            Category = "Generico",
+            Group = "Esecuzione & Controllo",
+            Description = "Verifica nel frame successivo se l'azione eseguita ha prodotto il cambiamento visivo atteso o se è fallita.",
+            DefaultContent = ActionVerifier
+        },
+        new()
+        {
+            Key = "generic_anti_stuck",
+            Name = "Meccanismo Anti-Stuck",
+            Category = "Generico",
+            Group = "Esecuzione & Controllo",
+            Description = "Rileva e sblocca schermate invariate, menu rimasti aperti o azioni ripetute a vuoto, applicando fallback sicuri.",
+            DefaultContent = AntiStuck
+        },
+        new()
+        {
+            Key = "generic_resource_check",
+            Name = "Controllo Risorse & Costi",
+            Category = "Generico",
+            Group = "Strategia & Regole",
+            Description = "Verifica la condizione (risorsa >= costo) prima di emettere qualsiasi acquisto o potenziamento di gioco.",
+            DefaultContent = ResourceCheck
+        },
+        new()
+        {
+            Key = "generic_purchase_policy",
+            Name = "Politica di Spesa & Valute",
+            Category = "Generico",
+            Group = "Sistema & Sicurezza",
+            Description = "Applica la distinzione fondamentale tra valuta normale, valuta premium e acquisti in denaro reale secondo i flag autorizzativi.",
+            DefaultContent = PurchasePolicy
+        }
+    };
 }
 

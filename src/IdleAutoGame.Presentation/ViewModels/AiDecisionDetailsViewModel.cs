@@ -458,7 +458,9 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
             Text = p?.Text,
             KeyCode = p?.KeyCode?.ToString() ?? (p?.KeyCodes != null ? string.Join(", ", p.KeyCodes) : null),
             ScreenshotBase64 = null,
-            RawResponse = cycle.RawResponse
+            RawResponse = cycle.RawResponse,
+            SystemPrompt = cycle.SystemPromptSent,
+            UserPrompt = cycle.UserPromptSent
         };
 
         RunOnUi(() => AddDecision(detail));
@@ -740,6 +742,26 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
         if (bytes != null && bytes.Length > 0)
         {
             await _clipboardService.SetImageAsync(bytes).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    public async Task CopySystemPromptAsync()
+    {
+        var text = SelectedDecision?.SystemPrompt;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            await _clipboardService.SetTextAsync(text).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    public async Task CopyUserPromptAsync()
+    {
+        var text = SelectedDecision?.UserPrompt;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            await _clipboardService.SetTextAsync(text).ConfigureAwait(false);
         }
     }
 

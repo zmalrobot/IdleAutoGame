@@ -8,6 +8,7 @@ using IdleAutoGame.Core.Enums;
 using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Infrastructure.Llm;
+using IdleAutoGame.Presentation.Services;
 
 namespace IdleAutoGame.Presentation.ViewModels;
 
@@ -19,6 +20,7 @@ public partial class DashboardViewModel : ViewModelBase
     private readonly IGamePolicyService _policyService;
     private readonly IActiveContextService _activeContext;
     private readonly DeviceService? _deviceService;
+    private readonly IClipboardService _clipboardService;
 
     [ObservableProperty]
     private AutomationState _state = AutomationState.Idle;
@@ -187,6 +189,45 @@ public partial class DashboardViewModel : ViewModelBase
     public string PremiumCurrencyStatusText => AllowPremiumCurrency ? "ON" : "OFF";
     public string CreditPurchasesStatusText => AllowCreditPurchases ? "ON" : "OFF";
 
+    [ObservableProperty]
+    private string? _lastSystemPrompt;
+
+    [ObservableProperty]
+    private string? _lastUserPrompt;
+
+    [ObservableProperty]
+    private CycleRecord? _selectedRecentCycle;
+
+    public string? SelectedCycleSystemPrompt => SelectedRecentCycle?.SystemPromptSent ?? LastSystemPrompt;
+
+    public string? SelectedCycleUserPrompt => SelectedRecentCycle?.UserPromptSent ?? LastUserPrompt;
+
+    partial void OnSelectedRecentCycleChanged(CycleRecord? value)
+    {
+        OnPropertyChanged(nameof(SelectedCycleSystemPrompt));
+        OnPropertyChanged(nameof(SelectedCycleUserPrompt));
+    }
+
+    [RelayCommand]
+    public async Task CopyLastSystemPromptAsync()
+    {
+        var text = SelectedCycleSystemPrompt;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            await _clipboardService.SetTextAsync(text).ConfigureAwait(false);
+        }
+    }
+
+    [RelayCommand]
+    public async Task CopyLastUserPromptAsync()
+    {
+        var text = SelectedCycleUserPrompt;
+        if (!string.IsNullOrWhiteSpace(text))
+        {
+            await _clipboardService.SetTextAsync(text).ConfigureAwait(false);
+        }
+    }
+
     public DashboardViewModel(
         IAutomationEngine engine,
         IConfigurationService configService,
@@ -196,7 +237,8 @@ public partial class DashboardViewModel : ViewModelBase
         DeviceService? deviceService = null,
         AiDecisionDetailsViewModel? aiDecisionDetailsVm = null,
         LocalLlamaProvider? localProvider = null,
-        IModelManager? modelManager = null)
+        IModelManager? modelManager = null,
+        IClipboardService? clipboardService = null)
     {
         _engine = engine ?? throw new ArgumentNullException(nameof(engine));
         _configService = configService ?? throw new ArgumentNullException(nameof(configService));
@@ -204,7 +246,8 @@ public partial class DashboardViewModel : ViewModelBase
         _activeContext = activeContext ?? throw new ArgumentNullException(nameof(activeContext));
         _policyService = policyService ?? new GamePolicyService(configService);
         _deviceService = deviceService;
-        _aiDecisionDetailsVm = aiDecisionDetailsVm ?? new AiDecisionDetailsViewModel(engine, configService);
+        _clipboardService = clipboardService ?? new AvaloniaClipboardService();
+        _aiDecisionDetailsVm = aiDecisionDetailsVm ?? new AiDecisionDetailsViewModel(engine, configService, _clipboardService);
         _localProvider = localProvider;
         _modelManager = modelManager;
 
@@ -458,6 +501,10 @@ public partial class DashboardViewModel : ViewModelBase
         {
             CyclesCount = cycle.CycleNumber;
             LastLatencyMs = cycle.LlmLatencyMs;
+            LastSystemPrompt = cycle.SystemPromptSent;
+            LastUserPrompt = cycle.UserPromptSent;
+            OnPropertyChanged(nameof(SelectedCycleSystemPrompt));
+            OnPropertyChanged(nameof(SelectedCycleUserPrompt));
 
             if (cycle.Action != null)
             {

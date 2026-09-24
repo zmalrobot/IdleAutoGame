@@ -26,6 +26,16 @@ public sealed record CycleRecord
     public string PromptSent { get; init; } = string.Empty;
 
     /// <summary>
+    /// Gets the modular or composite system prompt sent to the LLM.
+    /// </summary>
+    public string? SystemPromptSent { get; init; }
+
+    /// <summary>
+    /// Gets the structured user prompt payload sent to the LLM.
+    /// </summary>
+    public string? UserPromptSent { get; init; }
+
+    /// <summary>
     /// Gets the raw text/JSON response returned by the model.
     /// </summary>
     public string RawResponse { get; init; } = string.Empty;

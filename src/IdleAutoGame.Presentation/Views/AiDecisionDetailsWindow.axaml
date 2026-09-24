@@ -319,6 +319,54 @@
                             </StackPanel>
                         </Border>
 
+                        <!-- Card 6: Prompts Sent to LLM (Context Inspection) -->
+                        <Expander IsExpanded="False" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}"
+                                  BorderThickness="1" CornerRadius="6" Padding="10">
+                            <Expander.Header>
+                                <DockPanel>
+                                    <TextBlock Text="📝 PROMPT INVIATI ALL'LLM (CONTESTO INFERENZA)" FontWeight="Bold" FontSize="11" Foreground="{DynamicResource PrimaryLightBrush}"/>
+                                    <TextBlock DockPanel.Dock="Right" Text="System &amp; User Payload" FontSize="9" Foreground="{DynamicResource TextDisabledBrush}" Margin="10,0,0,0"/>
+                                </DockPanel>
+                            </Expander.Header>
+                            <StackPanel Spacing="10" Margin="0,8,0,0">
+                                <!-- System Prompt -->
+                                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
+                                    <StackPanel Spacing="6">
+                                        <DockPanel>
+                                            <TextBlock Text="SYSTEM PROMPT MODULARE" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource AccentBrush}"/>
+                                            <Button DockPanel.Dock="Right" Content="📋 Copia System Prompt" Command="{Binding CopySystemPromptCommand}"
+                                                    Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                    BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="10" Padding="8,3" CornerRadius="4"/>
+                                        </DockPanel>
+                                        <TextBox Text="{Binding SelectedDecision.SystemPrompt, FallbackValue='(Nessun system prompt registrato)', TargetNullValue='(Nessun system prompt registrato)'}"
+                                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                                                 FontFamily="Consolas, 'Cascadia Code', monospace" FontSize="11"
+                                                 MaxHeight="160" Background="#0D1117" Foreground="#58A6FF"
+                                                 BorderThickness="0" CornerRadius="4" Padding="8"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- User Prompt -->
+                                <Border Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="4" Padding="10">
+                                    <StackPanel Spacing="6">
+                                        <DockPanel>
+                                            <TextBlock Text="USER PROMPT (PAYLOAD CICLO &amp; STATO)" FontSize="10" FontWeight="Bold" Foreground="{DynamicResource SecondaryLightBrush}"/>
+                                            <Button DockPanel.Dock="Right" Content="📋 Copia User Prompt" Command="{Binding CopyUserPromptCommand}"
+                                                    Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
+                                                    BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="10" Padding="8,3" CornerRadius="4"/>
+                                        </DockPanel>
+                                        <TextBox Text="{Binding SelectedDecision.UserPrompt, FallbackValue='(Nessun user prompt registrato)', TargetNullValue='(Nessun user prompt registrato)'}"
+                                                 IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                                                 FontFamily="Consolas, 'Cascadia Code', monospace" FontSize="11"
+                                                 MaxHeight="160" Background="#0D1117" Foreground="#58A6FF"
+                                                 BorderThickness="0" CornerRadius="4" Padding="8"
+                                                 ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Expander>
+
                         <!-- Collapsible Recent Decisions History (bounded to max 10) -->
                         <Expander IsExpanded="False" Background="{DynamicResource Surface2Brush}" BorderBrush="{DynamicResource BorderDarkBrush}"
                                   BorderThickness="1" CornerRadius="6" Padding="10">

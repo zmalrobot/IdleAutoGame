@@ -11,5 +11,10 @@ public interface IModularGameDefinition : IGameDefinition
     /// Le chiavi corrispondono ai nomi convenzionali (es. "tt2_initialization", "tt2_boss", "tt2_upgrade_check", ecc.).
     /// </summary>
     IReadOnlyDictionary<string, string> MicroPrompts { get; }
+
+    /// <summary>
+    /// Metadati e catalogo descrittivo per l'interfaccia utente di ciascun modulo di questo gioco.
+    /// </summary>
+    IReadOnlyList<IdleAutoGame.Core.Prompts.MicroPromptDefinition> MicroPromptDefinitions { get; }
 }
 

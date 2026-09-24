@@ -333,4 +333,26 @@ public class AutomationEngineTests
         firstInferenceId.Should().NotBeNullOrWhiteSpace();
         receivedChunks.Where(c => c.InferenceId == firstInferenceId).Should().HaveCountGreaterThanOrEqualTo(3);
     }
+
+    [Fact]
+    public async Task CycleExecution_CapturesSystemAndUserPromptsSent()
+    {
+        using var engine = new AutomationEngine(_deviceController, _llmProvider, _gameRegistry, _sessionRecorder, _settings);
+
+        CycleRecord? recordedCycle = null;
+        engine.CycleCompleted += (_, c) => recordedCycle = c;
+
+        await engine.StartAsync("device-1", "tap-titans-2", "llava-7b");
+        await Task.Delay(400);
+        await engine.StopAsync();
+
+        recordedCycle.Should().NotBeNull();
+        recordedCycle!.SystemPromptSent.Should().NotBeNullOrWhiteSpace();
+        recordedCycle.SystemPromptSent.Should().Contain("autonomous mobile gaming agent");
+        recordedCycle.SystemPromptSent.Should().Contain("MANDATORY STARTUP WORKFLOW");
+
+        recordedCycle.UserPromptSent.Should().NotBeNullOrWhiteSpace();
+        recordedCycle.UserPromptSent.Should().Contain("SESSION STATE:");
+        recordedCycle.UserPromptSent.Should().Contain("initialization_complete");
+    }
 }
