@@ -43,6 +43,12 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
     private int _consecutiveUnknownStates;
     private int _consecutiveErrors;
+    private readonly SessionState _sessionState = new();
+
+    /// <summary>
+    /// Gets the current session memory state.
+    /// </summary>
+    public SessionState SessionState => _sessionState;
 
     /// <inheritdoc />
     public AutomationState State
@@ -236,6 +242,17 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
         _loopCts = new CancellationTokenSource();
         _consecutiveUnknownStates = 0;
         _consecutiveErrors = 0;
+
+        lock (_sessionState)
+        {
+            _sessionState.InitializationComplete = false;
+            _sessionState.UpgradeCheckDue = true;
+            _sessionState.FarmingBurstsSinceCheck = 0;
+            _sessionState.LastBossResult = "none";
+            _sessionState.LastActionSuccess = true;
+            _sessionState.StuckCount = 0;
+            _sessionState.ActiveMenuTab = "none";
+        }
 
         _loopTask = Task.Run(() => RunLoopAsync(deviceSerial, game, _loopCts.Token));
     }
@@ -600,15 +617,29 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
                     // System prompt incorporates current active GamePolicy and configurable generic system prompt
                     var activePolicy = _policyService.CurrentPolicy;
-                    var systemPrompt = PromptBuilder.BuildSystemPrompt(
+                    SessionState stateSnapshot;
+                    lock (_sessionState)
+                    {
+                        stateSnapshot = _sessionState.Clone();
+                    }
+
+                    var systemPrompt = PromptBuilder.BuildModularSystemPrompt(
                         game,
+                        stateSnapshot,
                         game.DefaultSettings,
                         persistentInstructions: null,
                         userOverrides: currentOverrides,
                         policy: activePolicy,
                         genericSystemPrompt: _settings.Llm.GenericSystemPrompt);
 
-                    var userPrompt = PromptBuilder.BuildUserPrompt(cycleNumber, sessionStopwatch.Elapsed, previousAction, currentOverrides);
+                    var userPrompt = PromptBuilder.BuildUserPrompt(
+                        cycleNumber,
+                        sessionStopwatch.Elapsed,
+                        previousAction,
+                        currentOverrides,
+                        stateSnapshot,
+                        activePolicy.AllowPremiumCurrency,
+                        activePolicy.AllowCreditPurchases);
                     var llmRequest = new LlmRequest
                     {
                         ScreenshotBase64 = base64Image,
@@ -687,6 +718,38 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
                         ActionExecuted?.Invoke(this, new ActionExecutedEvent(cycleNumber, parsedAction!, actionExecuted, executionResult));
                         previousAction = parsedAction;
+
+                        lock (_sessionState)
+                        {
+                            _sessionState.RecordActionResult(actionExecuted);
+                            if (actionExecuted && parsedAction != null)
+                            {
+                                if (parsedAction.Action == ActionType.MultiTap || parsedAction.GameState == GameStateAssessment.Normal)
+                                {
+                                    _sessionState.RecordFarmingBurst();
+                                }
+
+                                if (parsedAction.GameState == GameStateAssessment.BossFight)
+                                {
+                                    if (parsedAction.Explanation?.Contains("defeated", StringComparison.OrdinalIgnoreCase) == true)
+                                    {
+                                        _sessionState.RecordBossOutcome("defeated");
+                                    }
+                                    else if (parsedAction.Explanation?.Contains("timeout", StringComparison.OrdinalIgnoreCase) == true)
+                                    {
+                                        _sessionState.RecordBossOutcome("timeout");
+                                    }
+                                }
+
+                                if (parsedAction.Explanation?.Contains("Sword Master", StringComparison.OrdinalIgnoreCase) == true ||
+                                    parsedAction.Explanation?.Contains("Hero", StringComparison.OrdinalIgnoreCase) == true ||
+                                    parsedAction.Explanation?.Contains("upgrade", StringComparison.OrdinalIgnoreCase) == true)
+                                {
+                                    _sessionState.InitializationComplete = true;
+                                    _sessionState.ResetUpgradeCheck();
+                                }
+                            }
+                        }
 
                         // Track consecutive unknown states
                         if (parsedAction!.GameState == GameStateAssessment.Unknown)

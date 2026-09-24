@@ -25,6 +25,11 @@ public interface IGameDefinition
     GameSpecificSettings DefaultSettings { get; }
 }
 
+public interface IModularGameDefinition : IGameDefinition
+{
+    IReadOnlyDictionary<string, string> MicroPrompts { get; }
+}
+
 public interface IGameRegistry
 {
     void Register(IGameDefinition game);
@@ -673,3 +678,62 @@ The final prompt sent to the LLM is assembled in strict priority order:
 ```
 
 **Invariant**: A lower-priority prompt cannot override a higher-priority constraint. The system constraints block any LLM attempt to recommend purchases regardless of user instructions. If a conflict is detected post-LLM-response, the PolicyValidator catches it.
+
+---
+
+## Modular Micro-Prompt Architecture (N-Module System)
+
+To support small, edge-capable Vision-Language Models (e.g., Gemma 4 26B/4B, Qwen 2.5/3-VL) with limited attention and token context windows, the system implements a modular micro-prompt architecture (`IModularGameDefinition`).
+
+Instead of sending a monolithic 3,500+ token prompt on every cycle, instructions are decomposed into independent, single-responsibility modules:
+
+### 1. Generic Modules (`GenericMicroPrompts.cs`)
+100% game-agnostic rules applicable to any mobile Android game:
+- `GENERIC_CORE`: Agent role, screenshot as sole truth, continuous execution cycle.
+- `GENERIC_SAFETY`: Android OS navigation/system bar protection, dialog escape, accidental spending prevention.
+- `GENERIC_VISUAL_GROUNDING`: Coordinate normalization (0.0 to 1.0), bounding center calculation, anti-guess fallback.
+- `GENERIC_STATE_CLASSIFIER`: Visual game state taxonomy (`normal`, `boss_fight`, `menu`, `shop`, `dialog`, `loading`, `ad`, `unknown`).
+- `GENERIC_PRIORITY`: Abstract prioritization hierarchy (Safety/popups > Time-critical > Progression/upgrades > Normal farming > Wait).
+- `GENERIC_ACTION_EXECUTOR`: Action output JSON schema and primitive dispatch contract.
+- `GENERIC_ACTION_VERIFIER`: Visual outcome comparison between pre-action and post-action screenshots.
+- `GENERIC_ANTI_STUCK`: Recovery escalation sequence (`wait` -> `back` -> re-detect -> fallback tap) when actions produce no visible effect.
+- `GENERIC_RESOURCE_CHECK`: Generic rule evaluating `resource >= price` before initiating any purchase.
+- `GENERIC_PURCHASE_POLICY`: Binding enforcement of spending authorization flags across normal currency, premium currency, and real money.
+
+### 2. Game-Specific Modules (`TapTitans2MicroPrompts.cs`)
+Dedicated to Tap Titans 2 mechanics:
+- `TT2_INITIALIZATION`: Mandatory startup verification sequence (Sword Master & Heroes inspection before any farming).
+- `TT2_UPGRADE_TRIGGER`: Evaluates when to transition from farming to upgrade checking (boss defeated, timeout, badge, gold surge, 4+ bursts).
+- `TT2_UPGRADE_CHECK`: Sword Master panel opening, price reading, and purchase sequence.
+- `TT2_HERO_UPGRADE`: Heroes panel opening, recruiting, level-up, and controlled 2-3 screen scrolling.
+- `TT2_BOSS`: Engagement of "COMBATTI IL BOSS", active combat burst cadence, and timer expiration handling.
+- `TT2_SKILLS`: Readiness detection (bright vs dark/cooldown) and tactical usage rules.
+- `TT2_FAIRY`: Identification and collection of 100% free fairies, dismissing diamond or video ad offers.
+- `TT2_FARMING`: Arena combat bursts (8-12 taps) and cycle count tracking.
+- `TT2_UI_RULES`: Disambiguation between real clickable buttons (with gold cost) and informational progress text.
+- `TT2_FORBIDDEN_AREAS`: Coordinate spatial filters for floating promotional bundle offers and diamond shop tabs.
+
+### 3. Compact Session State (`SessionState.cs`)
+Eliminates conversational context bloating by serializing session progress into a minimal JSON object injected into each cycle's user prompt:
+```json
+{
+  "initialization_complete": true,
+  "upgrade_check_due": false,
+  "farming_bursts_since_check": 2,
+  "last_boss_result": "defeated",
+  "last_action_success": true,
+  "stuck_count": 0,
+  "active_menu_tab": "none",
+  "premium_currency_enabled": false,
+  "real_money_purchase_enabled": false
+}
+```
+
+### 4. Dynamic Strategy Assembly (`PromptBuilder.BuildModularSystemPrompt`)
+The engine dynamically compiles system prompts tailored to the active operational state:
+- If `StuckCount >= 2`: Injects `GENERIC_ANTI_STUCK`.
+- If `!InitializationComplete`: Injects `TT2_INITIALIZATION`, `TT2_UPGRADE_CHECK`, and `GENERIC_RESOURCE_CHECK`.
+- If `UpgradeCheckDue`: Injects `TT2_UPGRADE_CHECK`, `TT2_HERO_UPGRADE`, and `GENERIC_RESOURCE_CHECK`.
+- Otherwise (Combat/Farming): Injects `TT2_FARMING`, `TT2_UPGRADE_TRIGGER`, `TT2_BOSS`, `TT2_SKILLS`, and `TT2_FAIRY`.
+- Common foundation: Always includes `GENERIC_CORE`, `GENERIC_SAFETY`, `GENERIC_VISUAL_GROUNDING`, `GENERIC_PURCHASE_POLICY`, `GENERIC_ACTION_EXECUTOR`, `TT2_UI_RULES`, and `TT2_FORBIDDEN_AREAS`.
+

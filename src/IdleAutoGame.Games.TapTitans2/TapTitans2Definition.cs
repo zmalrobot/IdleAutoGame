@@ -8,8 +8,11 @@ namespace IdleAutoGame.Games.TapTitans2;
 /// Game definition module for Tap Titans 2 (Game Hive Corp).
 /// Implements core gameplay rules, safety constraints, and default configuration.
 /// </summary>
-public sealed class TapTitans2Definition : IGameDefinition
+public sealed class TapTitans2Definition : IModularGameDefinition
 {
+    /// <inheritdoc />
+    public IReadOnlyDictionary<string, string> MicroPrompts => Prompts.TapTitans2MicroPrompts.All;
+
     /// <inheritdoc />
     public string Id => "tap-titans-2";
 
