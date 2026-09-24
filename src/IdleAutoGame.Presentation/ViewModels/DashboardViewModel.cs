@@ -334,6 +334,18 @@ public partial class DashboardViewModel : ViewModelBase
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (!string.IsNullOrWhiteSpace(e.SystemPrompt) && LastSystemPrompt != e.SystemPrompt)
+            {
+                LastSystemPrompt = e.SystemPrompt;
+                OnPropertyChanged(nameof(SelectedCycleSystemPrompt));
+            }
+
+            if (!string.IsNullOrWhiteSpace(e.UserPrompt) && LastUserPrompt != e.UserPrompt)
+            {
+                LastUserPrompt = e.UserPrompt;
+                OnPropertyChanged(nameof(SelectedCycleUserPrompt));
+            }
+
             if (e.State == LlmStreamState.Streaming)
             {
                 var tps = e.TokensPerSecond.HasValue ? $" ({e.TokensPerSecond.Value:F1} t/s)" : "";
@@ -631,6 +643,7 @@ public partial class DashboardViewModel : ViewModelBase
         PauseReason = null;
 
         RecentCycles.Clear();
+        SelectedRecentCycle = null;
         CyclesCount = 0;
         ActionsCount = 0;
         ErrorsCount = 0;

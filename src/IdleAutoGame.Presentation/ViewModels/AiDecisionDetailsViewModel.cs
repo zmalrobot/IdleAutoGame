@@ -173,11 +173,69 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
         }
     }
 
+    [ObservableProperty]
+    private string? _activeSystemPrompt;
+
+    [ObservableProperty]
+    private string? _activeUserPrompt;
+
+    /// <summary>
+    /// Gets the system prompt currently displayed:
+    /// Shows the historical cycle's system prompt when examining past decisions (and not following live),
+    /// or the active real-time system prompt currently passed to the LLM during active execution.
+    /// </summary>
+    public string? DisplaySystemPrompt
+    {
+        get
+        {
+            if (IsViewingHistoricalRaw && SelectedDecision != null)
+            {
+                return SelectedDecision.SystemPrompt;
+            }
+
+            return !string.IsNullOrWhiteSpace(ActiveSystemPrompt)
+                ? ActiveSystemPrompt
+                : SelectedDecision?.SystemPrompt;
+        }
+    }
+
+    /// <summary>
+    /// Gets the user prompt currently displayed:
+    /// Shows the historical cycle's user prompt when examining past decisions (and not following live),
+    /// or the active real-time user prompt currently passed to the LLM during active execution.
+    /// </summary>
+    public string? DisplayUserPrompt
+    {
+        get
+        {
+            if (IsViewingHistoricalRaw && SelectedDecision != null)
+            {
+                return SelectedDecision.UserPrompt;
+            }
+
+            return !string.IsNullOrWhiteSpace(ActiveUserPrompt)
+                ? ActiveUserPrompt
+                : SelectedDecision?.UserPrompt;
+        }
+    }
+
+    partial void OnActiveSystemPromptChanged(string? value)
+    {
+        OnPropertyChanged(nameof(DisplaySystemPrompt));
+    }
+
+    partial void OnActiveUserPromptChanged(string? value)
+    {
+        OnPropertyChanged(nameof(DisplayUserPrompt));
+    }
+
     partial void OnSelectedDecisionChanged(AiDecisionDetails? value)
     {
         UpdateGestureHud(value);
         IsViewingHistoricalRaw = value != null && !AutoFollowLatest;
         OnPropertyChanged(nameof(DisplayedRawOutput));
+        OnPropertyChanged(nameof(DisplaySystemPrompt));
+        OnPropertyChanged(nameof(DisplayUserPrompt));
     }
 
     partial void OnAutoFollowLatestChanged(bool value)
@@ -195,6 +253,8 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
             IsViewingHistoricalRaw = SelectedDecision != null;
         }
         OnPropertyChanged(nameof(DisplayedRawOutput));
+        OnPropertyChanged(nameof(DisplaySystemPrompt));
+        OnPropertyChanged(nameof(DisplayUserPrompt));
     }
 
     private readonly Func<Stream, Bitmap>? _bitmapFactory;
@@ -225,6 +285,15 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
     {
         lock (_streamLock)
         {
+            if (!string.IsNullOrWhiteSpace(chunk.SystemPrompt) && ActiveSystemPrompt != chunk.SystemPrompt)
+            {
+                ActiveSystemPrompt = chunk.SystemPrompt;
+            }
+            if (!string.IsNullOrWhiteSpace(chunk.UserPrompt) && ActiveUserPrompt != chunk.UserPrompt)
+            {
+                ActiveUserPrompt = chunk.UserPrompt;
+            }
+
             if (chunk.State == LlmStreamState.Preparing)
             {
                 ActiveInferenceId = chunk.InferenceId;
@@ -337,6 +406,8 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
         }
 
         OnPropertyChanged(nameof(DisplayedRawOutput));
+        OnPropertyChanged(nameof(DisplaySystemPrompt));
+        OnPropertyChanged(nameof(DisplayUserPrompt));
         OnPropertyChanged(nameof(IsStreamingActive));
         OnPropertyChanged(nameof(StreamStateBadge));
         OnPropertyChanged(nameof(StreamStateColor));
@@ -502,7 +573,11 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
         GestureHudTitle = null;
         GestureHudDetails = null;
         IsViewingHistoricalRaw = false;
+        ActiveSystemPrompt = null;
+        ActiveUserPrompt = null;
         OnPropertyChanged(nameof(DisplayedRawOutput));
+        OnPropertyChanged(nameof(DisplaySystemPrompt));
+        OnPropertyChanged(nameof(DisplayUserPrompt));
     }
 
     [RelayCommand]
@@ -542,6 +617,8 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
         IsViewingHistoricalRaw = false;
         AutoFollowLatest = true;
         OnPropertyChanged(nameof(DisplayedRawOutput));
+        OnPropertyChanged(nameof(DisplaySystemPrompt));
+        OnPropertyChanged(nameof(DisplayUserPrompt));
     }
 
     private void UpdateGestureHud(AiDecisionDetails? d)
@@ -748,7 +825,7 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public async Task CopySystemPromptAsync()
     {
-        var text = SelectedDecision?.SystemPrompt;
+        var text = DisplaySystemPrompt;
         if (!string.IsNullOrWhiteSpace(text))
         {
             await _clipboardService.SetTextAsync(text).ConfigureAwait(false);
@@ -758,7 +835,7 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     public async Task CopyUserPromptAsync()
     {
-        var text = SelectedDecision?.UserPrompt;
+        var text = DisplayUserPrompt;
         if (!string.IsNullOrWhiteSpace(text))
         {
             await _clipboardService.SetTextAsync(text).ConfigureAwait(false);

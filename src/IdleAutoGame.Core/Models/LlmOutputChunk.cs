@@ -64,5 +64,15 @@ public sealed record LlmOutputChunk
     /// Gets the finalized structured response when <see cref="State"/> is <see cref="LlmStreamState.Completed"/>.
     /// </summary>
     public LlmResponse? FinalResponse { get; init; }
+
+    /// <summary>
+    /// Gets the modular system prompt passed to the LLM for this inference attempt.
+    /// </summary>
+    public string? SystemPrompt { get; init; }
+
+    /// <summary>
+    /// Gets the user context prompt passed to the LLM for this inference attempt.
+    /// </summary>
+    public string? UserPrompt { get; init; }
 }
 

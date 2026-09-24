@@ -896,7 +896,12 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
             {
                 await foreach (var chunk in provider.StreamAnalyzeAsync(request, ct).ConfigureAwait(false))
                 {
-                    LlmChunkReceived?.Invoke(this, chunk);
+                    var enrichedChunk = chunk with
+                    {
+                        SystemPrompt = chunk.SystemPrompt ?? request.SystemPrompt,
+                        UserPrompt = chunk.UserPrompt ?? request.UserPrompt
+                    };
+                    LlmChunkReceived?.Invoke(this, enrichedChunk);
 
                     if (chunk.FinalResponse != null)
                     {

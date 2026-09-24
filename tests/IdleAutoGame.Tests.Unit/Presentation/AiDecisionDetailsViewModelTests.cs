@@ -619,6 +619,38 @@ public class AiDecisionDetailsViewModelTests
         clipboard.Text.Should().Be("TEST_USER_PROMPT_SENT_ABC");
     }
 
+    [Fact]
+    public async Task LiveStreaming_PopulatesActivePrompts_ImmediatelyOnChunk()
+    {
+        var clipboard = new FakeClipboardService();
+        var vm = new AiDecisionDetailsViewModel(_engine, _configService, clipboard);
+
+        // Before inference, prompts are null
+        vm.DisplaySystemPrompt.Should().BeNull();
+        vm.DisplayUserPrompt.Should().BeNull();
+
+        // LLM chunk arrives with system & user prompt during inference streaming
+        vm.OnLlmChunkReceived(this, new LlmOutputChunk
+        {
+            InferenceId = "active-test-inf",
+            State = LlmStreamState.Preparing,
+            ChunkIndex = 0,
+            SystemPrompt = "LIVE_SYSTEM_PROMPT_MODULAR",
+            UserPrompt = "LIVE_USER_PROMPT_CYCLE_1"
+        });
+        vm.FlushBufferToUi();
+
+        vm.DisplaySystemPrompt.Should().Be("LIVE_SYSTEM_PROMPT_MODULAR");
+        vm.DisplayUserPrompt.Should().Be("LIVE_USER_PROMPT_CYCLE_1");
+
+        // Can copy active prompts directly from UI even before cycle completion
+        await vm.CopySystemPromptAsync();
+        clipboard.Text.Should().Be("LIVE_SYSTEM_PROMPT_MODULAR");
+
+        await vm.CopyUserPromptAsync();
+        clipboard.Text.Should().Be("LIVE_USER_PROMPT_CYCLE_1");
+    }
+
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
     {
         private AppSettings _s;

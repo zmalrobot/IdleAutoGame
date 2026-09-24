@@ -176,6 +176,32 @@ public class DashboardViewModelTests
         _viewModel.IsStep2Active.Should().BeFalse();
     }
 
+    [Fact]
+    public void Dashboard_PopulatesPromptsImmediately_OnLlmChunkReceived()
+    {
+        // Before inference, prompts are null
+        _viewModel.SelectedCycleSystemPrompt.Should().BeNull();
+        _viewModel.SelectedCycleUserPrompt.Should().BeNull();
+
+        // Simulate engine emitting chunk with prompt data
+        var onChunkMethod = typeof(DashboardViewModel)
+            .GetMethod("OnEngineLlmChunkReceived", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        onChunkMethod?.Invoke(_viewModel, [_engine, new LlmOutputChunk
+        {
+            InferenceId = "chunk-test-1",
+            State = LlmStreamState.Preparing,
+            ChunkIndex = 0,
+            SystemPrompt = "DASHBOARD_LIVE_SYSTEM_PROMPT",
+            UserPrompt = "DASHBOARD_LIVE_USER_PROMPT"
+        }]);
+
+        // Prompts are populated immediately in the dashboard ViewModel
+        _viewModel.LastSystemPrompt.Should().Be("DASHBOARD_LIVE_SYSTEM_PROMPT");
+        _viewModel.LastUserPrompt.Should().Be("DASHBOARD_LIVE_USER_PROMPT");
+        _viewModel.SelectedCycleSystemPrompt.Should().Be("DASHBOARD_LIVE_SYSTEM_PROMPT");
+        _viewModel.SelectedCycleUserPrompt.Should().Be("DASHBOARD_LIVE_USER_PROMPT");
+    }
+
     private class InMemorySettingsRepo : IdleAutoGame.Core.Interfaces.ISettingsRepository
     {
         private AppSettings _s = new();

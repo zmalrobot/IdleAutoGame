@@ -338,7 +338,7 @@
                                                     Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
                                                     BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="10" Padding="8,3" CornerRadius="4"/>
                                         </DockPanel>
-                                        <TextBox Text="{Binding SelectedDecision.SystemPrompt, FallbackValue='(Nessun system prompt registrato)', TargetNullValue='(Nessun system prompt registrato)'}"
+                                        <TextBox Text="{Binding DisplaySystemPrompt, FallbackValue='(Nessun system prompt registrato)', TargetNullValue='(Nessun system prompt registrato)'}"
                                                  IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                                                  FontFamily="Consolas, 'Cascadia Code', monospace" FontSize="11"
                                                  MaxHeight="160" Background="#0D1117" Foreground="#58A6FF"
@@ -356,7 +356,7 @@
                                                     Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextSecondaryBrush}"
                                                     BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" FontSize="10" Padding="8,3" CornerRadius="4"/>
                                         </DockPanel>
-                                        <TextBox Text="{Binding SelectedDecision.UserPrompt, FallbackValue='(Nessun user prompt registrato)', TargetNullValue='(Nessun user prompt registrato)'}"
+                                        <TextBox Text="{Binding DisplayUserPrompt, FallbackValue='(Nessun user prompt registrato)', TargetNullValue='(Nessun user prompt registrato)'}"
                                                  IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                                                  FontFamily="Consolas, 'Cascadia Code', monospace" FontSize="11"
                                                  MaxHeight="160" Background="#0D1117" Foreground="#58A6FF"
