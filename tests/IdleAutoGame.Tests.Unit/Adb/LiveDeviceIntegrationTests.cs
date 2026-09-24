@@ -5,9 +5,11 @@ using IdleAutoGame.Application.Engine;
 using IdleAutoGame.Application.Pipeline;
 using IdleAutoGame.Application.Prompts;
 using IdleAutoGame.Core.Enums;
+using IdleAutoGame.Core.Interfaces;
 using IdleAutoGame.Core.Models;
 using IdleAutoGame.Games.TapTitans2;
 using IdleAutoGame.Infrastructure.Adb;
+using IdleAutoGame.Infrastructure.Llm;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -156,5 +158,68 @@ public class LiveDeviceIntegrationTests
         sessionState.FarmingBurstsSinceCheck.Should().Be(1);
 
         _output.WriteLine($"Verifica completata con successo! Stato di sessione: {sessionState.ToCompactJson(false, false)}");
+    }
+
+    [Fact]
+    public async Task LiveDevice_RunActualLlmInferenceOnCurrentScreen()
+    {
+        var adbClient = new AdbClient();
+        var controller = new AdbDeviceController(adbClient);
+
+        var rawScreenshot = await controller.CaptureScreenshotAsync(TargetSerial);
+        rawScreenshot.Should().NotBeNull();
+        ScreenshotPipeline.Process(rawScreenshot, out string base64Payload, out _);
+
+        var game = new TapTitans2Definition();
+        var sessionState = new SessionState
+        {
+            InitializationComplete = false,
+            UpgradeCheckDue = true
+        };
+        var policy = new GamePolicy { AllowPremiumCurrency = false, AllowCreditPurchases = false };
+
+        var systemPrompt = PromptBuilder.BuildModularSystemPrompt(game, sessionState, policy: policy);
+        var userPrompt = PromptBuilder.BuildUserPrompt(1, TimeSpan.FromSeconds(2), sessionState: sessionState);
+
+        var modelPath = "/home/simone/.local/share/IdleAutoGame/models/qwen3-vl-8b-instruct.gguf";
+        var llmSettings = new LlmSettings
+        {
+            SelectedModelId = "qwen3-vl-8b-instruct",
+            Provider = "LLamaSharp",
+            ContextSize = 16384,
+            MaxTokens = 1024,
+            Temperature = 0.2,
+            UseGpu = true,
+            ThreadCount = 8
+        };
+
+        using var provider = new LocalLlamaProvider();
+        provider.StatusChanged += (s, e) => _output.WriteLine($"[LLM Status] {e.Phase}: {e.Message}");
+
+        _output.WriteLine($"Loading model from {modelPath}...");
+        await provider.LoadModelAsync(modelPath, llmSettings);
+        _output.WriteLine($"Model loaded. MultimodalLoaded: {provider.IsMultimodalLoaded}, Backend: {provider.CurrentBackend}");
+
+        var request = new LlmRequest
+        {
+            ScreenshotBase64 = base64Payload,
+            SystemPrompt = systemPrompt,
+            UserPrompt = userPrompt,
+            Temperature = 0.2,
+            MaxTokens = 1024
+        };
+
+        _output.WriteLine("Starting inference cycle 1...");
+        var response = await provider.AnalyzeAsync(request);
+
+        _output.WriteLine($"Cycle 1 finished in {response.LatencyMs}ms. IsSuccess: {response.IsSuccess}");
+        _output.WriteLine($"RawContent 1:\n{response.RawContent}");
+        response.IsSuccess.Should().BeTrue($"Ciclo 1 deve avere successo: {response.Error}");
+
+        _output.WriteLine("Starting inference cycle 2...");
+        var response2 = await provider.AnalyzeAsync(request);
+        _output.WriteLine($"Cycle 2 finished in {response2.LatencyMs}ms. IsSuccess: {response2.IsSuccess}");
+        _output.WriteLine($"RawContent 2:\n{response2.RawContent}");
+        response2.IsSuccess.Should().BeTrue($"Ciclo 2 deve avere successo: {response2.Error}");
     }
 }

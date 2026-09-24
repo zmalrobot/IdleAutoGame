@@ -51,15 +51,7 @@ public static class GenericMicroPrompts
         3. DO NOT use hardcoded coordinates or fixed layout assumptions.
         4. If the target is occluded, moved, or ambiguous: DO NOT GUESS. Report target_found = false.
         5. Check against forbidden regions: if the center falls inside a forbidden rectangle, reject the target.
-
-        [OUTPUT JSON]
-        {
-          "target_found": true | false,
-          "target_name": "string",
-          "x": 0.50,
-          "y": 0.50,
-          "confidence": 0.95
-        }
+        6. Incorporate normalized center coordinates into the final action parameters: "x", "y", and "target".
         """;
 
     /// <summary>
@@ -78,13 +70,9 @@ public static class GenericMicroPrompts
         - "ad": Commercial advertisement overlay.
         - "normal": Standard idle/farming combat arena.
         - "unknown": Ambiguous screen not matching any of the above.
-
-        [OUTPUT JSON]
-        {
-          "state": "dialog | boss_fight | menu | shop | loading | ad | normal | unknown",
-          "primary_element": "short description of main visible feature",
-          "confidence": 0.95
-        }
+        
+        [STATE ASSESSMENT GUIDELINES]
+        Record the classified state name into the final action "game_state" field.
         """;
 
     /// <summary>
@@ -151,13 +139,7 @@ public static class GenericMicroPrompts
         3. If the screen changed as intended:
            - Mark action_succeeded = true.
            - Reset stuck_count = 0.
-
-        [OUTPUT JSON]
-        {
-          "action_succeeded": true | false,
-          "screen_changed": true | false,
-          "observation": "concise description of what changed"
-        }
+        4. Record visual changes into the "observation_summary" of the decision.
         """;
 
     /// <summary>
@@ -192,13 +174,6 @@ public static class GenericMicroPrompts
            - affordable = false. DO NOT TAP THE PURCHASE BUTTON.
         5. If resource text or price is unreadable or blurry:
            - affordable = false. Do not guess.
-
-        [OUTPUT JSON]
-        {
-          "available_resource": "string",
-          "item_price": "string",
-          "affordable": true | false
-        }
         """;
 
     /// <summary>
@@ -221,13 +196,7 @@ public static class GenericMicroPrompts
         3. REAL MONEY (EUR, USD, credit purchase):
            - IF real_money_purchase_enabled == true: Allowed ONLY with explicit visual authorization.
            - IF real_money_purchase_enabled == false: STRICTLY FORBIDDEN. Abort checkout immediately.
-
-        [OUTPUT JSON]
-        {
-          "authorized": true | false,
-          "currency_type": "normal | premium | real_money",
-          "rejection_action": "close | back | do_nothing | null"
-        }
+        4. Record currency type ("normal", "premium_currency", or "credit_purchase") in the action "category" field.
         """;
 
     /// <summary>

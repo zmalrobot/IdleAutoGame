@@ -226,7 +226,7 @@ public sealed class LlmSettings
     /// <summary>
     /// Maximum completion tokens requested from the model.
     /// </summary>
-    public int MaxTokens { get; set; } = 1024;
+    public int MaxTokens { get; set; } = 512;
 
     /// <summary>
     /// Default cross-platform storage directory for downloaded local GGUF models.

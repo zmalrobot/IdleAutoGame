@@ -925,6 +925,17 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                     // Best effort cache reset
                 }
             }
+            if (_clipModel != null && _context != null)
+            {
+                try
+                {
+                    _executor = new InteractiveExecutor(_context, _clipModel, null);
+                }
+                catch
+                {
+                    // Best effort executor recreation
+                }
+            }
             _inferenceLock.Release();
         }
     }
@@ -1005,7 +1016,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             var promptBuilder = new StringBuilder();
             promptBuilder.AppendLine("<|im_start|>system");
             promptBuilder.AppendLine(request.SystemPrompt);
-            promptBuilder.AppendLine("Respond strictly with valid JSON conforming to the requested GameAction schema. Do NOT wrap in <think> tags. Do NOT provide reasoning outside JSON. Start your response immediately with '{'.");
+            promptBuilder.AppendLine("Respond strictly with valid JSON conforming to the requested GameAction schema. Do NOT wrap in <think> tags. Do NOT provide reasoning outside JSON.");
             promptBuilder.AppendLine("<|im_end|>");
             promptBuilder.AppendLine("<|im_start|>user");
             if (!string.IsNullOrEmpty(imageMarker))
@@ -1014,9 +1025,10 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             }
             promptBuilder.AppendLine(request.UserPrompt);
             promptBuilder.AppendLine("<|im_end|>");
-            promptBuilder.AppendLine("<|im_start|>assistant");
+            promptBuilder.Append("<|im_start|>assistant\n{\n");
 
             var prompt = promptBuilder.ToString();
+            outputBuilder.Append("{\n");
 
             var sampling = new DefaultSamplingPipeline
             {
@@ -1081,7 +1093,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             }
 
             var rawContent = outputBuilder.ToString().Trim();
-            bool isParsed = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
+            bool isSuccess = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
 
             SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);
 
@@ -1089,8 +1101,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             {
                 RawContent = rawContent,
                 ParsedAction = parsedAction,
-                IsSuccess = isParsed,
-                Error = isParsed ? null : parseError ?? "Failed to parse structured GameAction from local model output.",
+                IsSuccess = isSuccess,
+                Error = isSuccess ? null : parseError ?? "Failed to parse structured GameAction from local model output.",
                 LatencyMs = totalMs,
                 TokensUsed = tokenCount
             };
@@ -1124,7 +1136,18 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                     // Best effort memory clear
                 }
             }
-            if (_executor is StatefulExecutorBase sExec)
+            if (_clipModel != null && _context != null)
+            {
+                try
+                {
+                    _executor = new InteractiveExecutor(_context, _clipModel, null);
+                }
+                catch
+                {
+                    // Best effort executor recreation
+                }
+            }
+            else if (_executor is StatefulExecutorBase sExec)
             {
                 sExec.Embeds.Clear();
             }

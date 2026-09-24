@@ -39,11 +39,8 @@ public static class TapTitans2MicroPrompts
         5. Gold has increased significantly (e.g. by an order of magnitude)
         6. farming_bursts_since_check >= 4
 
-        [OUTPUT JSON]
-        {
-          "upgrade_check_due": true | false,
-          "reason": "burst_limit_reached | boss_finished | badge_visible | session_start"
-        }
+        [TRIGGER ACTION]
+        If an upgrade check is due, your tactical decision must be to open the Sword Master or Heroes menu.
         """;
 
     /// <summary>

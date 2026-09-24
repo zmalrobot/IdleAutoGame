@@ -179,18 +179,28 @@ public static class PromptBuilder
 
         var sb = new StringBuilder();
 
-        // 1. Generic Foundation Micro-Prompts (Strictly Modular)
-        sb.AppendLine("### 1. SYSTEM CORE & SAFETY");
-        sb.AppendLine(Resolve("generic_core", IdleAutoGame.Core.Prompts.GenericMicroPrompts.Core));
-        sb.AppendLine();
-        sb.AppendLine(Resolve("generic_safety", IdleAutoGame.Core.Prompts.GenericMicroPrompts.Safety));
-        sb.AppendLine();
-        sb.AppendLine(Resolve("generic_visual_grounding", IdleAutoGame.Core.Prompts.GenericMicroPrompts.VisualGrounding));
-        sb.AppendLine();
-        sb.AppendLine(Resolve("generic_purchase_policy", IdleAutoGame.Core.Prompts.GenericMicroPrompts.PurchasePolicy));
-        sb.AppendLine();
-        sb.AppendLine(Resolve("generic_action_executor", IdleAutoGame.Core.Prompts.GenericMicroPrompts.ActionExecutor));
-        sb.AppendLine();
+        // 1. Generic Foundation Micro-Prompts
+        if (!string.IsNullOrWhiteSpace(genericSystemPrompt) &&
+            !string.Equals(genericSystemPrompt.Trim(), LlmSettings.DefaultGenericSystemPrompt.Trim(), StringComparison.Ordinal))
+        {
+            sb.AppendLine("### 1. SYSTEM CONSTRAINTS & ROLE INSTRUCTIONS");
+            sb.AppendLine(genericSystemPrompt.Trim());
+            sb.AppendLine();
+        }
+        else
+        {
+            sb.AppendLine("### 1. SYSTEM CORE & SAFETY");
+            sb.AppendLine(Resolve("generic_core", IdleAutoGame.Core.Prompts.GenericMicroPrompts.Core));
+            sb.AppendLine();
+            sb.AppendLine(Resolve("generic_safety", IdleAutoGame.Core.Prompts.GenericMicroPrompts.Safety));
+            sb.AppendLine();
+            sb.AppendLine(Resolve("generic_visual_grounding", IdleAutoGame.Core.Prompts.GenericMicroPrompts.VisualGrounding));
+            sb.AppendLine();
+            sb.AppendLine(Resolve("generic_purchase_policy", IdleAutoGame.Core.Prompts.GenericMicroPrompts.PurchasePolicy));
+            sb.AppendLine();
+            sb.AppendLine(Resolve("generic_action_executor", IdleAutoGame.Core.Prompts.GenericMicroPrompts.ActionExecutor));
+            sb.AppendLine();
+        }
 
         // 1.1 Binding Application Security Policy
         var effectivePolicy = policy ?? GamePolicy.Default;

@@ -46,25 +46,46 @@ public static class LlmResponseParser
             return false;
         }
 
-        // Clean markdown code blocks and reasoning tags
-        var cleaned = CleanMarkdownFences(rawContent);
+        var candidates = ExtractJsonCandidates(rawContent);
+        string? lastError = null;
 
-        JsonDocument doc;
-        try
+        foreach (var candidate in candidates)
         {
-            doc = JsonDocument.Parse(cleaned);
-        }
-        catch (JsonException ex)
-        {
-            errorMessage = $"Malformed JSON structure: {ex.Message}";
-            return false;
-        }
-
-        try
-        {
-            using (doc)
+            JsonDocument doc;
+            try
             {
-                var root = doc.RootElement;
+                doc = JsonDocument.Parse(candidate);
+            }
+            catch (JsonException ex)
+            {
+                lastError = $"Malformed JSON structure: {ex.Message}";
+                continue;
+            }
+
+            if (TryParseJsonDocument(doc, out parsedAction, out var docError))
+            {
+                return true;
+            }
+            lastError = docError;
+        }
+
+        errorMessage = lastError ?? "No valid GameAction JSON found in LLM response.";
+        return false;
+    }
+
+    private static bool TryParseJsonDocument(JsonDocument doc, out GameAction? parsedAction, out string? errorMessage)
+    {
+        parsedAction = null;
+        errorMessage = null;
+
+        try
+        {
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                errorMessage = "JSON root is not an object.";
+                return false;
+            }
 
                 // Support "action", "next_action", or "action_type"
                 string? actionStr = null;
@@ -270,7 +291,6 @@ public static class LlmResponseParser
                 };
 
                 return true;
-            }
         }
         catch (Exception ex)
         {
@@ -279,35 +299,92 @@ public static class LlmResponseParser
         }
     }
 
-    private static string CleanMarkdownFences(string input)
+    private static List<string> ExtractJsonCandidates(string rawContent)
     {
-        var trimmed = input.Trim();
+        var candidates = new List<string>();
+        if (string.IsNullOrWhiteSpace(rawContent)) return candidates;
 
-        // 1. Strip <think>...</think> reasoning blocks (and unclosed <think>... blocks if model reached token limit while thinking)
-        trimmed = Regex.Replace(trimmed, @"<think>[\s\S]*?(?:</think>|$)", "", RegexOptions.IgnoreCase).Trim();
+        // 1. Strip <think>...</think> reasoning blocks
+        var cleaned = Regex.Replace(rawContent, @"<think>[\s\S]*?(?:</think>|$)", "", RegexOptions.IgnoreCase).Trim();
 
-        // 2. Extract JSON content inside markdown code blocks
-        var match = Regex.Match(trimmed, @"```(?:json)?\s*([\s\S]*?)\s*```", RegexOptions.IgnoreCase);
-        if (match.Success)
+        // 2. Extract JSON content inside markdown code blocks ```json ... ```
+        var codeBlockMatches = Regex.Matches(cleaned, @"```(?:json)?\s*([\s\S]*?)\s*```", RegexOptions.IgnoreCase);
+        foreach (Match match in codeBlockMatches)
         {
-            return match.Groups[1].Value.Trim();
+            var content = match.Groups[1].Value.Trim();
+            if (!string.IsNullOrEmpty(content) && !candidates.Contains(content))
+            {
+                candidates.Add(content);
+            }
         }
 
-        // 3. Fallback: extract outermost JSON object if LLM provided conversational commentary
-        var jsonObjMatch = Regex.Match(trimmed, @"\{[\s\S]*\}");
+        // 3. Scan for all top-level balanced { ... } blocks
+        int depth = 0;
+        int startIndex = -1;
+        bool inString = false;
+        bool escapeNext = false;
+
+        for (int i = 0; i < cleaned.Length; i++)
+        {
+            char c = cleaned[i];
+            if (escapeNext)
+            {
+                escapeNext = false;
+                continue;
+            }
+            if (c == '\\' && inString)
+            {
+                escapeNext = true;
+                continue;
+            }
+            if (c == '"')
+            {
+                inString = !inString;
+                continue;
+            }
+            if (inString) continue;
+
+            if (c == '{')
+            {
+                if (depth == 0)
+                {
+                    startIndex = i;
+                }
+                depth++;
+            }
+            else if (c == '}' && depth > 0)
+            {
+                depth--;
+                if (depth == 0 && startIndex >= 0)
+                {
+                    var block = cleaned.Substring(startIndex, i - startIndex + 1).Trim();
+                    if (!string.IsNullOrEmpty(block) && !candidates.Contains(block))
+                    {
+                        candidates.Add(block);
+                    }
+                    startIndex = -1;
+                }
+            }
+        }
+
+        // 4. Fallback: extract outermost JSON object if LLM output had unbalanced outer wrapper
+        var jsonObjMatch = Regex.Match(cleaned, @"\{[\s\S]*\}");
         if (jsonObjMatch.Success)
         {
-            return jsonObjMatch.Value.Trim();
+            var outer = jsonObjMatch.Value.Trim();
+            if (!candidates.Contains(outer))
+            {
+                candidates.Add(outer);
+            }
         }
 
-        // 4. Fallback: if starts with or contains '{', take from first '{'
-        int firstBrace = trimmed.IndexOf('{');
-        if (firstBrace >= 0)
+        // 5. Final fallback to cleaned text itself
+        if (candidates.Count == 0)
         {
-            return trimmed.Substring(firstBrace).Trim();
+            candidates.Add(cleaned);
         }
 
-        return trimmed;
+        return candidates;
     }
 
 

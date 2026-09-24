@@ -413,6 +413,45 @@ public class LlmResponseParserTests
         action.Parameters.Target.Should().Be("UpgradeButton");
         action.GameState.Should().Be(GameStateAssessment.Menu);
     }
+
+    [Fact]
+    public void TryParse_MultipleSequentialJsonObjects_ExtractsActionObject()
+    {
+        var raw = """
+        {
+          "target_found": true,
+          "target_name": "Sword Master tab",
+          "x": 0.12,
+          "y": 0.88,
+          "confidence": 0.98
+        }
+        {
+          "authorized": true,
+          "currency_type": "normal",
+          "rejection_action": "null"
+        }
+        {
+          "action": "tap",
+          "parameters": {
+            "x": 0.12,
+            "y": 0.88,
+            "target": "Sword Master tab"
+          },
+          "explanation": "Open Sword Master tab to initiate startup sequence.",
+          "confidence": 0.99
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(raw, out var action, out var error);
+
+        ok.Should().BeTrue(error);
+        action.Should().NotBeNull();
+        action!.Action.Should().Be(ActionType.Tap);
+        action.Parameters.X.Should().Be(0.12);
+        action.Parameters.Y.Should().Be(0.88);
+        action.Parameters.Target.Should().Be("Sword Master tab");
+        action.Explanation.Should().Be("Open Sword Master tab to initiate startup sequence.");
+    }
 }
 
 
