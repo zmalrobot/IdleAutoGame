@@ -113,6 +113,7 @@ public static class GenericMicroPrompts
 
         [CONTRACT RULES]
         Output exactly one raw JSON object matching:
+        CRITICAL: Do NOT wrap in <think> tags. Do NOT provide reasoning outside JSON. Start your response immediately with '{'.
         {
           "action": "tap | multi_tap | double_tap | long_press | swipe | drag | scroll | back | wait | do_nothing",
           "parameters": {

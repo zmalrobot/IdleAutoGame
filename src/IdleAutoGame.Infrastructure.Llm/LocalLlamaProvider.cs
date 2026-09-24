@@ -1005,7 +1005,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             var promptBuilder = new StringBuilder();
             promptBuilder.AppendLine("<|im_start|>system");
             promptBuilder.AppendLine(request.SystemPrompt);
-            promptBuilder.AppendLine("Respond strictly with valid JSON conforming to the requested GameAction schema.");
+            promptBuilder.AppendLine("Respond strictly with valid JSON conforming to the requested GameAction schema. Do NOT wrap in <think> tags. Do NOT provide reasoning outside JSON. Start your response immediately with '{'.");
             promptBuilder.AppendLine("<|im_end|>");
             promptBuilder.AppendLine("<|im_start|>user");
             if (!string.IsNullOrEmpty(imageMarker))
@@ -1081,7 +1081,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             }
 
             var rawContent = outputBuilder.ToString().Trim();
-            var parsedAction = LlmResponseParser.Parse(rawContent);
+            bool isParsed = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
 
             SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);
 
@@ -1089,8 +1089,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             {
                 RawContent = rawContent,
                 ParsedAction = parsedAction,
-                IsSuccess = parsedAction != null,
-                Error = parsedAction != null ? null : "Failed to parse structured GameAction from local model output.",
+                IsSuccess = isParsed,
+                Error = isParsed ? null : parseError ?? "Failed to parse structured GameAction from local model output.",
                 LatencyMs = totalMs,
                 TokensUsed = tokenCount
             };

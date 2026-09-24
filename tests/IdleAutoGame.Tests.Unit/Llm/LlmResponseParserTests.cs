@@ -348,6 +348,71 @@ public class LlmResponseParserTests
         action.Parameters.EndY.Should().Be(0.5);
         action.Parameters.DurationMs.Should().Be(350);
     }
+
+    [Fact]
+    public void TryParse_WithThinkingTags_StripsThinkingAndParsesAction()
+    {
+        var raw = """
+        <think>
+        Looking at the screen, heroes tab is open.
+        Sophia costs 800 gold. Current gold is 33.45K.
+        Button is located at x=0.85, y=0.76.
+        </think>
+        ```json
+        {
+          "action": "tap",
+          "parameters": {
+            "x": 0.85,
+            "y": 0.76,
+            "target": "Sophia Arruola"
+          },
+          "game_state": "menu",
+          "confidence": 0.95,
+          "decision_summary": "Recruit Sophia"
+        }
+        ```
+        """;
+
+        var ok = LlmResponseParser.TryParse(raw, out var action, out var error);
+
+        ok.Should().BeTrue(error);
+        action.Should().NotBeNull();
+        action!.Action.Should().Be(ActionType.Tap);
+        action.Parameters.X.Should().Be(0.85);
+        action.Parameters.Y.Should().Be(0.76);
+        action.Parameters.Target.Should().Be("Sophia Arruola");
+        action.Explanation.Should().Be("Recruit Sophia");
+    }
+
+
+
+    [Fact]
+    public void TryParse_WithNextActionAndStateAliases_ParsesActionAndState()
+    {
+        var raw = """
+        {
+          "next_action": "tap",
+          "target": {
+            "x": 0.72,
+            "y": 0.41,
+            "name": "UpgradeButton"
+          },
+          "state": "menu",
+          "confidence": 0.94,
+          "decision_summary": "Tap upgrade button"
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(raw, out var action, out var error);
+
+        ok.Should().BeTrue(error);
+        action.Should().NotBeNull();
+        action!.Action.Should().Be(ActionType.Tap);
+        action.Parameters.X.Should().Be(0.72);
+        action.Parameters.Y.Should().Be(0.41);
+        action.Parameters.Target.Should().Be("UpgradeButton");
+        action.GameState.Should().Be(GameStateAssessment.Menu);
+    }
 }
 
 

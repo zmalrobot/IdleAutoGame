@@ -660,8 +660,9 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
                     if (!llmResponse.IsSuccess || llmResponse.ParsedAction == null)
                     {
-                        errors.Add(llmResponse.Error ?? "LLM analysis failed to produce a valid action.");
-                        await HandleErrorPolicyAsync("LLM inference failure", cycleCt).ConfigureAwait(false);
+                        var failureReason = llmResponse.Error ?? "LLM analysis failed to produce a valid action.";
+                        errors.Add(failureReason);
+                        await HandleErrorPolicyAsync(failureReason, cycleCt).ConfigureAwait(false);
                         continue;
                     }
 
