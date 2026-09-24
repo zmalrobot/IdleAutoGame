@@ -236,4 +236,38 @@ public class ModularPromptTests
         userPrompt.Should().Contain("\"upgrade_check_due\":true");
         userPrompt.Should().Contain("\"farming_bursts_since_check\":4");
     }
+
+    [Fact]
+    public void TapTitans2MicroPrompts_SupportsItalianLocalizationTerms()
+    {
+        var modules = TapTitans2MicroPrompts.All;
+
+        // Boss module Italian terms & critical safety retreat prevention
+        modules["TT2_BOSS"].Should().Contain("COMBATTI IL BOSS");
+        modules["TT2_BOSS"].Should().Contain("ABBANDONA LA BATTAGLIA");
+
+        // Hero upgrade module Italian button keywords
+        modules["TT2_HERO_UPGRADE"].Should().Contain("Arruola");
+        modules["TT2_HERO_UPGRADE"].Should().Contain("Livello successivo");
+
+        // Upgrade check module Italian labels and spell headers
+        modules["TT2_UPGRADE_CHECK"].Should().Contain("Livello successivo");
+        modules["TT2_UPGRADE_CHECK"].Should().Contain("Incantesimi");
+        modules["TT2_UPGRADE_CHECK"].Should().Contain("Guarda Un Video");
+
+        // Skill names in Italian
+        modules["TT2_SKILLS"].Should().Contain("Attacco celestiale");
+        modules["TT2_SKILLS"].Should().Contain("Colpo Mortale");
+        modules["TT2_SKILLS"].Should().Contain("Grido di Guerra");
+        modules["TT2_SKILLS"].Should().Contain("Mano di Mida");
+        modules["TT2_SKILLS"].Should().Contain("Clone d'ombra");
+
+        // UI rules Italian keywords & critical button distinction
+        modules["TT2_UI_RULES"].Should().Contain("Arruola");
+        modules["TT2_UI_RULES"].Should().Contain("Livello successivo");
+        modules["TT2_UI_RULES"].Should().Contain("COMBATTI IL BOSS");
+        modules["TT2_UI_RULES"].Should().Contain("ABBANDONA LA BATTAGLIA");
+        modules["TT2_UI_RULES"].Should().Contain("Guarda Un Video");
+        modules["TT2_UI_RULES"].Should().Contain("Raccogli!");
+    }
 }

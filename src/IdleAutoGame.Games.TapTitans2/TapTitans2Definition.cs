@@ -125,8 +125,9 @@ public sealed class TapTitans2Definition : IModularGameDefinition
         * active boss combat
 
         → game_state = "boss_active"
-        → attack the boss
+        → attack the boss in the center combat arena
         → check skills visually
+        → CRITICAL: The top-right button displays "ABBANDONA LA BATTAGLIA" (Abandon Battle). DO NOT tap it during boss combat!
         → continue until the boss dies or the timer expires.
 
         Do NOT open upgrade menus during an active boss fight.
@@ -413,6 +414,7 @@ public sealed class TapTitans2Definition : IModularGameDefinition
         → identify the boss target from the screenshot
         → attack repeatedly in short bursts
         → OBSERVE between bursts.
+        → DO NOT tap "ABBANDONA LA BATTAGLIA" (Abandon Battle) at the top right, as it forfeits the fight!
 
         After each burst check:
 
@@ -443,6 +445,9 @@ public sealed class TapTitans2Definition : IModularGameDefinition
 
         There are six skills, but do NOT rely on fixed positions.
 
+        Italian skill names: "Attacco celestiale", "Colpo Mortale", "Grido di Guerra", "Mano di Mida", "Clone d'ombra".
+        In the Sword Master menu, skills are listed under the "Incantesimi" header.
+
         Identify each skill visually from the screenshot.
 
         A skill is READY when:
@@ -460,8 +465,8 @@ public sealed class TapTitans2Definition : IModularGameDefinition
         → activate ALL ready skills.
 
         During normal farming:
-        → prioritize Hand of Midas when ready
-        → use Shadow Clone when ready.
+        → prioritize Hand of Midas ("Mano di Mida") when ready
+        → use Shadow Clone ("Clone d'ombra") when ready.
 
         Never repeatedly tap a skill that is visibly unavailable.
 

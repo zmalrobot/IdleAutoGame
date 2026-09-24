@@ -15,11 +15,11 @@ public static class TapTitans2MicroPrompts
 
         [MANDATORY STARTUP WORKFLOW]
         At session start, NORMAL FARMING IS STRICTLY FORBIDDEN until upgrade systems are verified.
-        Step 1: Locate Sword Master tab at bottom navigation -> Tap to open.
-        Step 2: Verify Sword Master panel opened -> Inspect upgrades -> Purchase affordable ones.
-        Step 3: Locate Heroes tab at bottom navigation -> Tap to open.
-        Step 4: Verify Heroes panel opened -> Inspect heroes -> Purchase affordable recruit/level-ups.
-        Step 5: Exit menu (tap active tab again or neutral area).
+        Step 1: Locate Sword Master tab (sword icon, "Maestro Spada") at bottom navigation -> Tap to open.
+        Step 2: Verify Sword Master panel opened -> Inspect upgrades ("Livello successivo" / "Incantesimi") -> Purchase affordable ones with gold.
+        Step 3: Locate Heroes tab (helmet icon, "Eroi") at bottom navigation -> Tap to open.
+        Step 4: Verify Heroes panel opened -> Inspect heroes -> Purchase affordable recruit ("Arruola") or level-ups ("Livello successivo").
+        Step 5: Exit menu (tap active tab again, or tap the panel close 'X' button at top right of drawer).
         Step 6: Mark initialization_complete = true. Only now can normal combat farming begin.
         """;
 
@@ -54,13 +54,18 @@ public static class TapTitans2MicroPrompts
         Handle the inspection and purchase of Sword Master upgrades.
 
         [RULES]
-        1. Locate the Sword Master tab (bottom left) and verify it is open.
+        1. Locate the Sword Master tab (bottom left, sword icon) and verify it is open.
         2. Read current gold at top of screen.
-        3. Identify visible upgrade buttons. Distinguish real buttons (with gold cost) from informational labels.
+        3. Identify visible upgrade buttons:
+           - Look for "[cost] Livello successivo +[amount] DPS".
+           - Inspect the "Incantesimi" (Spells) section for available spell unlocks/upgrades.
+           - Distinguish real purchase buttons (with gold cost) from informational labels (e.g. "Danno tocco").
         4. If button cost <= current gold:
            - Tap the center of the upgrade button.
            - Observe next screenshot to confirm purchase and updated gold.
-        5. If no affordable upgrades remain in Sword Master:
+        5. In "Vantaggi" (Perks), DO NOT tap buttons with "Guarda Un Video" or diamond costs unless authorized.
+        6. To close the panel, tap the active tab again or tap the close button ('X') on the drawer header bar.
+        7. If no affordable upgrades remain in Sword Master:
            - Transition to Heroes menu or return to combat.
         """;
 
@@ -72,15 +77,17 @@ public static class TapTitans2MicroPrompts
         Handle hero recruitments and level-ups in the Heroes panel.
 
         [RULES]
-        1. Visually identify the Heroes tab (bottom bar, second tab) and open it.
-        2. Verify panel is open. Read visible hero cards.
-        3. Look for "Arruola" (Recruit) or "Livello successivo" (Level Up) with an affordable gold cost.
+        1. Visually identify the Heroes tab (bottom bar, second tab with helmet icon, "Eroi") and open it.
+        2. Verify panel is open (header displays "DPS eroe"). Read visible hero cards.
+        3. Look for buttons with gold cost:
+           - "Arruola" (Recruit newly available hero at Lv 0).
+           - "Livello successivo" (Level up existing hero at Lv >= 1).
         4. Buy affordable upgrades from top to bottom.
         5. If no visible heroes can be upgraded:
            - Perform at most ONE controlled downward scroll to inspect the next batch.
            - Inspect newly visible heroes.
            - Do NOT scroll more than 2 times total per check.
-        6. When done, close the menu and reset farming_bursts_since_check = 0.
+        6. When done, close the menu (tap active tab again or tap 'X' on drawer header bar) and reset farming_bursts_since_check = 0.
         """;
 
     /// <summary>
@@ -91,17 +98,20 @@ public static class TapTitans2MicroPrompts
         Manage boss encounters in Tap Titans 2.
 
         [RULES]
-        Case A: Boss Available ("COMBATTI IL BOSS" / "FIGHT BOSS" visible near top right)
-        - Locate the Fight Boss button visually.
+        Case A: Boss Available ("COMBATTI IL BOSS" / "FIGHT BOSS" visible near top right with skull icon)
+        - Locate the "COMBATTI IL BOSS" button visually.
         - Tap it to initiate boss fight. Set state = "boss_active".
 
-        Case B: Active Boss Combat (Boss health bar and countdown timer visible)
+        Case B: Active Boss Combat (Boss health bar, boss name, and countdown timer e.g. "8.9s" visible)
+        - CRITICAL: The top-right button changes to "ABBANDONA LA BATTAGLIA" (Abandon Battle).
+          DO NOT TAP "ABBANDONA LA BATTAGLIA" during boss combat! Tapping it forfeits the fight.
         - DO NOT open upgrade menus during an active boss fight.
-        - Attack the boss titan using rapid multi-tap bursts (count: 10, interval: 40-50ms).
-        - Activate all visibly ready skills.
+        - Attack the boss titan in the center combat arena using rapid multi-tap bursts (count: 10, interval: 40-50ms).
+        - Activate all visibly ready skills ("Incantesimi").
         - Observe after each burst:
           - If boss defeated -> set last_boss_result = "defeated", upgrade_check_due = true.
-          - If timer expires without defeat -> set last_boss_result = "timeout", upgrade_check_due = true. Do NOT immediately re-engage boss; farm gold first.
+          - If timer expires without defeat -> screen returns to normal titan and "COMBATTI IL BOSS" reappears.
+            Set last_boss_result = "timeout", upgrade_check_due = true. Do NOT immediately re-engage boss; farm gold and upgrade first.
         """;
 
     /// <summary>
@@ -109,19 +119,26 @@ public static class TapTitans2MicroPrompts
     /// </summary>
     public const string Skills = """
         [ROLE]
-        Visually identify skill readiness and decide skill activations.
+        Visually identify skill readiness and decide skill activations in Tap Titans 2.
+
+        [SKILL NAMES (ITALIAN & ENGLISH)]
+        1. "Attacco celestiale" (Heavenly Strike)
+        2. "Colpo Mortale" (Deadly Strike)
+        3. "Grido di Guerra" (War Cry)
+        4. "Mano di Mida" (Hand of Midas)
+        5. "Clone d'ombra" (Shadow Clone)
 
         [VISUAL RECOGNITION]
-        - READY: Skill icon is brightly colored and vibrant.
-        - NOT READY: Skill icon is darkened, grayed out, or displays a cooldown animation.
+        - READY: Skill icon is brightly colored and vibrant on the HUD or in "Incantesimi".
+        - NOT READY: Skill icon is darkened, grayed out, or displays a cooldown animation/timer.
 
         [USAGE STRATEGY]
         1. During Active Boss Combat:
            - Activate ALL ready skills immediately.
         2. During Normal Farming:
-           - Prioritize "Hand of Midas" (gold skill) whenever ready.
-           - Activate "Shadow Clone" whenever ready.
-           - Hold heavy attack skills if boss is close.
+           - Prioritize "Mano di Mida" (Hand of Midas - gold skill) whenever ready.
+           - Activate "Clone d'ombra" (Shadow Clone) whenever ready.
+           - Hold heavy attack skills if boss fight is imminent.
         3. NEVER repeatedly tap a darkened/cooldown skill.
         """;
 
@@ -136,8 +153,8 @@ public static class TapTitans2MicroPrompts
         1. Identify flying fairy icons drifting across the upper/middle screen.
         2. Tap the fairy to open its reward popup.
         3. Inspect the resulting popup:
-           - If reward is 100% FREE gold/mana (Collect button with no ad/diamond icon): Tap Collect.
-           - If reward requires Diamonds, Ads ("Guarda Video"), or purchase: Tap Close ('X') or decline.
+           - If reward is 100% FREE gold/mana (Collect button / "Raccogli" with no ad/diamond icon): Tap Collect.
+           - If reward requires Diamonds, Ads ("Guarda Un Video" / "Guarda Video"), or purchase: Tap Close ('X') or decline.
         """;
 
     /// <summary>
@@ -166,16 +183,22 @@ public static class TapTitans2MicroPrompts
     /// </summary>
     public const string UiRules = """
         [ROLE]
-        Differentiate true clickable controls from informational text and decorative UI in Tap Titans 2.
+        Differentiate true clickable controls from informational text and decorative UI in Tap Titans 2 (Italian v8.2+).
 
         [DISTINCTION RULES]
-        1. Buttons:
-           - Enclosed rounded boxes with distinct background color and explicit price (e.g. "1.52K", "34.0M").
-           - Keywords: "Arruola", "Livello", "Acquista", "Combatti il Boss", "Raccogli".
-        2. Informational/Progress Text (DO NOT TAP):
-           - Example: "Master Sword livello 10! 2/10" -> Progress tracker, not a purchase button.
-           - Inactive greyed tabs or stat descriptors.
-        3. Badges:
+        1. Real Buttons:
+           - Enclosed rounded boxes with distinct background color and explicit price.
+           - Keywords: "Arruola", "Livello successivo", "Acquista", "COMBATTI IL BOSS", "Raccogli!", "Raccogli".
+           - Panel dismissal: Tap the active bottom tab or tap 'X' on top right of drawer header.
+        2. Critical Buttons to Avoid / Dangerous Controls:
+           - "ABBANDONA LA BATTAGLIA" (top right during boss fight): DO NOT TAP during boss fight (retreats).
+           - "Guarda Un Video" (Perks / Fairies): Video ad button. DO NOT TAP unless ads are explicitly permitted.
+           - Diamond purchase buttons (e.g. "[Diamond] 100 Usa"): DO NOT TAP unless premium currency is enabled.
+        3. Informational / Progress Text (DO NOT TAP):
+           - "Master Sword livello 10! 2/10" -> Progress tracker, not a purchase button.
+           - "DPS eroe: 1.95K", "Danno tocco: 40" -> Status indicators.
+           - "Fase 8" / Stage indicators.
+        4. Badges:
            - Small red circles with white numbers/exclamation points indicate pending items.
         """;
 
@@ -188,10 +211,10 @@ public static class TapTitans2MicroPrompts
 
         [SPATIAL BOUNDS (Normalized 0.0 - 1.0)]
         1. Floating Promo Bundle Offer (Right edge):
-           - Rect: x >= 0.85, y in [0.26, 0.34].
-           - REASON: Prevents accidental real-money bundle purchase popups.
-        2. Bottom-Right Shop Tab:
-           - Rect: x >= 0.80, y >= 0.92.
+           - Rect: x >= 0.85, y in [0.26, 0.36].
+           - REASON: Prevents accidental real-money bundle purchase popups (e.g. "% x8 VALUE!").
+        2. Bottom-Right Shop Tab ("Negozio"):
+           - Rect: x >= 0.80, y >= 0.90.
            - REASON: Prevents navigating to the in-app diamond store.
 
         [ENFORCEMENT]
