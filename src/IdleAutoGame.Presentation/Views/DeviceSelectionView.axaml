@@ -43,9 +43,9 @@
             <Border Grid.Column="0" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,12,0">
                 <Grid RowDefinitions="Auto,*">
                     <DockPanel Grid.Row="0" Margin="0,0,0,12">
-                        <Button DockPanel.Dock="Right" Content="Aggiorna Dispositivi" Command="{Binding RefreshDevicesCommand}"
-                                Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
-                                BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="12,6"/>
+                        <Button DockPanel.Dock="Right" Content="🔄 Aggiorna Dispositivi" Command="{Binding RefreshDevicesCommand}"
+                                Background="{DynamicResource PrimaryMainBrush}" Foreground="#091015" FontWeight="Bold"
+                                BorderThickness="0" Padding="14,6" CornerRadius="4"/>
                         <TextBlock Text="Dispositivi Rilevati (USB e Wireless)" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}" VerticalAlignment="Center"/>
                     </DockPanel>
 
@@ -94,24 +94,26 @@
 
             <!-- Right: Wireless Connect Panel -->
             <Border Grid.Column="1" Background="{DynamicResource Surface1Brush}" BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" CornerRadius="8" Padding="16">
-                <StackPanel Spacing="16">
-                    <TextBlock Text="Connessione Wireless ADB" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                <StackPanel Spacing="14">
+                    <TextBlock Text="Connessione Wi-Fi (Opzionale)" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource TextPrimaryBrush}"/>
+                    <TextBlock Text="Se il telefono è collegato tramite cavo USB non occorre compilare questa sezione." FontSize="11" Foreground="{DynamicResource TextDisabledBrush}" TextWrapping="Wrap"/>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="IP / Hostname:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="IP Dispositivo:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding WirelessHost}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                                  BorderBrush="{DynamicResource BorderLightBrush}"/>
                     </StackPanel>
 
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Porta:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="Porta ADB:" FontSize="12" Foreground="{DynamicResource TextSecondaryBrush}"/>
                         <TextBox Text="{Binding WirelessPort}" Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
                                  BorderBrush="{DynamicResource BorderLightBrush}"/>
                     </StackPanel>
 
-                    <Button Content="Connetti Wireless" Command="{Binding ConnectWirelessCommand}"
+                    <Button Content="Connetti via Wi-Fi" Command="{Binding ConnectWirelessCommand}"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Background="{DynamicResource SecondaryMainBrush}" Foreground="#091015" FontWeight="Bold" Padding="10"/>
+                            Background="{DynamicResource Surface2Brush}" Foreground="{DynamicResource TextPrimaryBrush}"
+                            BorderBrush="{DynamicResource BorderLightBrush}" BorderThickness="1" Padding="10"/>
 
                     <Separator Background="{DynamicResource BorderDarkBrush}"/>
 

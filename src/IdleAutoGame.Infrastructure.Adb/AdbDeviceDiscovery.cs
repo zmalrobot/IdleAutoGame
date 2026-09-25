@@ -32,7 +32,18 @@ public sealed class AdbDeviceDiscovery : IDeviceDiscovery
     {
         return await Task.Run(() =>
         {
-            var adbDevices = _client.GetDevices();
+            IEnumerable<AdvancedSharpAdbClient.Models.DeviceData> adbDevices;
+            try
+            {
+                adbDevices = _client.GetDevices();
+            }
+            catch (System.Net.Sockets.SocketException)
+            {
+                // Local ADB server daemon might not be running on 127.0.0.1:5037, attempt to start it
+                EnsureAdbServerStarted();
+                adbDevices = _client.GetDevices();
+            }
+
             var list = new List<DeviceInfo>();
 
             foreach (var adbDevice in adbDevices)
@@ -159,5 +170,36 @@ public sealed class AdbDeviceDiscovery : IDeviceDiscovery
         }
 
         return 0;
+    }
+
+    private static void EnsureAdbServerStarted()
+    {
+        try
+        {
+            var server = AdbServer.Instance;
+            var status = server.GetStatus();
+            if (!status.IsRunning)
+            {
+                server.StartServer("adb", restartServerIfNewer: false);
+            }
+        }
+        catch
+        {
+            try
+            {
+                using var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "adb",
+                    Arguments = "start-server",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+                p?.WaitForExit(3000);
+            }
+            catch
+            {
+                // Best effort
+            }
+        }
     }
 }
