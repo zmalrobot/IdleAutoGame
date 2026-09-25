@@ -452,6 +452,63 @@ public class LlmResponseParserTests
         action.Parameters.Target.Should().Be("Sword Master tab");
         action.Explanation.Should().Be("Open Sword Master tab to initiate startup sequence.");
     }
+
+    [Fact]
+    public void TryParse_WithOrphanLeadingBrace_ExtractsValidAction()
+    {
+        var raw = """
+        {
+
+        {
+          "action": "tap",
+          "parameters": {
+            "x": 0.16,
+            "y": 0.83
+          },
+          "category": "normal",
+          "game_state": "menu",
+          "confidence": 0.98,
+          "explanation": "Tap the Sword Master tab to begin upgrade verification."
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(raw, out var action, out var error);
+
+        ok.Should().BeTrue(error);
+        action.Should().NotBeNull();
+        action!.Action.Should().Be(ActionType.Tap);
+        action.Parameters.X.Should().Be(0.16);
+        action.Parameters.Y.Should().Be(0.83);
+        action.GameState.Should().Be(GameStateAssessment.Menu);
+    }
+
+    [Fact]
+    public void TryParse_WithSessionUpdates_PopulatesSessionUpdatesProperty()
+    {
+        var raw = """
+        {
+          "action": "tap",
+          "parameters": { "x": 0.5, "y": 0.5 },
+          "explanation": "Confirmed menu is closed, completing initialization.",
+          "game_state": "normal",
+          "session_updates": {
+            "initialization_complete": true,
+            "upgrade_check_done": true,
+            "boss_outcome": "defeated"
+          }
+        }
+        """;
+
+        var ok = LlmResponseParser.TryParse(raw, out var action, out var error);
+
+        ok.Should().BeTrue(error);
+        action.Should().NotBeNull();
+        action!.SessionUpdates.Should().NotBeNull();
+        action.SessionUpdates!["initialization_complete"].Should().Be("true");
+        action.SessionUpdates!["upgrade_check_done"].Should().Be("true");
+        action.SessionUpdates!["boss_outcome"].Should().Be("defeated");
+    }
 }
+
 
 

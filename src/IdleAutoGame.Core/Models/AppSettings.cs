@@ -954,14 +954,25 @@ public sealed class LlmSettings
         "action": "tap | multi_tap | double_tap | long_press | swipe | drag | scroll | text_input | key_press | key_sequence | back | wait | do_nothing",
         "parameters": {},
         "category": "normal | premium_currency | credit_purchase",
-        "game_state": "normal | boss_fight | menu | shop | dialog | loading | ad | unknown",
+        "game_state": "normal | boss_fight | menu | dialog | shop | loading | ad | unknown",
         "confidence": 0.95,
         "observation_summary": "Concise factual summary of visible UI and relevant game entities",
         "objective": "Immediate tactical goal",
         "decision_summary": "Brief factual justification for the selected action",
         "explanation": "Human-readable dashboard summary, max 500 characters",
-        "wait_after_ms": 200
+        "wait_after_ms": 200,
+        "session_updates": {
+          "initialization_complete": true,
+          "upgrade_check_done": true,
+          "boss_outcome": "defeated | timeout"
         }
+        }
+
+        RULES for session_updates: Omit entirely when no session state changes occur.
+        Set "initialization_complete": true only when the startup menu check is confirmed closed.
+        Set "upgrade_check_done": true only when a full upgrade check is confirmed closed.
+        Set "boss_outcome" only when the boss fight result is known.
+
 
         ==================================================
         19. ACTION-SPECIFIC PARAMETERS

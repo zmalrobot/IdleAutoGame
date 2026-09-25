@@ -58,6 +58,13 @@ public sealed record GameAction
     public string? DecisionSummary { get; init; }
 
     /// <summary>
+    /// Gets optional explicit session state updates requested by the LLM.
+    /// Supported keys: "initialization_complete" (bool), "upgrade_check_done" (bool), "boss_outcome" ("defeated"|"timeout").
+    /// These are authoritative overrides applied by the engine after action execution.
+    /// </summary>
+    public IReadOnlyDictionary<string, string>? SessionUpdates { get; init; }
+
+    /// <summary>
     /// Creates a default no-op wait action.
     /// </summary>
     public static GameAction Wait(string reason, int waitMs = 2000) => new()

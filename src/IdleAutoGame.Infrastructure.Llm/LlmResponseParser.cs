@@ -276,6 +276,27 @@ public static class LlmResponseParser
                     KeyCodes = keyCodes
                 };
 
+                // Parse optional session_updates: { "initialization_complete": "true", "upgrade_check_done": "true", ... }
+                IReadOnlyDictionary<string, string>? sessionUpdates = null;
+                if (root.TryGetProperty("session_updates", out var sessionUpdatesProp) &&
+                    sessionUpdatesProp.ValueKind == JsonValueKind.Object)
+                {
+                    var dict = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    foreach (var prop in sessionUpdatesProp.EnumerateObject())
+                    {
+                        var val = prop.Value.ValueKind switch
+                        {
+                            JsonValueKind.True => "true",
+                            JsonValueKind.False => "false",
+                            JsonValueKind.String => prop.Value.GetString() ?? "",
+                            _ => prop.Value.GetRawText()
+                        };
+                        dict[prop.Name] = val;
+                    }
+                    if (dict.Count > 0)
+                        sessionUpdates = dict;
+                }
+
                 parsedAction = new GameAction
                 {
                     Action = actionType,
@@ -287,10 +308,12 @@ public static class LlmResponseParser
                     Category = category,
                     ObservationSummary = observationSummary,
                     Objective = objective,
-                    DecisionSummary = decisionSummary
+                    DecisionSummary = decisionSummary,
+                    SessionUpdates = sessionUpdates
                 };
 
                 return true;
+
         }
         catch (Exception ex)
         {
@@ -318,7 +341,18 @@ public static class LlmResponseParser
             }
         }
 
-        // 3. Scan for all top-level balanced { ... } blocks
+        // 3. Scan for targeted balanced JSON object starting with action properties (e.g. {"action": ...)
+        var actionKeyMatches = Regex.Matches(cleaned, @"\{(?=\s*""(?:action|action_type|next_action)"")", RegexOptions.IgnoreCase);
+        foreach (Match m in actionKeyMatches)
+        {
+            var block = ExtractBalancedJson(cleaned, m.Index);
+            if (!string.IsNullOrEmpty(block) && !candidates.Contains(block))
+            {
+                candidates.Insert(0, block);
+            }
+        }
+
+        // 4. Scan for all top-level balanced { ... } blocks
         int depth = 0;
         int startIndex = -1;
         bool inString = false;
@@ -367,7 +401,7 @@ public static class LlmResponseParser
             }
         }
 
-        // 4. Fallback: extract outermost JSON object if LLM output had unbalanced outer wrapper
+        // 5. Fallback: extract outermost JSON object if LLM output had unbalanced outer wrapper
         var jsonObjMatch = Regex.Match(cleaned, @"\{[\s\S]*\}");
         if (jsonObjMatch.Success)
         {
@@ -378,13 +412,39 @@ public static class LlmResponseParser
             }
         }
 
-        // 5. Final fallback to cleaned text itself
+        // 6. Final fallback to cleaned text itself
         if (candidates.Count == 0)
         {
             candidates.Add(cleaned);
         }
 
         return candidates;
+    }
+
+    private static string? ExtractBalancedJson(string text, int startIndex)
+    {
+        int depth = 0;
+        bool inString = false;
+        bool escapeNext = false;
+        for (int i = startIndex; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (escapeNext) { escapeNext = false; continue; }
+            if (c == '\\' && inString) { escapeNext = true; continue; }
+            if (c == '"') { inString = !inString; continue; }
+            if (inString) continue;
+
+            if (c == '{') depth++;
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return text.Substring(startIndex, i - startIndex + 1).Trim();
+                }
+            }
+        }
+        return null;
     }
 
 

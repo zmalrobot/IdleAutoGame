@@ -330,9 +330,21 @@ public partial class DashboardViewModel : ViewModelBase
         });
     }
 
+    private static void RunOnUi(Action action)
+    {
+        if (global::Avalonia.Application.Current == null || Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
+    }
+
     private void OnEngineLlmChunkReceived(object? sender, LlmOutputChunk e)
     {
-        Dispatcher.UIThread.Post(() =>
+        RunOnUi(() =>
         {
             if (!string.IsNullOrWhiteSpace(e.SystemPrompt) && LastSystemPrompt != e.SystemPrompt)
             {

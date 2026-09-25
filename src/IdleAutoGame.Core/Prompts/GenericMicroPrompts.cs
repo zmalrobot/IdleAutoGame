@@ -114,15 +114,27 @@ public static class GenericMicroPrompts
             "target": "string"
           },
           "category": "normal | premium_currency | credit_purchase",
-          "game_state": "string",
+          "game_state": "normal | boss_fight | menu | dialog | shop | loading | ad | unknown",
           "confidence": float,
           "observation_summary": "factual visual evidence",
           "objective": "immediate tactical goal",
           "decision_summary": "justification for this action",
           "explanation": "dashboard log under 500 chars",
-          "wait_after_ms": integer
+          "wait_after_ms": integer,
+          "session_updates": {
+            "initialization_complete": true,
+            "upgrade_check_done": true,
+            "boss_outcome": "defeated | timeout"
+          }
         }
+
+        RULES for session_updates:
+        - Omit the field entirely when no session state changes occur.
+        - Set "initialization_complete": true ONLY on the cycle where you confirm the menu is closed after the mandatory startup sequence.
+        - Set "upgrade_check_done": true ONLY on the cycle where you confirm the menu is closed after a full upgrade check.
+        - Set "boss_outcome": "defeated" or "timeout" on the cycle when the boss result becomes clear.
         """;
+
 
     /// <summary>
     /// Verifica dell'effetto visivo post-azione.

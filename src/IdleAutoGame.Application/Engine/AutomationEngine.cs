@@ -729,32 +729,47 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
                             _sessionState.RecordActionResult(actionExecuted);
                             if (actionExecuted && parsedAction != null)
                             {
-                                if (parsedAction.Action == ActionType.MultiTap || parsedAction.GameState == GameStateAssessment.Normal)
+                                // --- Session state updates via explicit LLM contract (session_updates field) ---
+                                var updates = parsedAction.SessionUpdates;
+
+                                // initialization_complete
+                                if (updates != null && updates.TryGetValue("initialization_complete", out var initVal) &&
+                                    string.Equals(initVal, "true", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _sessionState.InitializationComplete = true;
+                                }
+
+                                // upgrade_check_done
+                                if (updates != null && updates.TryGetValue("upgrade_check_done", out var upgVal) &&
+                                    string.Equals(upgVal, "true", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    _sessionState.ResetUpgradeCheck();
+                                }
+
+                                // boss_outcome
+                                if (updates != null && updates.TryGetValue("boss_outcome", out var bossVal))
+                                {
+                                    _sessionState.RecordBossOutcome(bossVal);
+                                }
+                                else if (parsedAction.GameState == GameStateAssessment.BossFight)
+                                {
+                                    // Legacy fallback: keyword scan on explanation
+                                    if (parsedAction.Explanation?.Contains("defeated", StringComparison.OrdinalIgnoreCase) == true)
+                                        _sessionState.RecordBossOutcome("defeated");
+                                    else if (parsedAction.Explanation?.Contains("timeout", StringComparison.OrdinalIgnoreCase) == true)
+                                        _sessionState.RecordBossOutcome("timeout");
+                                }
+
+                                // Only count a farming burst when NOT inside an open menu
+                                var isInsideMenu = parsedAction.GameState == GameStateAssessment.Menu;
+                                if (!isInsideMenu &&
+                                    (parsedAction.Action == ActionType.MultiTap || parsedAction.GameState == GameStateAssessment.Normal))
                                 {
                                     _sessionState.RecordFarmingBurst();
                                 }
-
-                                if (parsedAction.GameState == GameStateAssessment.BossFight)
-                                {
-                                    if (parsedAction.Explanation?.Contains("defeated", StringComparison.OrdinalIgnoreCase) == true)
-                                    {
-                                        _sessionState.RecordBossOutcome("defeated");
-                                    }
-                                    else if (parsedAction.Explanation?.Contains("timeout", StringComparison.OrdinalIgnoreCase) == true)
-                                    {
-                                        _sessionState.RecordBossOutcome("timeout");
-                                    }
-                                }
-
-                                if (parsedAction.Explanation?.Contains("Sword Master", StringComparison.OrdinalIgnoreCase) == true ||
-                                    parsedAction.Explanation?.Contains("Hero", StringComparison.OrdinalIgnoreCase) == true ||
-                                    parsedAction.Explanation?.Contains("upgrade", StringComparison.OrdinalIgnoreCase) == true)
-                                {
-                                    _sessionState.InitializationComplete = true;
-                                    _sessionState.ResetUpgradeCheck();
-                                }
                             }
                         }
+
 
                         // Track consecutive unknown states
                         if (parsedAction!.GameState == GameStateAssessment.Unknown)

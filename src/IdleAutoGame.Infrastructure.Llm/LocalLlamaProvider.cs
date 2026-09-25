@@ -1025,10 +1025,9 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             }
             promptBuilder.AppendLine(request.UserPrompt);
             promptBuilder.AppendLine("<|im_end|>");
-            promptBuilder.Append("<|im_start|>assistant\n{\n");
+            promptBuilder.Append("<|im_start|>assistant\n");
 
             var prompt = promptBuilder.ToString();
-            outputBuilder.Append("{\n");
 
             var sampling = new DefaultSamplingPipeline
             {
@@ -1041,7 +1040,9 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             {
                 MaxTokens = Math.Max(64, request.MaxTokens),
                 SamplingPipeline = sampling,
-                AntiPrompts = new List<string> { "<|im_end|>", "<|endoftext|>", "</s>" }
+                // Stop at JSON close token to prevent runaway generation after the response object is complete.
+                // "\n}" stops at the root-level closing brace; "<|im_end|>" / EOS are standard sentinel tokens.
+                AntiPrompts = new List<string> { "\n}", "<|im_end|>", "<|endoftext|>", "</s>" }
             };
 
             SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: streaming token da modello locale...");
@@ -1092,7 +1093,13 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 LastTokensPerSecond = (double)tokenCount / (totalMs / 1000.0);
             }
 
+            // Reattach the closing "}" stripped by the anti-prompt sentinel so the parser always
+            // receives a well-formed JSON object regardless of how generation was stopped.
             var rawContent = outputBuilder.ToString().Trim();
+            if (!rawContent.EndsWith('}'))
+            {
+                rawContent += "\n}";
+            }
             bool isSuccess = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
 
             SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);

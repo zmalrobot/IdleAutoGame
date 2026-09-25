@@ -86,25 +86,29 @@ public sealed class TapTitans2Definition : IModularGameDefinition
 
         ============ GAME STATES ============
 
-        Use ONLY:
+        Use ONLY these values for "game_state":
 
-        popup
-        boss_available
-        boss_active
-        upgrade_available
-        upgrade_menu
-        normal_farming
-        unknown
+        normal        → standard combat/farming arena, no menus, no boss
+        boss_fight    → active boss combat with health bar and timer
+        menu          → upgrade panel, hero panel, or any drawer is open
+        dialog        → blocking popup, reward window, or notification
+        shop          → premium store or currency screen
+        loading       → transition or spinner screen
+        ad            → advertisement overlay
+        unknown       → ambiguous or unrecognized screen
 
-        "normal_farming" is valid ONLY when:
+        CRITICAL: "combat_mode", "boss_active", "boss_available", "upgrade_menu", "normal_farming"
+        are NOT valid values. Do NOT use them. Map to the canonical list above.
+
+        "normal" is valid ONLY when:
 
         * there is no popup
         * there is no active boss
         * "COMBATTI IL BOSS" / "FIGHT BOSS" is not visible
+        * no upgrade menu or drawer is open
         * the required upgrade-menu check has already been completed
-        * there is no currently visible affordable upgrade
 
-        Do NOT enter "normal_farming" immediately after loading the game.
+        Do NOT enter "normal" immediately after loading the game.
 
         ============ ABSOLUTE PRIORITY ORDER ============
 
@@ -289,14 +293,25 @@ public sealed class TapTitans2Definition : IModularGameDefinition
 
         Inspect no more than approximately 2–3 hero screens before returning to combat unless the interface clearly requires additional inspection.
 
-        PHASE F — RETURN TO COMBAT
+        PHASE F — RETURN TO COMBAT AND CONFIRM EXIT
 
         When the relevant upgrade checks are complete:
 
-        → leave the menu
-        → visually identify the normal combat area
-        → return to combat
-        → begin farming.
+        Step 1: Exit the menu.
+        → Tap the currently active bottom tab again to toggle it closed,
+          OR tap the visible 'X' button on the drawer header bar.
+
+        Step 2: OBSERVE the resulting screenshot.
+        → Verify visually that the drawer/panel is NO LONGER visible.
+        → If the menu is still open: tap the 'X' or active tab again and observe again.
+        → Do NOT proceed to farming while ANY upgrade panel is still visible.
+
+        Step 3: Once the menu is confirmed closed (game_state = "normal"):
+        → Set game_state = "normal" in your JSON.
+        → Include in session_updates:
+             "initialization_complete": true   (ONLY on the first run-through)
+             "upgrade_check_done": true         (on every subsequent upgrade check)
+        → Begin farming.
 
         ============ UPGRADE DECISION RULES ============
 

@@ -16,12 +16,16 @@ public static class TapTitans2MicroPrompts
         [MANDATORY STARTUP WORKFLOW]
         At session start, NORMAL FARMING IS STRICTLY FORBIDDEN until upgrade systems are verified.
         Step 1: Locate Sword Master tab (sword icon, "Maestro Spada") at bottom navigation -> Tap to open.
-        Step 2: Verify Sword Master panel opened -> Inspect upgrades ("Livello successivo" / "Incantesimi") -> Purchase affordable ones with gold.
+        Step 2: Verify Sword Master panel opened (game_state = "menu") -> Inspect upgrades ("Livello successivo" / "Incantesimi") -> Purchase affordable ones with gold.
         Step 3: Locate Heroes tab (helmet icon, "Eroi") at bottom navigation -> Tap to open.
-        Step 4: Verify Heroes panel opened -> Inspect heroes -> Purchase affordable recruit ("Arruola") or level-ups ("Livello successivo").
-        Step 5: Exit menu (tap active tab again, or tap the panel close 'X' button at top right of drawer).
-        Step 6: Mark initialization_complete = true. Only now can normal combat farming begin.
+        Step 4: Verify Heroes panel opened (game_state = "menu") -> Inspect heroes -> Purchase affordable recruit ("Arruola") or level-ups ("Livello successivo").
+        Step 5: Close all menus (tap active tab again, or tap the panel close 'X' button at top right of drawer).
+        Step 6: OBSERVE the screenshot and verify NO drawer/panel is visible (game_state = "normal").
+        Step 7: In the action JSON for Step 6, include:
+                "session_updates": { "initialization_complete": true }
+                Only emit this AFTER confirming the menu is closed. Only now can normal combat farming begin.
         """;
+
 
     /// <summary>
     /// Regole di attivazione per determinare se è dovuto un controllo dei menu upgrade.
@@ -75,7 +79,7 @@ public static class TapTitans2MicroPrompts
 
         [RULES]
         1. Visually identify the Heroes tab (bottom bar, second tab with helmet icon, "Eroi") and open it.
-        2. Verify panel is open (header displays "DPS eroe"). Read visible hero cards.
+        2. Verify panel is open (game_state = "menu"; header displays "DPS eroe"). Read visible hero cards.
         3. Look for buttons with gold cost:
            - "Arruola" (Recruit newly available hero at Lv 0).
            - "Livello successivo" (Level up existing hero at Lv >= 1).
@@ -84,8 +88,13 @@ public static class TapTitans2MicroPrompts
            - Perform at most ONE controlled downward scroll to inspect the next batch.
            - Inspect newly visible heroes.
            - Do NOT scroll more than 2 times total per check.
-        6. When done, close the menu (tap active tab again or tap 'X' on drawer header bar) and reset farming_bursts_since_check = 0.
+        6. When done, close the menu (tap active tab again or tap 'X' on drawer header bar).
+        7. OBSERVE the screenshot. Verify no drawer/panel is visible (game_state = "normal").
+        8. In the closing action JSON, include:
+           "session_updates": { "upgrade_check_done": true }
+           Only emit this AFTER confirming the menu is closed.
         """;
+
 
     /// <summary>
     /// Gestione degli scontri boss (disponibilità, combattimento attivo, timeout).
@@ -97,19 +106,21 @@ public static class TapTitans2MicroPrompts
         [RULES]
         Case A: Boss Available ("COMBATTI IL BOSS" / "FIGHT BOSS" visible near top right with skull icon)
         - Locate the "COMBATTI IL BOSS" button visually.
-        - Tap it to initiate boss fight. Set state = "boss_active".
+        - Tap it to initiate boss fight. Set game_state = "boss_fight".
 
         Case B: Active Boss Combat (Boss health bar, boss name, and countdown timer e.g. "8.9s" visible)
         - CRITICAL: The top-right button changes to "ABBANDONA LA BATTAGLIA" (Abandon Battle).
           DO NOT TAP "ABBANDONA LA BATTAGLIA" during boss combat! Tapping it forfeits the fight.
         - DO NOT open upgrade menus during an active boss fight.
+        - game_state = "boss_fight".
         - Attack the boss titan in the center combat arena using rapid multi-tap bursts (count: 10, interval: 40-50ms).
         - Activate all visibly ready skills ("Incantesimi").
         - Observe after each burst:
-          - If boss defeated -> set last_boss_result = "defeated", upgrade_check_due = true.
-          - If timer expires without defeat -> screen returns to normal titan and "COMBATTI IL BOSS" reappears.
-            Set last_boss_result = "timeout", upgrade_check_due = true. Do NOT immediately re-engage boss; farm gold and upgrade first.
+          - If boss defeated → emit session_updates: { "boss_outcome": "defeated" }.
+          - If timer expires without defeat → screen returns to normal titan and "COMBATTI IL BOSS" reappears.
+            Emit session_updates: { "boss_outcome": "timeout" }. Do NOT immediately re-engage boss; farm gold and upgrade first.
         """;
+
 
     /// <summary>
     /// Riconoscimento visivo dello stato delle 6 abilità e strategia di attivazione.
