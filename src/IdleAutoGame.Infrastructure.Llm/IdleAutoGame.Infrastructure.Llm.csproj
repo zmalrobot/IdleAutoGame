@@ -16,4 +16,10 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <Target Name="CopyVulkanCpuDependency" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetDir)runtimes\linux-x64\native\avx2\libggml-cpu.so"
+          DestinationFolder="$(TargetDir)runtimes\linux-x64\native\vulkan\"
+          Condition="Exists('$(TargetDir)runtimes\linux-x64\native\avx2\libggml-cpu.so') And Exists('$(TargetDir)runtimes\linux-x64\native\vulkan\') And !Exists('$(TargetDir)runtimes\linux-x64\native\vulkan\libggml-cpu.so')"
+          SkipUnchangedFiles="true" />
+  </Target>
 </Project>

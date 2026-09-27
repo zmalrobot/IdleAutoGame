@@ -253,7 +253,9 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
             try
             {
+                EnsureVulkanDependencies();
                 NativeLibraryConfig.All.WithVulkan(enableVulkan);
+                NativeLibraryConfig.All.WithAutoFallback(true);
             }
             catch
             {
@@ -268,6 +270,48 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                     _isFallback = false;
                     _isSupported = true;
                     _initialized = true;
+
+                    var runtimeSubDir = OperatingSystem.IsWindows() ? "win-x64" : "linux-x64";
+                    var ext = OperatingSystem.IsWindows() ? ".dll" : (OperatingSystem.IsMacOS() ? ".dylib" : ".so");
+                    var prefix = OperatingSystem.IsWindows() ? "" : "lib";
+                    var libLlamaName = $"{prefix}llama{ext}";
+                    var libMtmdName = $"{prefix}mtmd{ext}";
+
+                    if (enableVulkan)
+                    {
+                        var vulkanDir = Path.Combine(AppContext.BaseDirectory, "runtimes", runtimeSubDir, "native", "vulkan");
+                        var vulkanLlama = Path.Combine(vulkanDir, libLlamaName);
+                        var vulkanMtmd = Path.Combine(vulkanDir, libMtmdName);
+                        if (File.Exists(vulkanLlama))
+                        {
+                            try
+                            {
+                                NativeLibraryConfig.All.WithLibrary(vulkanLlama, File.Exists(vulkanMtmd) ? vulkanMtmd : null);
+                                NativeLibraryConfig.All.WithSearchDirectory(vulkanDir);
+                                NativeLibraryConfig.All.SkipCheck(true);
+                                return true;
+                            }
+                            catch { }
+                        }
+                    }
+                    else
+                    {
+                        var cpuDir = Path.Combine(AppContext.BaseDirectory, "runtimes", runtimeSubDir, "native", "avx2");
+                        var cpuLlama = Path.Combine(cpuDir, libLlamaName);
+                        var cpuMtmd = Path.Combine(cpuDir, libMtmdName);
+                        if (File.Exists(cpuLlama))
+                        {
+                            try
+                            {
+                                NativeLibraryConfig.All.WithLibrary(cpuLlama, File.Exists(cpuMtmd) ? cpuMtmd : null);
+                                NativeLibraryConfig.All.WithSearchDirectory(cpuDir);
+                                NativeLibraryConfig.All.SkipCheck(true);
+                                return true;
+                            }
+                            catch { }
+                        }
+                    }
+
                     return true;
                 }
 
@@ -381,6 +425,50 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         }
 
         return null;
+    }
+
+    private static void EnsureVulkanDependencies()
+    {
+        if (!OperatingSystem.IsLinux() || RuntimeInformation.ProcessArchitecture != Architecture.X64)
+            return;
+
+        try
+        {
+            var baseDirs = new[]
+            {
+                AppContext.BaseDirectory,
+                Directory.GetCurrentDirectory(),
+                Path.GetDirectoryName(typeof(LocalLlamaProvider).Assembly.Location) ?? ""
+            };
+
+            foreach (var b in baseDirs)
+            {
+                if (string.IsNullOrEmpty(b) || !Directory.Exists(b)) continue;
+
+                var vulkanDir = Path.Combine(b, "runtimes", "linux-x64", "native", "vulkan");
+                if (Directory.Exists(vulkanDir))
+                {
+                    var targetCpuLib = Path.Combine(vulkanDir, "libggml-cpu.so");
+                    if (!File.Exists(targetCpuLib))
+                    {
+                        var candidateCpuDirs = new[] { "avx2", "avx", "noavx" };
+                        foreach (var c in candidateCpuDirs)
+                        {
+                            var src = Path.Combine(b, "runtimes", "linux-x64", "native", c, "libggml-cpu.so");
+                            if (File.Exists(src))
+                            {
+                                File.Copy(src, targetCpuLib, overwrite: true);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Best effort copy of Vulkan dependency
+        }
     }
 
     /// <summary>
@@ -1040,9 +1128,8 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             {
                 MaxTokens = Math.Max(64, request.MaxTokens),
                 SamplingPipeline = sampling,
-                // Stop at JSON close token to prevent runaway generation after the response object is complete.
-                // "\n}" stops at the root-level closing brace; "<|im_end|>" / EOS are standard sentinel tokens.
-                AntiPrompts = new List<string> { "\n}", "<|im_end|>", "<|endoftext|>", "</s>" }
+                // Sentinel stop tokens (never stop on \n} which breaks inner JSON blocks)
+                AntiPrompts = new List<string> { "<|im_end|>", "<|endoftext|>", "<|im_start|>", "</s>", "<end_of_turn>" }
             };
 
             SetStatus(LlmLifecyclePhase.Inferring, "Inferenza in corso: streaming token da modello locale...");
@@ -1054,6 +1141,12 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 ChunkIndex = ++chunkIndex,
                 ElapsedMs = totalStopwatch.ElapsedMilliseconds
             };
+
+            bool jsonStarted = false;
+            int jsonDepth = 0;
+            bool inString = false;
+            bool escapeNext = false;
+            bool inThinkTag = false;
 
             await foreach (var text in _executor.InferAsync(prompt, inferenceParams, linkedCt).ConfigureAwait(false))
             {
@@ -1083,7 +1176,61 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                     TokensPerSecond = tps,
                     ElapsedMs = elapsedMs
                 };
+
+                // Track JSON nesting depth to stop inference as soon as root JSON is closed
+                for (int i = 0; i < text.Length; i++)
+                {
+                    char c = text[i];
+                    if (escapeNext)
+                    {
+                        escapeNext = false;
+                        continue;
+                    }
+                    if (c == '\\' && inString)
+                    {
+                        escapeNext = true;
+                        continue;
+                    }
+                    if (c == '"')
+                    {
+                        inString = !inString;
+                        continue;
+                    }
+                    if (inString) continue;
+
+                    if (c == '<')
+                    {
+                        if (text.AsSpan(i).StartsWith("<think>", StringComparison.OrdinalIgnoreCase))
+                        {
+                            inThinkTag = true;
+                        }
+                        else if (text.AsSpan(i).StartsWith("</think>", StringComparison.OrdinalIgnoreCase))
+                        {
+                            inThinkTag = false;
+                        }
+                    }
+
+                    if (!inThinkTag)
+                    {
+                        if (c == '{')
+                        {
+                            jsonStarted = true;
+                            jsonDepth++;
+                        }
+                        else if (c == '}' && jsonStarted)
+                        {
+                            jsonDepth--;
+                            if (jsonDepth == 0)
+                            {
+                                // Root JSON object successfully closed! Stop early.
+                                goto GenerationCompleted;
+                            }
+                        }
+                    }
+                }
             }
+
+            GenerationCompleted:
 
             totalStopwatch.Stop();
             long totalMs = totalStopwatch.ElapsedMilliseconds;
@@ -1093,13 +1240,10 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 LastTokensPerSecond = (double)tokenCount / (totalMs / 1000.0);
             }
 
-            // Reattach the closing "}" stripped by the anti-prompt sentinel so the parser always
-            // receives a well-formed JSON object regardless of how generation was stopped.
             var rawContent = outputBuilder.ToString().Trim();
-            if (!rawContent.EndsWith('}'))
-            {
-                rawContent += "\n}";
-            }
+            // Clean any trailing stop tokens
+            rawContent = System.Text.RegularExpressions.Regex.Replace(rawContent, @"<\|(?:im_end|im_start|endoftext|end)\|>|</s>|<end_of_turn>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+
             bool isSuccess = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
 
             SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);
@@ -1202,7 +1346,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             SupportsVision = _clipModel != null || !IsModelLoaded,
             SupportsJsonSchema = true,
             SupportsStreaming = true,
-            MaxContextTokens = _modelParams?.ContextSize.HasValue == true ? (int)_modelParams.ContextSize.Value : 4096
+            MaxContextTokens = _modelParams?.ContextSize.HasValue == true ? (int)_modelParams.ContextSize.Value : 16384
         });
     }
 

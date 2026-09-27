@@ -24,17 +24,8 @@ public static class LlmAutoConfigurator
             hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan && d.IsDiscrete) ??
             hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan);
 
-        // 2. Context length: IdleAutoGame game cycle prompt + screenshot uses ~1400 tokens.
-        // A conservative 4096 (or 8192 for high-end 16GB+ GPUs) prevents KV cache VRAM exhaustion.
-        long effectiveVramMb = preferredGpu?.DedicatedVideoMemoryMb ?? hardware.VramMb ?? 0;
-        if (effectiveVramMb >= 14336)
-        {
-            settings.ContextSize = 8192;
-        }
-        else
-        {
-            settings.ContextSize = 4096;
-        }
+        // 2. Context length: Generous 16384 context size per user directive ("se è più largo è meglio").
+        settings.ContextSize = 16384;
 
         // 3. GPU offloading and VRAM profile configuration
         settings.Gpu ??= new GpuSettings();
@@ -52,40 +43,43 @@ public static class LlmAutoConfigurator
             long vramMb = preferredGpu.DedicatedVideoMemoryMb;
             if (vramMb >= 14336) // 14+ GB
             {
-                settings.GpuLayerCount = 33; // Full offload for 7B-8B
+                settings.GpuLayerCount = 28;
             }
             else if (vramMb >= 7168) // 7+ GB (e.g. 8 GB RX 480/580)
             {
-                settings.GpuLayerCount = 18; // Conservative partial offload leaving plenty of VRAM for vision
-            }
-            else if (vramMb >= 5120) // 5+ GB (e.g. 6 GB)
-            {
-                settings.GpuLayerCount = 12;
+                // Conservative 10 layers offloaded to leave ample VRAM for 16k KV cache and mmproj
+                settings.GpuLayerCount = 10;
             }
             else
             {
-                settings.GpuLayerCount = 6;
+                // Under 7 GB VRAM: fallback to CPU rather than risking out-of-memory / PCI thrashing
+                settings.Gpu.UseGpu = false;
+                settings.Gpu.OffloadMode = Core.Enums.GpuOffloadMode.CpuOnly;
+                settings.GpuLayerCount = 0;
             }
         }
         else if (hardware.VramMb.HasValue && hardware.VramMb.Value > 0)
         {
             long vramMb = hardware.VramMb.Value;
-            settings.Gpu.UseGpu = true;
-            settings.Gpu.GpuBackend = "Vulkan";
-
-            if (vramMb >= 12288)
+            if (vramMb >= 14336)
             {
-                settings.GpuLayerCount = 33;
+                settings.Gpu.UseGpu = true;
+                settings.Gpu.GpuBackend = "Vulkan";
+                settings.GpuLayerCount = 28;
                 settings.Gpu.VramProfile = "16gb";
             }
             else if (vramMb >= 7168)
             {
-                settings.GpuLayerCount = 18;
+                settings.Gpu.UseGpu = true;
+                settings.Gpu.GpuBackend = "Vulkan";
+                settings.GpuLayerCount = 10;
                 settings.Gpu.VramProfile = "8gb";
             }
             else
             {
-                settings.GpuLayerCount = 12;
+                settings.Gpu.UseGpu = false;
+                settings.Gpu.OffloadMode = Core.Enums.GpuOffloadMode.CpuOnly;
+                settings.GpuLayerCount = 0;
                 settings.Gpu.VramProfile = "6gb";
             }
         }

@@ -245,7 +245,7 @@ public sealed class LlmSettings
     /// <summary>
     /// Context window length in tokens for local model execution.
     /// </summary>
-    public int ContextSize { get; set; } = 4096;
+    public int ContextSize { get; set; } = 16384;
 
     /// <summary>
     /// Configuration for hardware GPU acceleration and Vulkan offloading.

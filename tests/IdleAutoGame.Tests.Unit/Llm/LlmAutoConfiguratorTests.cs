@@ -22,10 +22,10 @@ public class LlmAutoConfiguratorTests
 
         // 16 cores -> 15 threads (reserving 1 for GUI/OS)
         settings.ThreadCount.Should().Be(15);
-        // 16 GB+ VRAM -> 8192 context size
-        settings.ContextSize.Should().Be(8192);
-        // 16 GB VRAM -> 33 layers (full offload)
-        settings.GpuLayerCount.Should().Be(33);
+        // Generous 16384 context size
+        settings.ContextSize.Should().Be(16384);
+        // 16 GB VRAM -> 28 layers (conservative offload)
+        settings.GpuLayerCount.Should().Be(28);
         settings.UseMemoryMapping.Should().BeTrue();
     }
 
@@ -43,8 +43,8 @@ public class LlmAutoConfiguratorTests
         LlmAutoConfigurator.ApplyHardwareRecommendations(settings, hardware);
 
         settings.ThreadCount.Should().Be(7);
-        settings.ContextSize.Should().Be(4096);
-        settings.GpuLayerCount.Should().Be(18);
+        settings.ContextSize.Should().Be(16384);
+        settings.GpuLayerCount.Should().Be(10);
     }
 
     [Fact]
@@ -61,7 +61,7 @@ public class LlmAutoConfiguratorTests
         LlmAutoConfigurator.ApplyHardwareRecommendations(settings, hardware);
 
         settings.ThreadCount.Should().Be(3);
-        settings.ContextSize.Should().Be(4096);
+        settings.ContextSize.Should().Be(16384);
         settings.GpuLayerCount.Should().Be(0);
     }
 }

@@ -34,5 +34,13 @@ public class LlamaConfigInspectionTest
             _output.WriteLine("NativeLibraryConfig not found");
         }
     }
+
+    [Fact]
+    public void NativeLibraryConfig_LoadsBackendSuccessfully()
+    {
+        IdleAutoGame.Infrastructure.Llm.LocalLlamaProvider.EnsureBackendConfigured(enableVulkan: true);
+        long maxDevices = LLama.Native.NativeApi.llama_max_devices();
+        Assert.True(maxDevices > 0);
+    }
 }
 
