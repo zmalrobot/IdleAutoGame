@@ -1143,17 +1143,6 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                     // Best effort memory clear
                 }
             }
-            if (_executor is StatefulExecutorBase sExec)
-            {
-                foreach (var embed in sExec.Embeds)
-                {
-                    if (embed is IDisposable disposable)
-                    {
-                        try { disposable.Dispose(); } catch { }
-                    }
-                }
-                sExec.Embeds.Clear();
-            }
             if (_clipModel != null && _context != null)
             {
                 try
@@ -1164,6 +1153,10 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 {
                     // Best effort executor recreation
                 }
+            }
+            else if (_executor is StatefulExecutorBase sExec)
+            {
+                sExec.Embeds.Clear();
             }
             _inferenceLock.Release();
         }

@@ -53,6 +53,12 @@ public sealed class SessionState
     public string ActiveMenuTab { get; set; } = "none";
 
     /// <summary>
+    /// Cronologia compatta delle azioni recenti (memoria episodica simbolica).
+    /// </summary>
+    [JsonPropertyName("recent_actions")]
+    public List<ActionHistoryEntry> RecentActions { get; set; } = new();
+
+    /// <summary>
     /// Registra l'avvenuto completamento di un burst di attacco farming.
     /// Se il numero di burst raggiunge la soglia (4), attiva automaticamente upgrade_check_due.
     /// </summary>
@@ -103,6 +109,39 @@ public sealed class SessionState
     }
 
     /// <summary>
+    /// Registra l'azione appena eseguita nella cronologia episodica di sessione mantenendo un tetto compatto.
+    /// </summary>
+    /// <param name="cycle">Numero del ciclo di automazione.</param>
+    /// <param name="action">Azione eseguita dal modello.</param>
+    /// <param name="success">Esito dell'esecuzione fisica del tocco.</param>
+    /// <param name="maxHistory">Massimo numero di azioni storiche da mantenere in memoria (default: 6).</param>
+    public void RecordAction(int cycle, GameAction action, bool success, int maxHistory = 6)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        RecordActionResult(success);
+
+        var entry = new ActionHistoryEntry
+        {
+            Cycle = cycle,
+            Action = action.Action.ToString().ToLowerInvariant(),
+            Target = action.Parameters?.Target,
+            X = action.Parameters?.X,
+            Y = action.Parameters?.Y,
+            GameState = action.GameState.ToString().ToLowerInvariant(),
+            Summary = !string.IsNullOrWhiteSpace(action.ObservationSummary)
+                ? action.ObservationSummary
+                : action.Explanation,
+            Success = success
+        };
+
+        RecentActions.Add(entry);
+        if (RecentActions.Count > maxHistory)
+        {
+            RecentActions.RemoveRange(0, RecentActions.Count - maxHistory);
+        }
+    }
+
+    /// <summary>
     /// Genera la rappresentazione JSON compatta dello stato di sessione, integrando i flag di autorizzazione spesa.
     /// </summary>
     public string ToCompactJson(bool premiumCurrencyEnabled, bool realMoneyPurchaseEnabled)
@@ -116,6 +155,16 @@ public sealed class SessionState
             last_action_success = LastActionSuccess,
             stuck_count = StuckCount,
             active_menu_tab = ActiveMenuTab,
+            recent_actions = RecentActions.Select(a => new
+            {
+                cycle = a.Cycle,
+                action = a.Action,
+                target = a.Target,
+                x = a.X.HasValue ? Math.Round(a.X.Value, 2) : (double?)null,
+                y = a.Y.HasValue ? Math.Round(a.Y.Value, 2) : (double?)null,
+                state = a.GameState,
+                success = a.Success
+            }),
             premium_currency_enabled = premiumCurrencyEnabled,
             real_money_purchase_enabled = realMoneyPurchaseEnabled
         };
@@ -139,7 +188,18 @@ public sealed class SessionState
             LastBossResult = LastBossResult,
             LastActionSuccess = LastActionSuccess,
             StuckCount = StuckCount,
-            ActiveMenuTab = ActiveMenuTab
+            ActiveMenuTab = ActiveMenuTab,
+            RecentActions = RecentActions.Select(a => new ActionHistoryEntry
+            {
+                Cycle = a.Cycle,
+                Action = a.Action,
+                Target = a.Target,
+                X = a.X,
+                Y = a.Y,
+                GameState = a.GameState,
+                Summary = a.Summary,
+                Success = a.Success
+            }).ToList()
         };
     }
 }

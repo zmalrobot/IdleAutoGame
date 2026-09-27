@@ -63,15 +63,15 @@ public sealed record GpuMemoryProfile
         DisplayName = "6 GB VRAM Profile",
         MinVramMb = 5120,
         MaxVramMb = 7168,
-        ReservedVramMb = 1024,
+        ReservedVramMb = 768,
         MaxRecommendedContextTokens = 4096,
         RecommendedOffloadMode = GpuOffloadMode.Auto,
-        DefaultLayerBudgetRatio = 0.45,
-        Description = "Consigliato per GPU con 6 GB VRAM. Offload parziale conservativo (12-16 layer) per modelli 7B-8B Q4."
+        DefaultLayerBudgetRatio = 0.65,
+        Description = "Consigliato per GPU con 6 GB VRAM. Predilige offload parziale (16-22 layer) per modelli 7B-8B Q4."
     };
 
     /// <summary>
-    /// 8 GB VRAM profile (conservative and highly stable for AMD Radeon RX 480/580, RTX 2060/3070 8GB).
+    /// 8 GB VRAM profile (optimal for AMD Radeon RX 480/580, RTX 2060/3070 8GB).
     /// </summary>
     public static GpuMemoryProfile Profile8Gb => new()
     {
@@ -79,11 +79,11 @@ public sealed record GpuMemoryProfile
         DisplayName = "8 GB VRAM Profile",
         MinVramMb = 7168,
         MaxVramMb = 14336,
-        ReservedVramMb = 1536,
-        MaxRecommendedContextTokens = 4096,
+        ReservedVramMb = 1024,
+        MaxRecommendedContextTokens = 8192,
         RecommendedOffloadMode = GpuOffloadMode.Auto,
-        DefaultLayerBudgetRatio = 0.50,
-        Description = "Consigliato per GPU con 8 GB VRAM (es. RX 480/580). Offload parziale conservativo (16-18 layer) per massima stabilità Vulkan con modelli multimodali (vision) e context 4096."
+        DefaultLayerBudgetRatio = 0.85,
+        Description = "Consigliato per GPU con 8 GB VRAM. Supporta full GPU per modelli 7B Q4 con context 4096-8192 o partial offload (24-28 layer) per Q5/Q6."
     };
 
     /// <summary>

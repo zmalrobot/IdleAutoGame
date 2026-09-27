@@ -59,8 +59,8 @@ public class ConfigurationServiceTests
         var result = await service.InitializeAsync();
 
         // Assert
-        result.Llm.TimeoutSeconds.Should().Be(120); // Clean default
-        await _repository.Received(1).SaveAsync(Arg.Is<AppSettings>(s => s.Llm.TimeoutSeconds == 120), Arg.Any<CancellationToken>());
+        result.Llm.TimeoutSeconds.Should().Be(30); // Clean default
+        await _repository.Received(1).SaveAsync(Arg.Is<AppSettings>(s => s.Llm.TimeoutSeconds == 30), Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -124,14 +124,14 @@ public class ConfigurationServiceTests
 
         var customized = service.Current;
         customized.General.Theme = "light";
-        customized.Llm.TimeoutSeconds = 250;
+        customized.Llm.TimeoutSeconds = 120;
         await service.UpdateSettingsAsync(customized);
 
         // Act
         await service.ResetCategoryAsync(category);
 
         // Assert
-        service.Current.Llm.TimeoutSeconds.Should().Be(120); // Reset to default
+        service.Current.Llm.TimeoutSeconds.Should().Be(30); // Reset to default
         service.Current.General.Theme.Should().Be("light"); // Preserved
     }
 

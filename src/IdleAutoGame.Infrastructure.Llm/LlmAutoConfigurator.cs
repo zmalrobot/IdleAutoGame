@@ -20,14 +20,12 @@ public static class LlmAutoConfigurator
         // 1. Thread count: Reserve 1 core for OS desktop, Avalonia GUI, and ADB daemon
         settings.ThreadCount = Math.Max(1, hardware.CpuCores > 2 ? hardware.CpuCores - 1 : hardware.CpuCores);
 
-        var preferredGpu = hardware.PreferredGpuDevice ??
-            hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan && d.IsDiscrete) ??
-            hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan);
-
-        // 2. Context length: IdleAutoGame game cycle prompt + screenshot uses ~1400 tokens.
-        // A conservative 4096 (or 8192 for high-end 16GB+ GPUs) prevents KV cache VRAM exhaustion.
-        long effectiveVramMb = preferredGpu?.DedicatedVideoMemoryMb ?? hardware.VramMb ?? 0;
-        if (effectiveVramMb >= 14336)
+        // 2. Context length based on available physical memory
+        if (hardware.TotalRamMb >= 32768)
+        {
+            settings.ContextSize = 16384;
+        }
+        else if (hardware.TotalRamMb >= 16384)
         {
             settings.ContextSize = 8192;
         }
@@ -38,6 +36,10 @@ public static class LlmAutoConfigurator
 
         // 3. GPU offloading and VRAM profile configuration
         settings.Gpu ??= new GpuSettings();
+
+        var preferredGpu = hardware.PreferredGpuDevice ??
+            hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan && d.IsDiscrete) ??
+            hardware.GpuDevices.FirstOrDefault(d => d.SupportsVulkan);
 
         if (preferredGpu != null && preferredGpu.DedicatedVideoMemoryBytes > 0)
         {
@@ -54,17 +56,17 @@ public static class LlmAutoConfigurator
             {
                 settings.GpuLayerCount = 33; // Full offload for 7B-8B
             }
-            else if (vramMb >= 7168) // 7+ GB (e.g. 8 GB RX 480/580)
+            else if (vramMb >= 7168) // 7+ GB (e.g. 8 GB RX 480)
             {
-                settings.GpuLayerCount = 18; // Conservative partial offload leaving plenty of VRAM for vision
+                settings.GpuLayerCount = 24; // Safe partial offload
             }
             else if (vramMb >= 5120) // 5+ GB (e.g. 6 GB)
             {
-                settings.GpuLayerCount = 12;
+                settings.GpuLayerCount = 16;
             }
             else
             {
-                settings.GpuLayerCount = 6;
+                settings.GpuLayerCount = 8;
             }
         }
         else if (hardware.VramMb.HasValue && hardware.VramMb.Value > 0)
@@ -80,7 +82,7 @@ public static class LlmAutoConfigurator
             }
             else if (vramMb >= 7168)
             {
-                settings.GpuLayerCount = 18;
+                settings.GpuLayerCount = 24;
                 settings.Gpu.VramProfile = "8gb";
             }
             else

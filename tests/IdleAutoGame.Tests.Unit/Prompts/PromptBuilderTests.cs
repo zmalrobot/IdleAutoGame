@@ -118,5 +118,68 @@ public class PromptBuilderTests
         prompt.Should().Contain("decision_summary");
         prompt.Should().Contain("explanation");
     }
+
+    [Fact]
+    public void BuildUserPrompt_IncludesRecentActionsChronology_WhenPresentInSessionState()
+    {
+        var sessionState = new SessionState();
+        sessionState.RecordAction(1, new GameAction
+        {
+            Action = ActionType.Tap,
+            Parameters = new ActionParameters { X = 0.10, Y = 0.92, Target = "tab_swordmaster" },
+            ObservationSummary = "Opened Sword Master panel",
+            Explanation = "Opened Sword Master panel",
+            GameState = GameStateAssessment.Menu
+        }, success: true);
+
+        sessionState.RecordAction(2, new GameAction
+        {
+            Action = ActionType.Tap,
+            Parameters = new ActionParameters { X = 0.85, Y = 0.65, Target = "upgrade_level" },
+            ObservationSummary = "Purchased Sword Master level up",
+            Explanation = "Purchased Sword Master level up",
+            GameState = GameStateAssessment.Menu
+        }, success: true);
+
+        var prompt = PromptBuilder.BuildUserPrompt(
+            cycleNumber: 3,
+            elapsed: TimeSpan.FromSeconds(15),
+            sessionState: sessionState);
+
+        prompt.Should().Contain("RECENT ACTIONS CHRONOLOGY (Episodic Memory):");
+        prompt.Should().Contain("Cycle #1: tap at (0.10, 0.92) [target: tab_swordmaster] [state: menu] -> \"Opened Sword Master panel\" (OK)");
+        prompt.Should().Contain("Cycle #2: tap at (0.85, 0.65) [target: upgrade_level] [state: menu] -> \"Purchased Sword Master level up\" (OK)");
+        prompt.Should().NotContain("ANTI-LOOP NOTICE");
+    }
+
+    [Fact]
+    public void BuildUserPrompt_IncludesAntiLoopWarning_WhenConsecutiveActionsMatch()
+    {
+        var sessionState = new SessionState();
+        sessionState.RecordAction(1, new GameAction
+        {
+            Action = ActionType.Tap,
+            Parameters = new ActionParameters { X = 0.10, Y = 0.92, Target = "tab_swordmaster" },
+            ObservationSummary = "Tapped Sword Master tab",
+            Explanation = "Tapped Sword Master tab",
+            GameState = GameStateAssessment.Menu
+        }, success: true);
+
+        sessionState.RecordAction(2, new GameAction
+        {
+            Action = ActionType.Tap,
+            Parameters = new ActionParameters { X = 0.10, Y = 0.92, Target = "tab_swordmaster" },
+            ObservationSummary = "Tapped Sword Master tab again",
+            Explanation = "Tapped Sword Master tab again",
+            GameState = GameStateAssessment.Menu
+        }, success: true);
+
+        var prompt = PromptBuilder.BuildUserPrompt(
+            cycleNumber: 3,
+            elapsed: TimeSpan.FromSeconds(20),
+            sessionState: sessionState);
+
+        prompt.Should().Contain("ANTI-LOOP NOTICE: You tapped the exact same coordinates in consecutive cycles");
+    }
 }
 

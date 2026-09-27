@@ -406,6 +406,37 @@ public static class PromptBuilder
             sb.AppendLine("- Previous action: (Initial observation cycle)");
         }
 
+        // Recent Actions Chronology (Episodic Memory)
+        if (sessionState?.RecentActions != null && sessionState.RecentActions.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("RECENT ACTIONS CHRONOLOGY (Episodic Memory):");
+            foreach (var act in sessionState.RecentActions)
+            {
+                var coordStr = (act.X.HasValue && act.Y.HasValue) ? $" at ({act.X.Value:F2}, {act.Y.Value:F2})" : string.Empty;
+                var targetStr = !string.IsNullOrWhiteSpace(act.Target) ? $" [target: {act.Target}]" : string.Empty;
+                var stateStr = !string.IsNullOrWhiteSpace(act.GameState) ? $" [state: {act.GameState}]" : string.Empty;
+                var summaryStr = !string.IsNullOrWhiteSpace(act.Summary) ? $" -> \"{act.Summary}\"" : string.Empty;
+                var statusStr = act.Success ? "OK" : "FAILED";
+                sb.AppendLine($"- Cycle #{act.Cycle}: {act.Action}{coordStr}{targetStr}{stateStr}{summaryStr} ({statusStr})");
+            }
+
+            // Anti-loop detector: warn if last 2 actions targeted the exact same coordinates
+            if (sessionState.RecentActions.Count >= 2)
+            {
+                var last = sessionState.RecentActions[^1];
+                var prev = sessionState.RecentActions[^2];
+                bool sameCoord = last.X.HasValue && prev.X.HasValue && Math.Abs(last.X.Value - prev.X.Value) < 0.04 &&
+                                 last.Y.HasValue && prev.Y.HasValue && Math.Abs(last.Y.Value - prev.Y.Value) < 0.04;
+                bool sameAction = string.Equals(last.Action, prev.Action, StringComparison.OrdinalIgnoreCase);
+
+                if (sameAction && sameCoord)
+                {
+                    sb.AppendLine("  ⚠️ ANTI-LOOP NOTICE: You tapped the exact same coordinates in consecutive cycles. If this was to open a menu that is already open or upgrade is done, DO NOT tap again! Buy upgrades or close the panel now.");
+                }
+            }
+        }
+
         sb.AppendLine();
         sb.AppendLine("Inspect the attached game screenshot and output your decision as a single valid JSON object following the schema (action, parameters, game_state, observation_summary, explanation).");
 

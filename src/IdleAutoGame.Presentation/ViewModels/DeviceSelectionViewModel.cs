@@ -154,27 +154,24 @@ public partial class DeviceSelectionViewModel : ViewModelBase
                 Devices.Add(new DeviceDisplayItem(d, isActive));
             }
 
-            // Restore selection by Serial or first online device
+            // Restore selection by Serial
             SelectedDevice = Devices.FirstOrDefault(d => d.Serial == currentActiveSerial)
-                             ?? Devices.FirstOrDefault(d => d.Device.State is DeviceState.Ready or DeviceState.Connected)
+                             ?? Devices.FirstOrDefault(d => d.Device.State == DeviceState.Ready)
                              ?? Devices.FirstOrDefault();
 
             // If no active device was set yet, activate the selected one
-            if (!HasActiveDevice && SelectedDevice != null && SelectedDevice.Device.State is DeviceState.Ready or DeviceState.Connected)
+            if (!HasActiveDevice && SelectedDevice != null && SelectedDevice.Device.State == DeviceState.Ready)
             {
                 await _activeContext.SetActiveDeviceAsync(SelectedDevice.Device);
             }
 
             StatusMessage = Devices.Count > 0
                 ? $"Trovati {Devices.Count} dispositivo/i connesso/i."
-                : "Nessun dispositivo rilevato. Verifica che il debug USB sia attivo sul telefono e che il cavo sia collegato.";
+                : "Nessun dispositivo rilevato. Verifica che il debug USB sia attivo sul telefono.";
         }
         catch (Exception ex)
         {
-            var msg = ex.Message.Contains("5037") || ex.Message.Contains("refused", StringComparison.OrdinalIgnoreCase)
-                ? "Impossibile comunicare con il demone ADB locale (porta 5037). Assicurati che ADB sia installato e che il cavo USB sia inserito."
-                : $"Errore rilevamento dispositivi: {ex.Message}";
-            StatusMessage = msg;
+            StatusMessage = $"Errore rilevamento dispositivi: {ex.Message}";
         }
         finally
         {

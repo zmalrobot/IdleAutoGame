@@ -15,15 +15,19 @@ public static class TapTitans2MicroPrompts
 
         [MANDATORY STARTUP WORKFLOW]
         At session start, NORMAL FARMING IS STRICTLY FORBIDDEN until upgrade systems are verified.
-        Step 1: Locate Sword Master tab (sword icon, "Maestro Spada") at bottom navigation -> Tap to open.
-        Step 2: Verify Sword Master panel opened (game_state = "menu") -> Inspect upgrades ("Livello successivo" / "Incantesimi") -> Purchase affordable ones with gold.
-        Step 3: Locate Heroes tab (helmet icon, "Eroi") at bottom navigation -> Tap to open.
-        Step 4: Verify Heroes panel opened (game_state = "menu") -> Inspect heroes -> Purchase affordable recruit ("Arruola") or level-ups ("Livello successivo").
-        Step 5: Close all menus (tap active tab again, or tap the panel close 'X' button at top right of drawer).
+        Step 1: Check RECENT ACTIONS CHRONOLOGY. If Sword Master tab was not opened yet, tap Sword Master (bottom left, sword icon, "Maestro Spada", around x: 0.10, y: 0.92) to open it.
+        Step 2: When Sword Master is open (game_state = "menu"), buy all affordable upgrades ("Livello successivo" / "Incantesimi"). If none are affordable or you just bought one, proceed to Step 3. Do NOT tap the open tab again to reopen it.
+        Step 3: Check Heroes tab (bottom bar, helmet icon, "Eroi", around x: 0.25, y: 0.92) -> Tap to open it.
+        Step 4: When Heroes panel is open (game_state = "menu"), buy affordable recruitments ("Arruola") or level-ups ("Livello successivo").
+        Step 5: CLOSE THE MENU DRAWER. When upgrade checks are done, tap the visible close button ('X' on the drawer header) or tap the active tab icon to dismiss the menu.
         Step 6: OBSERVE the screenshot and verify NO drawer/panel is visible (game_state = "normal").
-        Step 7: In the action JSON for Step 6, include:
+        Step 7: In the action JSON that confirms the menu is closed or begins normal farming, include:
                 "session_updates": { "initialization_complete": true }
                 Only emit this AFTER confirming the menu is closed. Only now can normal combat farming begin.
+
+        [ANTI-LOOP & DRAWER RULES]
+        - Consult your RECENT ACTIONS CHRONOLOGY in the prompt: if you already tapped to open a tab in the previous cycle, it is already open! Do NOT tap the same tab icon again.
+        - If a drawer/menu is open and no useful upgrades can be bought, your immediate priority is to CLOSE the drawer and return to combat.
         """;
 
 

@@ -726,9 +726,22 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
                         lock (_sessionState)
                         {
-                            _sessionState.RecordActionResult(actionExecuted);
+                            int historyLimit = Math.Max(3, Math.Min(10, _settings.Automation.RecentDecisionsHistoryLimit));
+                            _sessionState.RecordAction(cycleNumber, parsedAction!, actionExecuted, historyLimit);
                             if (actionExecuted && parsedAction != null)
                             {
+                                // Track active menu tab
+                                if (parsedAction.GameState == GameStateAssessment.Normal)
+                                {
+                                    _sessionState.ActiveMenuTab = "none";
+                                }
+                                else if (parsedAction.GameState == GameStateAssessment.Menu)
+                                {
+                                    if (parsedAction.Parameters?.Target?.Contains("sword", StringComparison.OrdinalIgnoreCase) == true)
+                                        _sessionState.ActiveMenuTab = "sword_master";
+                                    else if (parsedAction.Parameters?.Target?.Contains("hero", StringComparison.OrdinalIgnoreCase) == true)
+                                        _sessionState.ActiveMenuTab = "heroes";
+                                }
                                 // --- Session state updates via explicit LLM contract (session_updates field) ---
                                 var updates = parsedAction.SessionUpdates;
 

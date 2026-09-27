@@ -76,18 +76,6 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
     private Stretch _screenshotStretchMode = Stretch.Uniform;
 
     [ObservableProperty]
-    private Avalonia.Controls.Primitives.ScrollBarVisibility _screenshotHorizontalScrollBar = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
-
-    [ObservableProperty]
-    private Avalonia.Controls.Primitives.ScrollBarVisibility _screenshotVerticalScrollBar = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
-
-    [ObservableProperty]
-    private string _zoomButtonText = "Adatta";
-
-    [ObservableProperty]
-    private string _zoomButtonToolTip = "Modalità attiva: Adatta Schermo. Clicca per passare al 100% (Dimensione Originale)";
-
-    [ObservableProperty]
     private string _screenshotStatusBadgeColor = "#8B949E";
 
     [ObservableProperty]
@@ -816,22 +804,7 @@ public partial class AiDecisionDetailsViewModel : ViewModelBase, IDisposable
     public void ToggleZoomMode()
     {
         IsZoom100Percent = !IsZoom100Percent;
-        if (IsZoom100Percent)
-        {
-            ScreenshotStretchMode = Stretch.None;
-            ScreenshotHorizontalScrollBar = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
-            ScreenshotVerticalScrollBar = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto;
-            ZoomButtonText = "100%";
-            ZoomButtonToolTip = "Modalità attiva: 100% (Pixel-per-Pixel). Clicca per Adattare alla Finestra";
-        }
-        else
-        {
-            ScreenshotStretchMode = Stretch.Uniform;
-            ScreenshotHorizontalScrollBar = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
-            ScreenshotVerticalScrollBar = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
-            ZoomButtonText = "Adatta";
-            ZoomButtonToolTip = "Modalità attiva: Adatta Schermo. Clicca per passare al 100% (Dimensione Originale)";
-        }
+        ScreenshotStretchMode = IsZoom100Percent ? Stretch.None : Stretch.Uniform;
     }
 
     [RelayCommand]
