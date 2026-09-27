@@ -180,11 +180,14 @@ public static class PromptBuilder
         var sb = new StringBuilder();
 
         // 1. Generic Foundation Micro-Prompts
-        if (!string.IsNullOrWhiteSpace(genericSystemPrompt) &&
-            !string.Equals(genericSystemPrompt.Trim(), LlmSettings.DefaultGenericSystemPrompt.Trim(), StringComparison.Ordinal))
+        bool isLegacyDefault = string.IsNullOrWhiteSpace(genericSystemPrompt) ||
+            string.Equals(genericSystemPrompt.Trim(), LlmSettings.DefaultGenericSystemPrompt.Trim(), StringComparison.Ordinal) ||
+            genericSystemPrompt.Contains("1. ROLE AND PRIMARY OBJECTIVE", StringComparison.Ordinal);
+
+        if (!isLegacyDefault)
         {
             sb.AppendLine("### 1. SYSTEM CONSTRAINTS & ROLE INSTRUCTIONS");
-            sb.AppendLine(genericSystemPrompt.Trim());
+            sb.AppendLine(genericSystemPrompt!.Trim());
             sb.AppendLine();
         }
         else

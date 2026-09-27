@@ -200,6 +200,10 @@ public class LiveDeviceIntegrationTests
         await provider.LoadModelAsync(modelPath, llmSettings);
         _output.WriteLine($"Model loaded. MultimodalLoaded: {provider.IsMultimodalLoaded}, Backend: {provider.CurrentBackend}");
 
+        _output.WriteLine("Running WarmupAsync...");
+        await provider.WarmupAsync();
+        _output.WriteLine($"Warmup finished. IsWarmedUp: {provider.IsWarmedUp}, LastWarmupTimeMs: {provider.LastWarmupTimeMs}");
+
         var request = new LlmRequest
         {
             ScreenshotBase64 = base64Payload,
