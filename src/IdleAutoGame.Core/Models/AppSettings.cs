@@ -211,7 +211,7 @@ public sealed class LlmSettings
     /// <summary>
     /// Maximum response wait time in seconds [SETTING-LLM-003].
     /// </summary>
-    public int TimeoutSeconds { get; set; } = 30;
+    public int TimeoutSeconds { get; set; } = 120;
 
     /// <summary>
     /// Maximum retry attempts on malformed JSON or HTTP error [SETTING-LLM-004].
@@ -245,7 +245,7 @@ public sealed class LlmSettings
     /// <summary>
     /// Context window length in tokens for local model execution.
     /// </summary>
-    public int ContextSize { get; set; } = 16384;
+    public int ContextSize { get; set; } = 4096;
 
     /// <summary>
     /// Configuration for hardware GPU acceleration and Vulkan offloading.

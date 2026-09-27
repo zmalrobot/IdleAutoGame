@@ -104,12 +104,15 @@ public sealed class ModelMemoryEstimator : IModelMemoryEstimator
             };
         }
 
-        // 8. Partial GPU Offload Check
+        // 8. Partial GPU Offload Check with conservative profile ratio
+        var profile = GpuProfileResolver.Resolve(device, settings.VramProfile);
+        long visionSafetyMarginBytes = mmprojSizeBytes > 0 ? 512L * 1024 * 1024 : 0;
         long bytesPerLayer = (modelSizeBytes + kvCacheBytes) / Math.Max(1, totalLayers);
-        long budgetForLayers = Math.Max(0, availableVramBytes - DefaultRuntimeOverheadBytes - mmprojSizeBytes);
+        long budgetForLayers = Math.Max(0, availableVramBytes - DefaultRuntimeOverheadBytes - mmprojSizeBytes - visionSafetyMarginBytes);
 
         int maxLayersThatFit = (int)(budgetForLayers / Math.Max(1, bytesPerLayer));
-        int recommendedLayers = Math.Clamp(maxLayersThatFit, 0, totalLayers);
+        int profileBudgetCap = Math.Max(4, (int)(totalLayers * profile.DefaultLayerBudgetRatio));
+        int recommendedLayers = Math.Clamp(Math.Min(maxLayersThatFit, profileBudgetCap), 0, totalLayers);
 
         // Explicit layer count override if user set a positive value
         if (settings.GpuLayerCount > 0)
