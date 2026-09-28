@@ -1120,7 +1120,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             }
             promptBuilder.AppendLine(request.UserPrompt);
             promptBuilder.AppendLine("<|im_end|>");
-            promptBuilder.Append("<|im_start|>assistant\n");
+            promptBuilder.Append("<|im_start|>assistant\n{\n");
 
             var prompt = promptBuilder.ToString();
 
@@ -1149,8 +1149,10 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 ElapsedMs = totalStopwatch.ElapsedMilliseconds
             };
 
-            bool jsonStarted = false;
-            int jsonDepth = 0;
+            // Pre-seed outputBuilder with the JSON opening brace prefilled in the prompt
+            outputBuilder.Append("{\n");
+            bool jsonStarted = true;
+            int jsonDepth = 1;
             bool inString = false;
             bool escapeNext = false;
             bool inThinkTag = false;
@@ -1251,6 +1253,16 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
             // Clean any trailing stop tokens
             rawContent = System.Text.RegularExpressions.Regex.Replace(rawContent, @"<\|(?:im_end|im_start|endoftext|end)\|>|</s>|<end_of_turn>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
 
+            // If prompt prefill caused a duplicate outer brace, trim to the actual inner JSON object
+            if (rawContent.StartsWith("{\n\n{") || rawContent.StartsWith("{\r\n\r\n{") || rawContent.StartsWith("{\n{"))
+            {
+                var secondBrace = rawContent.IndexOf('{', 1);
+                if (secondBrace > 0)
+                {
+                    rawContent = rawContent[secondBrace..].Trim();
+                }
+            }
+
             bool isSuccess = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
 
             // Build a descriptive error message so the UI shows exactly what failed
@@ -1263,9 +1275,11 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
                 if (rawContent.Length == 0)
                 {
-                    diagnosticError = $"[Ciclo {inferenceId[..8]}] Il modello non ha prodotto alcun output " +
-                                      $"({tokenCount} token, {totalMs} ms). " +
-                                      $"Possibile causa: context non azzerato tra cicli, MaxTokens troppo basso, o prompt troppo lungo.";
+                    var rawBuilder = outputBuilder.ToString();
+                    var escaped = rawBuilder.Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+                    diagnosticError = $"[Ciclo {inferenceId[..8]}] Il modello non ha prodotto output JSON utile " +
+                                      $"({tokenCount} token in {totalMs} ms). " +
+                                      $"Contenuto grezzo: '{escaped}'.";
                 }
                 else
                 {
