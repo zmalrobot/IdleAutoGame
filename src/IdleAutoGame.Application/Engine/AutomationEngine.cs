@@ -660,8 +660,17 @@ public sealed class AutomationEngine : IAutomationEngine, IDisposable
 
                     if (!llmResponse.IsSuccess || llmResponse.ParsedAction == null)
                     {
-                        errors.Add(llmResponse.Error ?? "LLM analysis failed to produce a valid action.");
-                        await HandleErrorPolicyAsync("LLM inference failure", cycleCt).ConfigureAwait(false);
+                        var errorDetail = llmResponse.Error ?? "LLM analysis failed to produce a valid action.";
+                        errors.Add(errorDetail);
+                        // Include raw content preview if present and not already in error message
+                        if (!string.IsNullOrWhiteSpace(llmResponse.RawContent) && !errorDetail.Contains("Output raw"))
+                        {
+                            var snippet = llmResponse.RawContent.Length > 120
+                                ? llmResponse.RawContent[..120] + "…"
+                                : llmResponse.RawContent;
+                            errors.Add($"Output LLM grezzo: {snippet}");
+                        }
+                        await HandleErrorPolicyAsync($"LLM inference failure — {errorDetail}", cycleCt).ConfigureAwait(false);
                         continue;
                     }
 

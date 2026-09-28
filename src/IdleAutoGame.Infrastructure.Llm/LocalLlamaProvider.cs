@@ -1002,28 +1002,35 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         {
             _activeInferenceCts?.Dispose();
             _activeInferenceCts = null;
-            if (_context != null)
+
+            // Dispose and recreate context to fully reset KV cache between inferences.
+            // MemoryClear() alone is not sufficient — it leaves internal token history intact
+            // in the StatefulExecutorBase, causing empty output on the second inference cycle.
+            if (_weights != null && _modelParams != null)
             {
                 try
                 {
-                    _context.NativeHandle.MemoryClear();
+                    var oldCtx = _context;
+                    _context = _weights.CreateContext(_modelParams);
+                    oldCtx?.Dispose();
+
+                    if (_clipModel != null)
+                    {
+                        _executor = new InteractiveExecutor(_context, _clipModel, null);
+                    }
+                    else
+                    {
+                        _executor = new StatelessExecutor(_weights, _modelParams);
+                    }
+
+                    SetStatus(LlmLifecyclePhase.Ready, "Warmup: context ricreato per inferenza successiva.");
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Best effort cache reset
+                    SetStatus(LlmLifecyclePhase.Error, $"Warmup: ricreazione context fallita: {ex.Message}");
                 }
             }
-            if (_clipModel != null && _context != null)
-            {
-                try
-                {
-                    _executor = new InteractiveExecutor(_context, _clipModel, null);
-                }
-                catch
-                {
-                    // Best effort executor recreation
-                }
-            }
+
             _inferenceLock.Release();
         }
     }
@@ -1246,6 +1253,28 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
 
             bool isSuccess = LlmResponseParser.TryParse(rawContent, out var parsedAction, out var parseError);
 
+            // Build a descriptive error message so the UI shows exactly what failed
+            string? diagnosticError = null;
+            if (!isSuccess)
+            {
+                var rawSnippet = rawContent.Length == 0
+                    ? "<nessun output>"
+                    : (rawContent.Length > 200 ? rawContent[..200] + "…" : rawContent);
+
+                if (rawContent.Length == 0)
+                {
+                    diagnosticError = $"[Ciclo {inferenceId[..8]}] Il modello non ha prodotto alcun output " +
+                                      $"({tokenCount} token, {totalMs} ms). " +
+                                      $"Possibile causa: context non azzerato tra cicli, MaxTokens troppo basso, o prompt troppo lungo.";
+                }
+                else
+                {
+                    diagnosticError = $"[Ciclo {inferenceId[..8]}] Parsing JSON fallito dopo {tokenCount} token in {totalMs} ms. " +
+                                      $"Errore: {parseError}. " +
+                                      $"Output raw (prime 200 char): {rawSnippet}";
+                }
+            }
+
             SetStatus(LlmLifecyclePhase.Ready, $"Inferenza completata in {totalMs} ms ({tokenCount} token a {LastTokensPerSecond:F1} tps).", totalMs, 1.0);
 
             var finalResponse = new LlmResponse
@@ -1253,7 +1282,7 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
                 RawContent = rawContent,
                 ParsedAction = parsedAction,
                 IsSuccess = isSuccess,
-                Error = isSuccess ? null : parseError ?? "Failed to parse structured GameAction from local model output.",
+                Error = isSuccess ? null : (diagnosticError ?? parseError ?? "Parsing struttura GameAction fallito dall'output del modello."),
                 LatencyMs = totalMs,
                 TokensUsed = tokenCount
             };
@@ -1276,39 +1305,46 @@ public sealed class LocalLlamaProvider : ILlmProvider, IDisposable, IAsyncDispos
         {
             _activeInferenceCts?.Dispose();
             _activeInferenceCts = null;
-            if (_context != null)
+
+            // Step 1: Dispose MtmdChunks/embeds BEFORE disposing context to avoid native crashes.
+            if (_executor is StatefulExecutorBase sExecCleanup)
             {
-                try
-                {
-                    _context.NativeHandle.MemoryClear();
-                }
-                catch
-                {
-                    // Best effort memory clear
-                }
-            }
-            if (_executor is StatefulExecutorBase sExec)
-            {
-                foreach (var embed in sExec.Embeds)
+                foreach (var embed in sExecCleanup.Embeds)
                 {
                     if (embed is IDisposable disposable)
                     {
                         try { disposable.Dispose(); } catch { }
                     }
                 }
-                sExec.Embeds.Clear();
+                sExecCleanup.Embeds.Clear();
             }
-            if (_clipModel != null && _context != null)
+
+            // Step 2: Dispose and recreate context to fully reset KV cache between inferences.
+            // MemoryClear() alone is not sufficient — it leaves internal token history intact
+            // in the StatefulExecutorBase, causing empty output on the second inference cycle.
+            if (_weights != null && _modelParams != null)
             {
                 try
                 {
-                    _executor = new InteractiveExecutor(_context, _clipModel, null);
+                    var oldCtx = _context;
+                    _context = _weights.CreateContext(_modelParams);
+                    oldCtx?.Dispose();
+
+                    if (_clipModel != null)
+                    {
+                        _executor = new InteractiveExecutor(_context, _clipModel, null);
+                    }
+                    else
+                    {
+                        _executor = new StatelessExecutor(_weights, _modelParams);
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Best effort executor recreation
+                    SetStatus(LlmLifecyclePhase.Error, $"Inferenza: ricreazione context fallita dopo ciclo: {ex.Message}");
                 }
             }
+
             _inferenceLock.Release();
         }
     }
