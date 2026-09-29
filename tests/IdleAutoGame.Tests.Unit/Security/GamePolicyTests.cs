@@ -223,5 +223,48 @@ public class GamePolicyTests
 
         if (File.Exists(tempFile)) File.Delete(tempFile);
     }
+
+    [Fact]
+    public void HeuristicCheck_DoesNotTriggerFalsePositive_WhenPolicyComplianceIsStated()
+    {
+        // Exact real-world case from cycle 347 that blocked execution
+        var action = new GameAction
+        {
+            Action = ActionType.Tap,
+            Category = ActionCategory.Normal,
+            Explanation = "The Hero Stats menu is open and no upgrade check is due. Tapping the close button (X) at top right will exit the menu and allow normal farming or boss combat. No boss is active and no premium currency or real-money purchases are enabled.",
+            Parameters = new ActionParameters { X = 0.83, Y = 0.26 }
+        };
+
+        var policy = new GamePolicy { AllowPremiumCurrency = false, AllowCreditPurchases = false };
+        var result = ActionPolicyValidator.Validate(action, policy);
+
+        result.IsValid.Should().BeTrue("Explanations confirming that premium currency or real-money purchases are disabled must never trigger a policy block");
+        result.Errors.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Tapping close button. Not spending diamonds or gems.")]
+    [InlineData("Skipping diamond promo popup to return to fight")]
+    [InlineData("Sword Master upgrade cost is gold, no diamonds needed.")]
+    [InlineData("Premium currency is disabled by policy, avoiding gem button.")]
+    [InlineData("Free fairy reward collected, without real money or credit purchase.")]
+    [InlineData("Observation: Diamond Tournament banner visible. Tapping combat arena.")]
+    [InlineData("Real-money purchases are disabled; closing store window.")]
+    public void HeuristicCheck_DoesNotTriggerFalsePositive_ForNegatedOrPassiveMentions(string explanation)
+    {
+        var action = new GameAction
+        {
+            Action = ActionType.Tap,
+            Category = ActionCategory.Normal,
+            Explanation = explanation,
+            Parameters = new ActionParameters { X = 0.5, Y = 0.5 }
+        };
+
+        var policy = new GamePolicy { AllowPremiumCurrency = false, AllowCreditPurchases = false };
+        var result = ActionPolicyValidator.Validate(action, policy);
+
+        result.IsValid.Should().BeTrue($"'{explanation}' is safe and must not trigger false positive heuristic block");
+    }
 }
 
