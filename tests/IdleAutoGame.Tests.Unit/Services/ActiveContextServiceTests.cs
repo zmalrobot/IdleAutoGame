@@ -171,8 +171,8 @@ public class ActiveContextServiceTests
     [Fact]
     public async Task UnloadActiveModelAsync_ResetsActiveModelContextAndRaisesEvent()
     {
-        await _service.SetActiveModelAsync("qwen3-vl-8b-instruct", "LLamaSharp");
-        _service.ActiveModel.ModelId.Should().Be("qwen3-vl-8b-instruct");
+        await _service.SetActiveModelAsync("qwen2.5-vl-7b-instruct", "LLamaSharp");
+        _service.ActiveModel.ModelId.Should().Be("qwen2.5-vl-7b-instruct");
 
         bool eventRaised = false;
         _service.ContextChanged += (_, _) => eventRaised = true;

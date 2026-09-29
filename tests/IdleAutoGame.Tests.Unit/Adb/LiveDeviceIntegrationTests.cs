@@ -181,10 +181,16 @@ public class LiveDeviceIntegrationTests
         var systemPrompt = PromptBuilder.BuildModularSystemPrompt(game, sessionState, policy: policy);
         var userPrompt = PromptBuilder.BuildUserPrompt(1, TimeSpan.FromSeconds(2), sessionState: sessionState);
 
-        var modelPath = "/home/simone/.local/share/IdleAutoGame/models/qwen3-vl-8b-instruct.gguf";
+        var modelPath = "/home/simone/.local/share/IdleAutoGame/models/qwen2.5-vl-7b-instruct.gguf";
+        if (!File.Exists(modelPath))
+        {
+            _output.WriteLine($"Model file not found on disk at {modelPath}, skipping live LLM test.");
+            return;
+        }
+
         var llmSettings = new LlmSettings
         {
-            SelectedModelId = "qwen3-vl-8b-instruct",
+            SelectedModelId = "qwen2.5-vl-7b-instruct",
             Provider = "LLamaSharp",
             ContextSize = 16384,
             MaxTokens = 1024,

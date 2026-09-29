@@ -48,7 +48,7 @@ public class ModelManagerTests : IDisposable
     public async Task IsModelInstalledAsync_WhenFilesMissing_ReturnsFalse()
     {
         var manager = CreateManager();
-        var installed = await manager.IsModelInstalledAsync("qwen3-vl-2b-instruct");
+        var installed = await manager.IsModelInstalledAsync("qwen2.5-vl-3b-instruct");
 
         installed.Should().BeFalse();
     }
@@ -57,11 +57,11 @@ public class ModelManagerTests : IDisposable
     public async Task IsModelInstalledAsync_WhenBaseExistsButMmprojMissing_ReturnsFalse()
     {
         var manager = CreateManager();
-        var filePath = manager.GetModelFilePath("qwen3-vl-2b-instruct");
+        var filePath = manager.GetModelFilePath("qwen2.5-vl-3b-instruct");
         await File.WriteAllTextAsync(filePath, "dummy base gguf content");
 
         // Base exists, but mmproj is missing -> not fully installed
-        var installed = await manager.IsModelInstalledAsync("qwen3-vl-2b-instruct");
+        var installed = await manager.IsModelInstalledAsync("qwen2.5-vl-3b-instruct");
         installed.Should().BeFalse();
     }
 
@@ -69,20 +69,20 @@ public class ModelManagerTests : IDisposable
     public async Task IsModelInstalledAsync_WhenBothBaseAndMmprojExist_ReturnsTrue()
     {
         var manager = CreateManager();
-        var filePath = manager.GetModelFilePath("qwen3-vl-2b-instruct");
-        var mmprojPath = manager.GetMmprojFilePath("qwen3-vl-2b-instruct");
+        var filePath = manager.GetModelFilePath("qwen2.5-vl-3b-instruct");
+        var mmprojPath = manager.GetMmprojFilePath("qwen2.5-vl-3b-instruct");
 
         await File.WriteAllTextAsync(filePath, "dummy base gguf content");
         await File.WriteAllTextAsync(mmprojPath, "dummy mmproj gguf content");
 
-        var installed = await manager.IsModelInstalledAsync("qwen3-vl-2b-instruct");
+        var installed = await manager.IsModelInstalledAsync("qwen2.5-vl-3b-instruct");
         installed.Should().BeTrue();
     }
 
     [Fact]
     public async Task DownloadAndInstallModelAsync_MultiAssetDownload_VerifiesAndInstallsBoth()
     {
-        var model = _catalog.GetLocalModel("qwen3-vl-2b-instruct")!;
+        var model = _catalog.GetLocalModel("qwen2.5-vl-3b-instruct")!;
 
         byte[] basePayload = "test base model payload"u8.ToArray();
         string baseHex = Convert.ToHexString(SHA256.HashData(basePayload));
@@ -164,7 +164,7 @@ public class ModelManagerTests : IDisposable
     public async Task DeleteModelAsync_WhenModelInUse_ThrowsInvalidOperationException()
     {
         var manager = CreateManager();
-        var modelId = "qwen3-vl-2b-instruct";
+        var modelId = "qwen2.5-vl-3b-instruct";
 
         manager.MarkModelInUse(modelId, true);
 
@@ -178,7 +178,7 @@ public class ModelManagerTests : IDisposable
     public async Task DeleteModelAsync_WhenNotInstalledOrNotInUse_DeletesBothBaseAndMmprojFiles()
     {
         var manager = CreateManager();
-        var modelId = "qwen3-vl-2b-instruct";
+        var modelId = "qwen2.5-vl-3b-instruct";
         var filePath = manager.GetModelFilePath(modelId);
         var mmprojPath = manager.GetMmprojFilePath(modelId);
 
@@ -198,7 +198,7 @@ public class ModelManagerTests : IDisposable
     [Fact]
     public async Task VerifyModelIntegrityAsync_VerifiesBothAssets()
     {
-        var model = _catalog.GetLocalModel("qwen3-vl-2b-instruct")!;
+        var model = _catalog.GetLocalModel("qwen2.5-vl-3b-instruct")!;
 
         byte[] basePayload = "test base model payload"u8.ToArray();
         string baseHex = Convert.ToHexString(SHA256.HashData(basePayload));

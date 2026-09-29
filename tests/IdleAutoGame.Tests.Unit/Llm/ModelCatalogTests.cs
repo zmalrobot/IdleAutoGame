@@ -15,9 +15,9 @@ public class ModelCatalogTests
         var models = catalog.GetAllModels();
 
         models.Should().NotBeEmpty();
-        models.Should().Contain(m => m.Id == "qwen3-vl-2b-instruct");
-        models.Should().Contain(m => m.Id == "internvl3-8b-instruct");
-        models.Should().Contain(m => m.Id == "gemma-4-e2b-it");
+        models.Should().Contain(m => m.Id == "qwen2.5-vl-3b-instruct");
+        models.Should().Contain(m => m.Id == "qwen2.5-vl-7b-instruct");
+        models.Should().Contain(m => m.Id == "internvl2.5-8b-instruct");
         models.Should().Contain(m => m.Id == "openai-gpt-4o-mini");
     }
 
@@ -35,11 +35,11 @@ public class ModelCatalogTests
 
         var compatible = catalog.GetCompatibleModels(hardware);
 
-        // qwen3-vl-2b-instruct requires 4096 <= 4608 -> compatible
-        // internvl3-8b-instruct requires 10240 > 4608 -> incompatible
+        // qwen2.5-vl-3b-instruct requires 4096 <= 4608 -> compatible
+        // internvl2.5-8b-instruct requires 9216 > 4608 -> incompatible
         // gpt-4o-mini requires 0 -> compatible
-        compatible.Should().Contain(m => m.Id == "qwen3-vl-2b-instruct");
-        compatible.Should().NotContain(m => m.Id == "internvl3-8b-instruct");
+        compatible.Should().Contain(m => m.Id == "qwen2.5-vl-3b-instruct");
+        compatible.Should().NotContain(m => m.Id == "internvl2.5-8b-instruct");
         compatible.Should().Contain(m => m.Id == "openai-gpt-4o-mini");
     }
 
@@ -47,19 +47,19 @@ public class ModelCatalogTests
     public void GetModel_FindsByIdCaseInsensitive()
     {
         var catalog = new JsonModelCatalog("non-existent-models.json");
-        var model = catalog.GetModel("QWEN3-VL-2B-INSTRUCT");
+        var model = catalog.GetModel("QWEN2.5-VL-3B-INSTRUCT");
 
         model.Should().NotBeNull();
-        model!.Name.Should().Contain("Qwen3-VL 2B");
+        model!.Name.Should().Contain("Qwen2.5-VL 3B");
     }
 
     [Fact]
-    public void GetAllLocalModels_ContainsTenCuratedGgufModelsWithVisionProjector()
+    public void GetAllLocalModels_ContainsSixCuratedGgufModelsWithVisionProjector()
     {
         var catalog = new JsonModelCatalog("non-existent-models.json");
         var localModels = catalog.GetAllLocalModels();
 
-        localModels.Should().HaveCount(10);
+        localModels.Should().HaveCount(6);
         localModels.Should().OnlyContain(m => m.Provider == "LLamaSharp");
         localModels.Should().OnlyContain(m => !string.IsNullOrWhiteSpace(m.DownloadUrl));
         localModels.Should().OnlyContain(m => !string.IsNullOrWhiteSpace(m.Checksum));
@@ -70,27 +70,15 @@ public class ModelCatalogTests
     }
 
     [Theory]
-    [InlineData(RamTier.Tier8Gb, 4)]
-    [InlineData(RamTier.Tier16Gb, 4)]
-    [InlineData(RamTier.Tier32GbPlus, 4)]
-    public void GetRecommendedModelsForTier_ReturnsExactlyFourModels(RamTier tier, int expectedCount)
+    [InlineData(RamTier.Tier8Gb, 2)]
+    [InlineData(RamTier.Tier16Gb, 2)]
+    [InlineData(RamTier.Tier32GbPlus, 2)]
+    public void GetRecommendedModelsForTier_ReturnsExactlyTwoModels(RamTier tier, int expectedCount)
     {
         var catalog = new JsonModelCatalog("non-existent-models.json");
         var recommended = catalog.GetRecommendedModelsForTier(tier);
 
         recommended.Should().HaveCount(expectedCount);
-    }
-
-    [Theory]
-    [InlineData(RamTier.Tier8Gb, "gemma-4-e2b-it")]
-    [InlineData(RamTier.Tier16Gb, "gemma-4-e4b-it")]
-    [InlineData(RamTier.Tier32GbPlus, "gemma-4-26b-a4b-it")]
-    public void GetRecommendedModelsForTier_ContainsGemmaInEveryTier(RamTier tier, string expectedGemmaId)
-    {
-        var catalog = new JsonModelCatalog("non-existent-models.json");
-        var recommended = catalog.GetRecommendedModelsForTier(tier);
-
-        recommended.Should().Contain(m => m.Id == expectedGemmaId);
     }
 
     [Fact]
@@ -100,10 +88,8 @@ public class ModelCatalogTests
         var recommended = catalog.GetRecommendedModelsForTier(RamTier.Tier8Gb);
 
         recommended.Select(m => m.Id).Should().Equal(
-            "qwen3-vl-2b-instruct",
-            "qwen3-vl-4b-instruct",
-            "smolvlm2-2.2b-instruct",
-            "gemma-4-e2b-it"
+            "qwen2.5-vl-3b-instruct",
+            "smolvlm2-2.2b-instruct"
         );
     }
 
@@ -114,10 +100,8 @@ public class ModelCatalogTests
         var recommended = catalog.GetRecommendedModelsForTier(RamTier.Tier16Gb);
 
         recommended.Select(m => m.Id).Should().Equal(
-            "qwen3-vl-8b-instruct",
-            "internvl3-8b-instruct",
-            "qwen3-vl-4b-instruct",
-            "gemma-4-e4b-it"
+            "qwen2.5-vl-7b-instruct",
+            "internvl2.5-8b-instruct"
         );
     }
 
@@ -128,26 +112,25 @@ public class ModelCatalogTests
         var recommended = catalog.GetRecommendedModelsForTier(RamTier.Tier32GbPlus);
 
         recommended.Select(m => m.Id).Should().Equal(
-            "qwen3-vl-30b-a3b-instruct",
-            "qwen3-vl-32b-instruct",
-            "qwen3-vl-8b-instruct",
-            "gemma-4-26b-a4b-it"
+            "qwen2.5-vl-72b-instruct",
+            "internvl2.5-26b-instruct"
         );
     }
 
     [Theory]
-    [InlineData("moondream2-2b-q4", "qwen3-vl-2b-instruct")]
-    [InlineData("qwen2.5-vl-3b-q4", "qwen3-vl-4b-instruct")]
+    [InlineData("moondream2-2b-q4", "qwen2.5-vl-3b-instruct")]
+    [InlineData("qwen2.5-vl-3b-q4", "qwen2.5-vl-3b-instruct")]
     [InlineData("qwen2-vl-2b-q4", "smolvlm2-2.2b-instruct")]
-    [InlineData("minicpm-v-2.6-8b-q4", "qwen3-vl-8b-instruct")]
-    [InlineData("qwen2.5-vl-7b-q4", "internvl3-8b-instruct")]
-    [InlineData("qwen2-vl-7b-q4", "qwen3-vl-4b-instruct")]
-    [InlineData("qwen2.5-vl-7b-q6", "qwen3-vl-8b-instruct")]
-    [InlineData("qwen2.5-vl-32b-q4", "qwen3-vl-32b-instruct")]
-    [InlineData("qwen2.5-vl-72b-q4", "qwen3-vl-30b-a3b-instruct")]
-    [InlineData("llava-v1.6-7b-q4", "internvl3-8b-instruct")]
-    [InlineData("llama-3.2-11b-vision-q4", "qwen3-vl-8b-instruct")]
-    [InlineData("gemma-2-2b-it-q4", "gemma-4-e2b-it")]
+    [InlineData("minicpm-v-2.6-8b-q4", "qwen2.5-vl-7b-instruct")]
+    [InlineData("qwen2.5-vl-7b-q4", "qwen2.5-vl-7b-instruct")]
+    [InlineData("qwen2-vl-7b-q4", "qwen2.5-vl-7b-instruct")]
+    [InlineData("qwen2.5-vl-7b-q6", "qwen2.5-vl-7b-instruct")]
+    [InlineData("qwen2.5-vl-32b-q4", "internvl2.5-26b-instruct")]
+    [InlineData("qwen2.5-vl-72b-q4", "qwen2.5-vl-72b-instruct")]
+    [InlineData("llava-v1.6-7b-q4", "internvl2.5-8b-instruct")]
+    [InlineData("llama-3.2-11b-vision-q4", "qwen2.5-vl-7b-instruct")]
+    [InlineData("gemma-2-2b-it-q4", "qwen2.5-vl-3b-instruct")]
+    [InlineData("qwen3-vl-8b-instruct", "qwen2.5-vl-7b-instruct")]
     public void MigrateModelId_TranslatesLegacyIdsAccurately(string legacyId, string expectedNewId)
     {
         var catalog = new JsonModelCatalog("non-existent-models.json");
@@ -192,7 +175,7 @@ public class ModelCatalogTests
     public void LocalModel_IsCompatibleWith_EnforcesRamLimitsWithHeadroom()
     {
         var catalog = new JsonModelCatalog("non-existent-models.json");
-        var heavyModel = catalog.GetLocalModel("qwen3-vl-32b-instruct");
+        var heavyModel = catalog.GetLocalModel("qwen2.5-vl-72b-instruct");
         heavyModel.Should().NotBeNull();
 
         // 8 GB RAM cannot run 24 GB model
